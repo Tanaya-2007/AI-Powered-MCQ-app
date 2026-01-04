@@ -14,7 +14,18 @@ function Home() {
       }}
     >
       {/* Overlay for better text readability */}
-      <div className="absolute inset-50 bg-gradient-to-br from-black/60 via-black/40 to-black/60"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60"></div>
+      
+      {/* Sign Up Button - Top Right Corner */}
+      <button className="absolute top-6 right-6 z-20 group px-5 py-2.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white text-sm font-semibold rounded-full hover:shadow-2xl hover:shadow-purple-500/50 transform hover:scale-105 transition-all duration-300 overflow-hidden">
+        <span className="relative z-10 flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+          Sign Up
+        </span>
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      </button>
       
       {/* Content */}
       <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
@@ -29,7 +40,7 @@ function Home() {
           
           {/* Subtitle */}
           <p className="text-xl sm:text-2xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
-            Test your knowledge, challenge yourself, and learn something new with our interactive quiz platform
+            Test your knowledge, challenge yourself and learn something new with our interactive and collaborative quiz platform
           </p>
           
           {/* CTA Buttons */}
