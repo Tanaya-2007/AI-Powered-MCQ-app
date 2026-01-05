@@ -5,7 +5,7 @@
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 1s ease-in-out;
-  }
+}
 }
 
 @keyframes fadeIn {
@@ -17,4 +17,17 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shine {
+  animation: shine 1.5s ease-in-out;
 }
