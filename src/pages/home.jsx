@@ -1,7 +1,7 @@
 import React from "react";
 import homebg from "../assets/homebg.jpg";
 import FeatureCard from "../components/FeatureCard";
-import Logo from "../components/Logo";
+// import Logo from "../components/Logo";
 
 function Home() {
   const features = [
@@ -77,9 +77,9 @@ function Home() {
         <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60"></div>
         
         {/* Logo - Top Left Corner */}
-        <div className="absolute top-6 left-6 z-20">
+        {/* <div className="absolute top-6 left-6 z-20">
           <Logo />
-        </div>
+        </div> */}
         
         {/* Sign Up Button - Top Right Corner */}
         <button className="absolute top-6 right-6 z-20 group px-5 py-2.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white text-sm font-semibold rounded-full hover:shadow-2xl hover:shadow-purple-500/50 transform hover:scale-105 transition-all duration-300 overflow-hidden">
