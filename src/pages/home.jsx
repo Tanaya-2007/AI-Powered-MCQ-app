@@ -118,14 +118,33 @@ function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="bg-white py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+          {/* Features Section */}
+          <section id="features" className="relative bg-white py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: `linear-gradient(to right, #000 1px, transparent 1px),
+                            linear-gradient(to bottom, #000 1px, transparent 1px)`,
+          backgroundSize: '40px 40px'
+        }}></div>
+
+        {/* Subtle gradient overlays */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-0 w-1/3 h-full bg-gradient-to-r from-purple-50/50 to-transparent"></div>
+          <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-blue-50/50 to-transparent"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
           {/* Header */}
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Powerful Features
+          <div className="text-center mb-20">
+            <span className="inline-block text-xs font-bold text-purple-600 uppercase tracking-[0.2em] mb-6">
+              Features
+            </span>
+            <h2 className="text-5xl md:text-6xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-gray-900 via-purple-600 to-blue-600 bg-clip-text text-transparent">
+                Powerful Features
+              </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
               Everything you need to create, take, and excel at quizzes
             </p>
           </div>
@@ -138,6 +157,7 @@ function Home() {
                 icon={feature.icon}
                 title={feature.title}
                 description={feature.description}
+                index={index}
               />
             ))}
           </div>
