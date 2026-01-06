@@ -117,21 +117,14 @@ function Home() {
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
       </section>
 
-      {/* Features Section */}
-          {/* Features Section */}
-          <section id="features" className="relative bg-white py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+           {/* Features Section */}
+           <section id="features" className="relative bg-[#E8EDF2] py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Subtle grid pattern */}
-        <div className="absolute inset-0 opacity-[0.02]" style={{
+        <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: `linear-gradient(to right, #000 1px, transparent 1px),
                             linear-gradient(to bottom, #000 1px, transparent 1px)`,
           backgroundSize: '40px 40px'
         }}></div>
-
-        {/* Subtle gradient overlays */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-1/3 h-full bg-gradient-to-r from-purple-50/50 to-transparent"></div>
-          <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-blue-50/50 to-transparent"></div>
-        </div>
 
         <div className="max-w-7xl mx-auto relative z-10">
           {/* Header */}
