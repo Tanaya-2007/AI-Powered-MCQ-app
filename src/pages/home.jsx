@@ -61,40 +61,44 @@ function Home() {
 
   return (
     <>
-      {/* HERO SECTION */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
-        {/* Animated Dot Pattern Background */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle, rgba(99, 102, 241, 0.15) 2px, transparent 2px)`,
-          backgroundSize: '50px 50px',
-          animation: 'moveDots 20s linear infinite'
-        }}></div>
+      {/* HERO SECTION - FULLY RESPONSIVE */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 px-4 py-20 sm:px-6 lg:px-8">
+        {/* ANIMATED DOT PATTERN BACKGROUND */}
+        <div 
+          className="absolute inset-0 opacity-50"
+          style={{
+            backgroundImage: `radial-gradient(circle, rgba(99, 102, 241, 0.2) 2px, transparent 2px)`,
+            backgroundSize: '50px 50px',
+            animation: 'moveDots 20s linear infinite'
+          }}
+        ></div>
 
-        {/* Elegant Floating Orbs */}
+        {/* Elegant Floating Orbs - Responsive */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-indigo-300/40 to-purple-300/40 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-300/40 to-pink-300/40 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-blue-300/30 to-indigo-300/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+          <div className="absolute -top-20 sm:-top-40 -left-20 sm:-left-40 w-40 h-40 sm:w-80 sm:h-80 bg-gradient-to-br from-indigo-300/40 to-purple-300/40 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-20 sm:-bottom-40 -right-20 sm:-right-40 w-40 h-40 sm:w-80 sm:h-80 bg-gradient-to-br from-purple-300/40 to-pink-300/40 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-96 sm:h-96 bg-gradient-to-br from-blue-300/30 to-indigo-300/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
         </div>
 
-        {/* Clean Navigation */}
-        <nav className="absolute top-0 left-0 right-0 z-30 px-6 py-6">
+        {/* RESPONSIVE Navigation */}
+        <nav className="absolute top-0 left-0 right-0 z-30 px-4 sm:px-6 py-4 sm:py-6">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3 group cursor-pointer">
-              <div className="relative w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-xl group-hover:shadow-indigo-500/50 transition-all duration-300 group-hover:rotate-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-xl group-hover:shadow-indigo-500/50 transition-all duration-300 group-hover:rotate-3">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 QuizMaster
               </span>
             </div>
 
-            <button className="group px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
-              <span className="flex items-center gap-2">
-                Get Started
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button className="group px-4 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
+              <span className="flex items-center gap-1 sm:gap-2">
+                <span className="hidden sm:inline">Get Started</span>
+                <span className="sm:hidden">Start</span>
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </span>
@@ -102,20 +106,31 @@ function Home() {
           </div>
         </nav>
 
-        {/* Hero Content */}
-        <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="text-center space-y-10">
-            {/* Premium Badge */}
-            <div className="inline-flex items-center gap-2 px-5 py-2 bg-white/70 backdrop-blur-md rounded-full border border-indigo-200/50 shadow-lg shadow-indigo-500/10 animate-fade-in">
-              <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full animate-pulse"></div>
-              <span className="text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                AI-Powered Learning Platform
+        {/* Hero Content - Fully Responsive */}
+        <div className="relative z-20 w-full max-w-7xl mx-auto mt-16 sm:mt-0">
+          <div className="text-center space-y-6 sm:space-y-8 lg:space-y-10">
+            {/* NEW PREMIUM BADGE WITH SPARKLE EFFECT */}
+            <div className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-md rounded-full border border-indigo-300/30 shadow-lg shadow-indigo-500/20 animate-fade-in relative overflow-hidden group">
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+              
+              {/* Sparkle icon */}
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 animate-spin-slow" style={{animationDuration: '3s'}} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
+              </svg>
+              
+              <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative z-10">
+                 AI-Powered Learning Platform
               </span>
+              
+              {/* Pulsing dot */}
+              {/* <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full animate-pulse"></div> */}
+            
             </div>
 
-            {/* Main Heading */}
-            <div className="space-y-4 animate-fade-in" style={{animationDelay: '0.1s'}}>
-              <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[1.1] tracking-tight">
+            {/* Main Heading - Responsive */}
+            <div className="space-y-3 sm:space-y-4 animate-fade-in" style={{animationDelay: '0.1s'}}>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-[1.1] tracking-tight px-2">
                 <span className="block text-gray-900">Master Any Topic</span>
                 <span className="block mt-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                   With Smart Quizzes
@@ -123,26 +138,26 @@ function Home() {
               </h1>
             </div>
 
-            {/* Subtitle */}
-            <p className="text-xl sm:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-medium animate-fade-in" style={{animationDelay: '0.2s'}}>
+            {/* Subtitle - Responsive */}
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 max-w-xs sm:max-w-2xl lg:max-w-3xl mx-auto leading-relaxed font-medium animate-fade-in px-4" style={{animationDelay: '0.2s'}}>
               Transform your learning journey with AI-powered MCQs. Track progress, 
               <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold"> collaborate with peers</span>, and achieve mastery through intelligent assessments.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in" style={{animationDelay: '0.3s'}}>
-              <button className="group relative px-10 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-bold rounded-2xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-105 hover:-translate-y-1 transition-all duration-300">
-                <span className="flex items-center gap-3">
+            {/* CTA Buttons - Fully Responsive */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4 animate-fade-in px-4" style={{animationDelay: '0.3s'}}>
+              <button className="group relative w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-105 hover:-translate-y-1 transition-all duration-300">
+                <span className="flex items-center justify-center gap-2 sm:gap-3">
                   Start Learning Free
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
               </button>
 
-              <button className="group px-10 py-5 bg-white/80 backdrop-blur-md text-gray-900 text-lg font-bold rounded-2xl border-2 border-gray-200 shadow-lg hover:shadow-xl hover:bg-white transform hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <button className="group w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-white/80 backdrop-blur-md text-gray-900 text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl border-2 border-gray-200 shadow-lg hover:shadow-xl hover:bg-white transform hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </div>
@@ -162,10 +177,23 @@ function Home() {
             transform: translate(50px, 50px);
           }
         }
+
+        @keyframes spin-slow {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .animate-spin-slow {
+          animation: spin-slow 3s linear infinite;
+        }
       `}</style>
 
-      {/* FEATURES SECTION */}
-      <section id="features" className="relative bg-[#E8EDF2] py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      {/* FEATURES SECTION - Already Responsive */}
+      <section id="features" className="relative bg-[#E8EDF2] py-16 sm:py-20 lg:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: `linear-gradient(to right, #000 1px, transparent 1px),
                             linear-gradient(to bottom, #000 1px, transparent 1px)`,
@@ -173,21 +201,21 @@ function Home() {
         }}></div>
 
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-20">
-            <span className="inline-block text-xs font-bold text-purple-600 uppercase tracking-[0.2em] mb-6">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+            <span className="inline-block text-xs font-bold text-purple-600 uppercase tracking-[0.2em] mb-4 sm:mb-6">
               Features
             </span>
-            <h2 className="text-5xl md:text-6xl font-bold mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 px-4">
               <span className="bg-gradient-to-r from-gray-900 via-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Powerful Features
               </span>
             </h2>
-            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed px-4">
               Everything you need to create, take, and excel at quizzes
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {features.map((feature, index) => (
               <FeatureCard
                 key={index}
