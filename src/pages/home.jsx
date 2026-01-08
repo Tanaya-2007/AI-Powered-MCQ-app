@@ -1,10 +1,7 @@
 import React from "react";
-// import homebg from "../assets/homebg.jpg";
 import FeatureCard from "../components/FeatureCard";
-// import Logo from "../components/Logo";
 
 function Home() {
- 
   const features = [
     {
       icon: (
@@ -64,134 +61,111 @@ function Home() {
 
   return (
     <>
-          <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          {/* Vibrant Gradient Orbs */}
-          <div className="absolute top-20 -left-40 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/40 to-cyan-500/40 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-purple-500/40 to-pink-500/40 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-gradient-to-br from-fuchsia-500/30 to-violet-500/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-          
-          {/* Floating Question Marks with Glow */}
-          <div className="absolute top-1/4 left-1/4 text-6xl font-bold text-cyan-300/60 animate-float drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]" style={{animationDelay: '0s'}}>?</div>
-          <div className="absolute top-1/3 right-1/4 text-5xl font-bold text-purple-300/60 animate-float drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]" style={{animationDelay: '1s'}}>?</div>
-          <div className="absolute bottom-1/4 left-1/3 text-7xl font-bold text-pink-300/60 animate-float drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]" style={{animationDelay: '2s'}}>?</div>
-          
-          {/* Animated Grid */}
-          <div className="absolute inset-0 opacity-10" style={{
-            backgroundImage: `linear-gradient(to right, #ffffff 1px, transparent 1px),
-                              linear-gradient(to bottom, #ffffff 1px, transparent 1px)`,
-            backgroundSize: '60px 60px',
-            animation: 'gridMove 20s linear infinite'
-          }}></div>
-          
-          {/* Sparkles */}
-          <div className="absolute top-1/4 right-1/3 w-2 h-2 bg-white rounded-full animate-ping" style={{animationDelay: '0s'}}></div>
-          <div className="absolute top-2/3 left-1/4 w-2 h-2 bg-cyan-300 rounded-full animate-ping" style={{animationDelay: '1.5s'}}></div>
-          <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-pink-300 rounded-full animate-ping" style={{animationDelay: '3s'}}></div>
+      {/* HERO SECTION */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+        {/* Animated Dot Pattern Background */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle, rgba(99, 102, 241, 0.15) 2px, transparent 2px)`,
+          backgroundSize: '50px 50px',
+          animation: 'moveDots 20s linear infinite'
+        }}></div>
+
+        {/* Elegant Floating Orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-indigo-300/40 to-purple-300/40 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-300/40 to-pink-300/40 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-blue-300/30 to-indigo-300/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
         </div>
 
-        {/* Navigation Bar */}
+        {/* Clean Navigation */}
         <nav className="absolute top-0 left-0 right-0 z-30 px-6 py-6">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-            {/* Logo */}
             <div className="flex items-center gap-3 group cursor-pointer">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50 group-hover:shadow-xl group-hover:shadow-purple-500/70 transition-all duration-300 group-hover:scale-110">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="relative w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-xl group-hover:shadow-indigo-500/50 transition-all duration-300 group-hover:rotate-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span className="text-2xl font-bold text-white drop-shadow-lg">
+              <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 QuizMaster
               </span>
             </div>
 
-            {/* Sign Up Button */}
-            <button className="group relative px-8 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold rounded-full hover:shadow-2xl hover:shadow-purple-500/60 transform hover:scale-105 transition-all duration-300 overflow-hidden">
-              <span className="relative z-10 flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
+            <button className="group px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
+              <span className="flex items-center gap-2">
                 Get Started
+                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </button>
           </div>
         </nav>
 
         {/* Hero Content */}
-        <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto mt-20">
-          <div className="text-center space-y-8">
-
+        <div className="relative z-20 w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="text-center space-y-10">
+            {/* Premium Badge */}
+            <div className="inline-flex items-center gap-2 px-5 py-2 bg-white/70 backdrop-blur-md rounded-full border border-indigo-200/50 shadow-lg shadow-indigo-500/10 animate-fade-in">
+              <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full animate-pulse"></div>
+              <span className="text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                AI-Powered Learning Platform
+              </span>
+            </div>
 
             {/* Main Heading */}
-            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-tight animate-fade-in">
-              <span className="block text-white drop-shadow-2xl">Master Any Topic</span>
-              <span className="block mt-2 bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent drop-shadow-2xl">
-                With Smart Quizzes
-              </span>
-            </h1>
+            <div className="space-y-4 animate-fade-in" style={{animationDelay: '0.1s'}}>
+              <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[1.1] tracking-tight">
+                <span className="block text-gray-900">Master Any Topic</span>
+                <span className="block mt-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  With Smart Quizzes
+                </span>
+              </h1>
+            </div>
 
             {/* Subtitle */}
-            <p className="text-xl sm:text-2xl text-gray-200 max-w-3xl mx-auto leading-relaxed animate-fade-in drop-shadow-lg" style={{animationDelay: '0.2s'}}>
-              Transform your learning journey with AI-powered MCQs. Track progress, collaborate with peers, and achieve mastery through intelligent assessments.
+            <p className="text-xl sm:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-medium animate-fade-in" style={{animationDelay: '0.2s'}}>
+              Transform your learning journey with AI-powered MCQs. Track progress, 
+              <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold"> collaborate with peers</span>, and achieve mastery through intelligent assessments.
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 animate-fade-in" style={{animationDelay: '0.4s'}}>
-              <button className="group relative px-10 py-5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-lg font-bold rounded-2xl hover:shadow-2xl hover:shadow-purple-500/70 transform hover:scale-105 transition-all duration-300 overflow-hidden">
-                <span className="relative z-10 flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in" style={{animationDelay: '0.3s'}}>
+              <button className="group relative px-10 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-bold rounded-2xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-105 hover:-translate-y-1 transition-all duration-300">
+                <span className="flex items-center gap-3">
                   Start Learning Free
                   <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button>
 
-              <button className="group px-10 py-5 bg-white/10 backdrop-blur-md text-white text-lg font-bold rounded-2xl hover:bg-white/20 hover:shadow-xl transform hover:scale-105 transition-all duration-300 border border-white/20 flex items-center gap-3">
-                <svg className="w-5 h-5 text-cyan-300" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
+              <button className="group px-10 py-5 bg-white/80 backdrop-blur-md text-gray-900 text-lg font-bold rounded-2xl border-2 border-gray-200 shadow-lg hover:shadow-xl hover:bg-white transform hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
                 Watch Demo
               </button>
             </div>
-
-           
           </div>
         </div>
-
-        {/* Scroll Indicator */}
-        
       </section>
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0px) rotate(0deg);
-          }
-          50% {
-            transform: translateY(-20px) rotate(5deg);
-          }
-        }
 
-        @keyframes gridMove {
+      <style jsx>{`
+        @keyframes moveDots {
           0% {
-            transform: translateY(0);
+            transform: translate(0, 0);
           }
           100% {
-            transform: translateY(60px);
+            transform: translate(50px, 50px);
           }
         }
-
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
       `}</style>
-   
 
-           {/* Features Section */}
-           <section id="features" className="relative bg-[#E8EDF2] py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Subtle grid pattern */}
+      {/* FEATURES SECTION */}
+      <section id="features" className="relative bg-[#E8EDF2] py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: `linear-gradient(to right, #000 1px, transparent 1px),
                             linear-gradient(to bottom, #000 1px, transparent 1px)`,
@@ -199,7 +173,6 @@ function Home() {
         }}></div>
 
         <div className="max-w-7xl mx-auto relative z-10">
-          {/* Header */}
           <div className="text-center mb-20">
             <span className="inline-block text-xs font-bold text-purple-600 uppercase tracking-[0.2em] mb-6">
               Features
@@ -214,7 +187,6 @@ function Home() {
             </p>
           </div>
 
-          {/* Feature Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <FeatureCard
