@@ -1,7 +1,11 @@
 import React from "react";
+import { useNavigate } from 'react-router-dom';
 import FeatureCard from "../components/FeatureCard";
+import Footer from "../components/Footer";
 
 function Home() {
+  const navigate = useNavigate();
+  
   const features = [
     {
       icon: (
@@ -61,7 +65,7 @@ function Home() {
 
   return (
     <>
-      {/* HERO SECTION - FULLY RESPONSIVE */}
+      {/* HERO SECTION */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 px-4 py-20 sm:px-6 lg:px-8">
         {/* ANIMATED DOT PATTERN BACKGROUND */}
         <div 
@@ -73,14 +77,14 @@ function Home() {
           }}
         ></div>
 
-        {/* Elegant Floating Orbs - Responsive */}
+        {/* Elegant Floating Orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-20 sm:-top-40 -left-20 sm:-left-40 w-40 h-40 sm:w-80 sm:h-80 bg-gradient-to-br from-indigo-300/40 to-purple-300/40 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute -bottom-20 sm:-bottom-40 -right-20 sm:-right-40 w-40 h-40 sm:w-80 sm:h-80 bg-gradient-to-br from-purple-300/40 to-pink-300/40 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-96 sm:h-96 bg-gradient-to-br from-blue-300/30 to-indigo-300/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
         </div>
 
-        {/* RESPONSIVE Navigation */}
+        {/* Navigation */}
         <nav className="absolute top-0 left-0 right-0 z-30 px-4 sm:px-6 py-4 sm:py-6">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
@@ -106,29 +110,22 @@ function Home() {
           </div>
         </nav>
 
-        {/* Hero Content - Fully Responsive */}
+        {/* Hero Content */}
         <div className="relative z-20 w-full max-w-7xl mx-auto mt-16 sm:mt-0">
           <div className="text-center space-y-6 sm:space-y-8 lg:space-y-10">
-            {/* NEW PREMIUM BADGE WITH SPARKLE EFFECT */}
+            {/* Premium Badge */}
             <div className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-md rounded-full border border-indigo-300/30 shadow-lg shadow-indigo-500/20 animate-fade-in relative overflow-hidden group">
-              {/* Shimmer effect */}
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-              
-              {/* Sparkle icon */}
               <svg className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 animate-spin-slow" style={{animationDuration: '3s'}} fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
               </svg>
-              
               <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative z-10">
-                 AI-Powered Learning Platform
+                ✨ AI-Powered Learning Platform
               </span>
-              
-              {/* Pulsing dot */}
-              {/* <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full animate-pulse"></div> */}
-            
+              <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full animate-pulse"></div>
             </div>
 
-            {/* Main Heading - Responsive */}
+            {/* Main Heading */}
             <div className="space-y-3 sm:space-y-4 animate-fade-in" style={{animationDelay: '0.1s'}}>
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-[1.1] tracking-tight px-2">
                 <span className="block text-gray-900">Master Any Topic</span>
@@ -138,15 +135,18 @@ function Home() {
               </h1>
             </div>
 
-            {/* Subtitle - Responsive */}
+            {/* Subtitle */}
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 max-w-xs sm:max-w-2xl lg:max-w-3xl mx-auto leading-relaxed font-medium animate-fade-in px-4" style={{animationDelay: '0.2s'}}>
               Transform your learning journey with AI-powered MCQs. Track progress, 
               <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold"> collaborate with peers</span>, and achieve mastery through intelligent assessments.
             </p>
 
-            {/* CTA Buttons - Fully Responsive */}
+            {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4 animate-fade-in px-4" style={{animationDelay: '0.3s'}}>
-              <button className="group relative w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-105 hover:-translate-y-1 transition-all duration-300">
+              <button 
+                onClick={() => navigate('/mode-selection')}
+                className="group relative w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
+              >
                 <span className="flex items-center justify-center gap-2 sm:gap-3">
                   Start Learning Free
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +192,7 @@ function Home() {
         }
       `}</style>
 
-      {/* FEATURES SECTION - Already Responsive */}
+      {/* FEATURES SECTION */}
       <section id="features" className="relative bg-[#E8EDF2] py-16 sm:py-20 lg:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: `linear-gradient(to right, #000 1px, transparent 1px),
@@ -228,6 +228,8 @@ function Home() {
           </div>
         </div>
       </section>
+
+     <Footer />
     </>
   );
 }

@@ -1,13 +1,16 @@
-import Home from "./pages/home";
-import Footer from "./components/Footer";
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Home from './pages/home';
+import ModeSelection from './pages/ModeSelection';
 
 function App() {
   return (
-    <>
-      <Home />
-      <Footer />
-    </>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/mode-selection" element={<ModeSelection />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
