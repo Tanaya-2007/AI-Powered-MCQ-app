@@ -120,7 +120,7 @@ function Home() {
                 <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
               </svg>
               <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative z-10">
-                ✨ AI-Powered Learning Platform
+                 AI-Powered Learning Platform
               </span>
               <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full animate-pulse"></div>
             </div>
