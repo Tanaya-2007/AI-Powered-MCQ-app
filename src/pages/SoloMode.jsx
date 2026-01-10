@@ -47,15 +47,6 @@ function SoloMode() {
   const removeFile = () => {
     setUploadedFile(null);
   };
-  const handleNumQuestionsChange = (value) => {
-    const num = parseInt(value) || '';
-    if (num > 100) {
-      alert('⚠️ Maximum 100 questions allowed!');
-      setNumQuestions('100');
-    } else {
-      setNumQuestions(value);
-    }
-  };
 
   const handleGenerateQuiz = () => {
     // Validate time per question
@@ -345,19 +336,23 @@ function SoloMode() {
               </div>
 
               {/* Number of Questions */}
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 mb-3">Number of Questions</label>
-                <input
-                  type="number"
-                  value={numQuestions}
-                  onChange={(e) => handleNumQuestionsChange(e.target.value)}
-                  placeholder="Enter number (max 100)"
-                  min="1"
-                  max="100"
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-semibold text-center text-lg"
-                />
-                <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
-              </div>
+              
+          <div className="mb-6">
+            <label className="block text-sm font-bold text-gray-700 mb-3">Number of Questions</label>
+            <input
+              type="number"
+              value={numQuestions}
+              onChange={(e) => setNumQuestions(e.target.value)}
+              placeholder="Enter number (max 100)"
+              min="1"
+              max="100"
+              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-semibold text-center text-lg"
+            />
+            <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
+            {(numQuestions && parseInt(numQuestions) > 100) && (
+              <p className="text-xs text-red-600 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
+            )}
+          </div>
 
               {/* Time Per Question */}
               <div className="mb-6">
@@ -391,7 +386,7 @@ function SoloMode() {
                   className="w-full px-4 py-2 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 {(customTime && parseInt(customTime) > 300) && (
-                  <p className="text-xs text-red-600 mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
+                  <p className="text-xs text-red-600 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
                 )}
               </div>
 
