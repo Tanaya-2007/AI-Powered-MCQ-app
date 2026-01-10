@@ -72,6 +72,62 @@ function SoloMode() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+       {/* Quiz Ready POPUP */}
+{quizReady && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
+    <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform scale-100 animate-scale-in">
+      {/* Close Button */}
+      <button
+        onClick={() => setQuizReady(false)}
+        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Success Icon */}
+      <div className="text-center mb-6">
+        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
+          <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 className="text-3xl font-black text-gray-900 mb-2">Quiz is Ready!</h3>
+        <p className="text-gray-600">Let's test your knowledge</p>
+      </div>
+
+      {/* Quiz Info */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-6 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600 font-medium">Questions:</span>
+          <span className="text-gray-900 font-bold">{numQuestions}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600 font-medium">Time per question:</span>
+          <span className="text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600 font-medium">Difficulty:</span>
+          <span className="text-gray-900 font-bold capitalize">{difficulty}</span>
+        </div>
+      </div>
+
+      {/* Begin Quiz Button */}
+      <button
+        onClick={handleBeginQuiz}
+        className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
+      >
+        <span className="flex items-center justify-center gap-2">
+          🚀 Begin Quiz
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </span>
+      </button>
+    </div>
+  </div>
+)}
       {/* Animated Background */}
       <div 
         className="absolute inset-0 opacity-40"
@@ -416,33 +472,7 @@ function SoloMode() {
                 </button>
               )}
 
-              {/* Quiz Ready State */}
-              {quizReady && (
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 text-center">
-                    <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="font-bold text-green-900">Quiz is Ready!</p>
-                    <p className="text-sm text-green-700">Let's test your knowledge</p>
-                  </div>
-                  <button
-                    onClick={handleBeginQuiz}
-                    className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      🚀 Begin Quiz
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </span>
-                  </button>
-                </div>
-              )}
-
-            </div>
+             </div>
 
           </div>
 
@@ -450,15 +480,43 @@ function SoloMode() {
       </div>
 
       <style jsx>{`
-        @keyframes moveDots {
-          0% {
-            transform: translate(0, 0);
-          }
-          100% {
-            transform: translate(50px, 50px);
-          }
-        }
-      `}</style>
+  @keyframes moveDots {
+    0% {
+      transform: translate(0, 0);
+    }
+    100% {
+      transform: translate(50px, 50px);
+    }
+  }
+
+  @keyframes scale-in {
+    0% {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes bounce-once {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+
+  .animate-bounce-once {
+    animation: bounce-once 0.6s ease-in-out;
+  }
+`}</style>
     </div>
   );
 }
