@@ -49,13 +49,34 @@ function SoloMode() {
   };
 
   const handleGenerateQuiz = () => {
-    // Validate time per question
-    const time = customTime ? parseInt(customTime) : timePerQuestion;
-    if (time > 300) {
-      alert('Time per question cannot exceed 5 minutes (300 seconds)');
+    // Validate number of questions FIRST
+    const questions = parseInt(numQuestions) || 0;
+    if (questions === 0) {
+      alert('❌ Please enter number of questions');
       return;
     }
-
+    if (questions > 100) {
+      alert('⚠️ Maximum 100 questions allowed! Please reduce the number.');
+      return;
+    }
+  
+    // Validate time per question
+    const time = customTime ? parseInt(customTime) : timePerQuestion;
+    if (time === 0) {
+      alert('❌ Please enter time per question');
+      return;
+    }
+    if (time > 300) {
+      alert('⚠️ Time cannot exceed 5 minutes (300 seconds)! Please reduce the time.');
+      return;
+    }
+  
+    // Validate content input
+    if (!textInput && !uploadedFile) {
+      alert('❌ Please provide study material (text, image, or PDF)');
+      return;
+    }
+  
     setIsGenerating(true);
     
     // Simulate quiz generation
