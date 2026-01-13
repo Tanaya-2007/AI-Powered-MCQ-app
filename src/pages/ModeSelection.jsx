@@ -148,11 +148,13 @@ function ModeSelection() {
                   </div>
 
                   {/* CTA Button */}
-                  <button onClick={() => navigate('/solo-mode')}
-                  className="w-full py-4 sm:py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-105 transition-all duration-300 group/btn">
+                  <button 
+                    onClick={() => navigate('/solo-mode')}
+                    className="w-full py-4 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-xl shadow-indigo-500/30"
+                  >
                     <span className="flex items-center justify-center gap-2">
                       Start Solo Mode
-                      <svg className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                     </span>

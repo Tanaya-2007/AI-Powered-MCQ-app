@@ -88,7 +88,7 @@ function SoloMode() {
 
   const handleBeginQuiz = () => {
     // Navigate to quiz taking page
-    console.log('Starting quiz...');
+    navigate('/quiz-session');
   };
 
   return (
