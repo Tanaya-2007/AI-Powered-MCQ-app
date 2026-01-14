@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 function QuizSession() {
   const navigate = useNavigate();
   
-  // Mock quiz data - Replace with actual data from props/API later
   const quizData = {
     title: "AI Generated Quiz",
     difficulty: "medium",
@@ -34,7 +33,7 @@ function QuizSession() {
         correctAnswer: 1,
         explanation: "RAM (Random Access Memory) is used for temporary storage of data that the CPU needs quick access to while running programs."
       },
-      // Add more questions as needed
+     
     ]
   };
   // States
@@ -43,6 +42,7 @@ function QuizSession() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeLeft, setTimeLeft] = useState(quizData.timePerQuestion);
+  const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
   const [answers, setAnswers] = useState(Array(quizData.totalQuestions).fill(null));
   const [markedForReview, setMarkedForReview] = useState(Array(quizData.totalQuestions).fill(false)); 
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -56,16 +56,21 @@ function QuizSession() {
   const answeredCount = answers.filter(a => a !== null).length;
   const unansweredCount = quizData.totalQuestions - answeredCount;
   const markedCount = markedForReview.filter(m => m).length;
+  const totalQuizTime = quizData.totalQuestions * quizData.timePerQuestion;
+  const remainingTime = totalQuizTime - totalTimeElapsed;
 
   // Timer countdown
   useEffect(() => {
-    if (quizData.timerEnabled && timeLeft > 0 && !isAnswered && !quizComplete) { // UPDATED
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+    if (quizData.timerEnabled && timeLeft > 0 && !quizComplete) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+        setTotalTimeElapsed(totalTimeElapsed + 1);
+      }, 1000);
       return () => clearTimeout(timer);
-    } else if (quizData.timerEnabled && timeLeft === 0 && !isAnswered) { // UPDATED
+    } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
       handleNextQuestion();
     }
-  }, [timeLeft, isAnswered, quizComplete]);
+  }, [timeLeft, quizComplete, totalTimeElapsed]);
 
   // Keyboard shortcuts (A, B, C, D)
   useEffect(() => {
@@ -574,9 +579,9 @@ return (
           {/* Right - Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Timer */}
-            {quizData.timerEnabled && (
+          {quizData.timerEnabled && (
               <div className={`px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold shadow-lg transition-all ${
-                timeLeft <= 10 
+                remainingTime <= 60 
                   ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white animate-pulse scale-105' 
                   : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white'
               }`}>
@@ -584,7 +589,7 @@ return (
                   <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="text-sm sm:text-lg">{formatTime(timeLeft)}</span>
+                  <span className="text-sm sm:text-lg">{formatTime(remainingTime)}</span>
                 </div>
               </div>
             )}
@@ -615,8 +620,7 @@ return (
             </button>
           </div>
         </div>
-
-        {/* Progress Bar with Floating Badge */}
+       
         <div className="relative">
           <div className="w-full h-2.5 sm:h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
             <div 
@@ -625,13 +629,6 @@ return (
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer"></div>
             </div>
-          </div>
-          {/* Floating Progress Badge */}
-          <div 
-            className="absolute -top-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-black shadow-lg transition-all duration-700"
-            style={{ left: `${progress}%`, transform: 'translateX(-50%)' }}
-          >
-            {Math.round(progress)}%
           </div>
         </div>
       </div>
@@ -747,19 +744,19 @@ return (
         </div>
 
         {/* Mark for Review Button - BEFORE ANSWERING */}
-        <button
-          onClick={toggleMarkForReview}
-          className={`w-full py-4 mb-6 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-102 ${
-            markedForReview[currentQuestion]
-              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
-              : 'bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 border-2 border-yellow-300'
-          }`}
-        >
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-          {markedForReview[currentQuestion] ? '⭐ Marked for Review' : 'Mark for Review'}
-        </button>
+      <button
+        onClick={toggleMarkForReview}
+        className={`w-full py-4 mb-6 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-102 ${
+          markedForReview[currentQuestion]
+            ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
+            : 'bg-white border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-50'
+        }`}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+        </svg>
+        {markedForReview[currentQuestion] ? 'Marked for Review' : 'Mark for Review'}
+</button>
 
         {/* Explanation Toggle - ONLY AFTER ANSWERING */}
         {isAnswered && (
@@ -794,33 +791,32 @@ return (
 
       {/* Navigation Buttons */}
       <div className="flex gap-3">
-          {quizData.backNavigationEnabled && ( 
-            <button
-              onClick={handlePreviousQuestion}
-              disabled={currentQuestion === 0}
-              className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              ← Previous
-            </button>
-          )}
-          
-          {currentQuestion < quizData.totalQuestions - 1 ? (
-            <button
-              onClick={handleNextQuestion}
-              disabled={!isAnswered} // NEW: Disabled until answered
-              className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              Next Question →
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmitQuiz}
-              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
-            >
-              Submit Quiz ✓
-            </button>
-          )}
-        </div>
+      {quizData.backNavigationEnabled && ( 
+        <button
+          onClick={handlePreviousQuestion}
+          disabled={currentQuestion === 0}
+          className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+          ← Previous
+        </button>
+      )}
+      
+      {currentQuestion < quizData.totalQuestions - 1 ? (
+        <button
+          onClick={handleNextQuestion}
+          className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
+        >
+          Next Question →
+        </button>
+      ) : (
+        <button
+          onClick={handleSubmitQuiz}
+          className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
+        >
+          Submit Quiz ✓
+        </button>
+      )}
+       </div>
       </div> 
     </div>
     <style jsx>{`
