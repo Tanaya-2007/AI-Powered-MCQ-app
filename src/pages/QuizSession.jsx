@@ -72,24 +72,28 @@ function QuizSession() {
     }
   }, [timeLeft, quizComplete, totalTimeElapsed]);
 
-  // Keyboard shortcuts (A, B, C, D)
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (quizComplete || showReview) return;
-      
-      const key = e.key.toUpperCase();
-      if (['A', 'B', 'C', 'D'].includes(key) && !isAnswered) {
-        const optionIndex = key.charCodeAt(0) - 65;
-        if (optionIndex < question.options.length) {
-          handleSelectAnswer(optionIndex);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isAnswered, currentQuestion, quizComplete, showReview]);
-
+  // Keyboard shortcuts 
+    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-4 mt-4">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-indigo-900 mb-2">⌨️ Keyboard Shortcuts</p>
+          <div className="space-y-1 text-sm text-indigo-700">
+            <p className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">A</span>
+              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">B</span>
+              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">C</span>
+              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">D</span>
+              <span>to select options quickly!</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   const handleSelectAnswer = (index) => {
     if (isAnswered) return;
     setSelectedAnswer(index);
@@ -558,24 +562,23 @@ return (
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           {/* Left - Quiz Info */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-sm sm:text-lg lg:text-xl font-black text-gray-900 line-clamp-1">{quizData.title}</h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={`px-2 py-0.5 bg-gradient-to-r ${getDifficultyColor(quizData.difficulty)} text-white text-xs font-bold rounded-full capitalize shadow-sm`}>
-                  {quizData.difficulty}
-                </span>
-                <span className="text-xs text-gray-500 font-semibold">
-                  Q{currentQuestion + 1}/{quizData.totalQuestions}
-                </span>
-              </div>
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50">
+            <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-base sm:text-xl lg:text-2xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">QuizMaster</h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={`px-2 py-0.5 bg-gradient-to-r ${getDifficultyColor(quizData.difficulty)} text-white text-xs font-bold rounded-full capitalize shadow-sm`}>
+                {quizData.difficulty}
+              </span>
+              <span className="text-xs text-gray-500 font-semibold">
+                Q{currentQuestion + 1}/{quizData.totalQuestions}
+              </span>
             </div>
           </div>
-
+        </div>
           {/* Right - Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Timer */}
@@ -653,16 +656,16 @@ return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       {/* Question Card */}
       <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-10 mb-6">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-xl font-black text-white">Q{currentQuestion + 1}</span>
-          </div>
-          <div className="flex-1">
-            <p className="text-2xl font-bold text-gray-900 leading-relaxed">
-              {question.question}
-            </p>
-          </div>
+      <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+          <span className="text-base sm:text-xl font-black text-white">Q{currentQuestion + 1}</span>
         </div>
+        <div className="flex-1">
+          <p className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900 leading-relaxed">
+            {question.question}
+          </p>
+        </div>
+      </div>
 
         {/* Timer Progress Bar */}
         <div className="mb-6">
