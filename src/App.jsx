@@ -1,4 +1,5 @@
 import Home from './pages/Home';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ModeSelection from './pages/ModeSelection';
 import SoloMode from './pages/SoloMode';
 import QuizSession from './pages/QuizSession';
