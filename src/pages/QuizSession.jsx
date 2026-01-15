@@ -50,6 +50,8 @@ function QuizSession() {
   const [showReviewBoard, setShowReviewBoard] = useState(false); 
   const [quizComplete, setQuizComplete] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [showInvalidKeyToast, setShowInvalidKeyToast] = useState(false);
+  //const [pressedKey, setPressedKey] = useState('');
 
   const question = quizData.questions[currentQuestion];
   const progress = ((currentQuestion + 1) / quizData.totalQuestions) * 100;
@@ -71,6 +73,37 @@ function QuizSession() {
       handleNextQuestion();
     }
   }, [timeLeft, quizComplete, totalTimeElapsed]);
+
+// Keyboard shortcuts (A, B, C, D)
+useEffect(() => {
+  const handleKeyPress = (e) => {
+    // Don't allow shortcuts if quiz is complete, in review mode, or already answered
+    if (quizComplete || showReview || isAnswered) return;
+    
+    const key = e.key.toUpperCase();
+    
+    // Valid keys (A, B, C, D)
+    if (['A', 'B', 'C', 'D'].includes(key)) {
+      const optionIndex = key.charCodeAt(0) - 65;
+      if (optionIndex < question.options.length) {
+        handleSelectAnswer(optionIndex);
+      }
+    } 
+    // Invalid keys - show toast
+    else if (key.length === 1 && key.match(/[A-Z]/)) {
+      setPressedKey(key);
+      setShowInvalidKeyToast(true);
+      
+      // Auto hide after 2 seconds
+      setTimeout(() => {
+        setShowInvalidKeyToast(false);
+      }, 2000);
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyPress);
+  return () => window.removeEventListener('keydown', handleKeyPress);
+}, [isAnswered, currentQuestion, quizComplete, showReview, question]);
 
   // Keyboard shortcuts 
     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-4 mt-4">
@@ -651,6 +684,35 @@ return (
         </span>
       )}
     </button>
+    {/* Invalid Key Toast Notification */}
+{showInvalidKeyToast && (
+  <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
+    <div className="bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-red-600">
+      <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div>
+        <p className="font-bold text-sm">Invalid Key!</p>
+        <p className="text-xs opacity-90">
+          Press <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold">A</kbd>, 
+          <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold ml-1">B</kbd>, 
+          <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold ml-1">C</kbd>, or 
+          <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold ml-1">D</kbd>
+        </p>
+      </div>
+      <button 
+        onClick={() => setShowInvalidKeyToast(false)}
+        className="ml-2 hover:bg-white/20 rounded-full p-1 transition-all"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+)}
    
     {/* Main Content */}
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -679,74 +741,74 @@ return (
           </div>
         </div>
 
-      {/* Options */}
-      <div className="space-y-3 mb-6">
-          {question.options.map((option, index) => {
-            const isSelected = selectedAnswer === index;
-            const isCorrect = index === question.correctAnswer;
-            const showResult = isAnswered;
+     {/* Options */}
+    <div className="space-y-3 mb-6">
+      {question.options.map((option, index) => {
+        const isSelected = selectedAnswer === index;
+        const isCorrect = index === question.correctAnswer;
+        const showResult = isAnswered;
 
-            return (
-              <button
-                key={index}
-                onClick={() => handleSelectAnswer(index)}
-                disabled={isAnswered}
-                className={`w-full p-5 rounded-2xl border-3 text-left transition-all duration-300 ${
-                  showResult
-                    ? isCorrect
-                      ? 'bg-green-50 border-green-500 shadow-lg'
-                      : isSelected
-                      ? 'bg-red-50 border-red-500 shadow-lg'
-                      : 'bg-gray-50 border-gray-200'
+        return (
+          <button
+            key={index}
+            onClick={() => handleSelectAnswer(index)}
+            disabled={isAnswered}
+            className={`w-full p-4 sm:p-5 rounded-xl sm:rounded-2xl border-3 text-left transition-all duration-300 ${
+              showResult
+                ? isCorrect
+                  ? 'bg-green-50 border-green-500 shadow-lg'
+                  : isSelected
+                  ? 'bg-red-50 border-red-500 shadow-lg'
+                  : 'bg-gray-50 border-gray-200'
+                : isSelected
+                ? 'bg-indigo-50 border-indigo-500 shadow-xl scale-105'
+                : 'bg-white border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 hover:scale-102'
+            } ${!isAnswered && 'cursor-pointer'}`}
+          >
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-sm sm:text-lg ${
+                showResult
+                  ? isCorrect
+                    ? 'bg-green-500 text-white'
                     : isSelected
-                    ? 'bg-indigo-50 border-indigo-500 shadow-xl scale-105'
-                    : 'bg-white border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 hover:scale-102'
-                } ${!isAnswered && 'cursor-pointer'}`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${
-                    showResult
-                      ? isCorrect
-                        ? 'bg-green-500 text-white'
-                        : isSelected
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-300 text-gray-700'
-                      : isSelected
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-200 text-gray-700'
-                  }`}>
-                    {String.fromCharCode(65 + index)}
-                  </div>
-                  <span className={`text-lg font-semibold ${
-                    showResult
-                      ? isCorrect
-                        ? 'text-green-900'
-                        : isSelected
-                        ? 'text-red-900'
-                        : 'text-gray-600'
-                      : isSelected
-                      ? 'text-indigo-900'
-                      : 'text-gray-700'
-                  }`}>
-                    {option}
-                  </span>
-                  {showResult && isCorrect && (
-                    <svg className="w-6 h-6 text-green-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {showResult && isSelected && !isCorrect && (
-                    <svg className="w-6 h-6 text-red-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                    ? 'bg-red-500 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                  : isSelected
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-200 text-gray-700'
+              }`}>
+                {String.fromCharCode(65 + index)}
+              </div>
+              <span className={`text-sm sm:text-base lg:text-lg font-semibold ${
+                showResult
+                  ? isCorrect
+                    ? 'text-green-900'
+                    : isSelected
+                    ? 'text-red-900'
+                    : 'text-gray-600'
+                  : isSelected
+                  ? 'text-indigo-900'
+                  : 'text-gray-700'
+              }`}>
+                {option}
+              </span>
+              {showResult && isCorrect && (
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              )}
+              {showResult && isSelected && !isCorrect && (
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </div>
 
-        {/* Mark for Review Button - BEFORE ANSWERING */}
+        {/* Mark for Review Button*/}
       <button
         onClick={toggleMarkForReview}
         className={`w-full py-4 mb-6 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-102 ${
@@ -759,7 +821,7 @@ return (
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
         </svg>
         {markedForReview[currentQuestion] ? 'Marked for Review' : 'Mark for Review'}
-</button>
+    </button>
 
         {/* Explanation Toggle - ONLY AFTER ANSWERING */}
         {isAnswered && (
@@ -792,34 +854,37 @@ return (
           </div> 
         )}
 
-      {/* Navigation Buttons */}
-      <div className="flex gap-3">
-      {quizData.backNavigationEnabled && ( 
-        <button
-          onClick={handlePreviousQuestion}
-          disabled={currentQuestion === 0}
-          className="px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-        >
-          ← Previous
-        </button>
-      )}
-      
-      {currentQuestion < quizData.totalQuestions - 1 ? (
-        <button
-          onClick={handleNextQuestion}
-          className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
-        >
-          Next Question →
-        </button>
-      ) : (
-        <button
-          onClick={handleSubmitQuiz}
-          className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
-        >
-          Submit Quiz ✓
-        </button>
-      )}
-       </div>
+     {/* Navigation Buttons */}
+      <div className="flex gap-2 sm:gap-3">
+        {quizData.backNavigationEnabled && ( 
+          <button
+            onClick={handlePreviousQuestion}
+            disabled={currentQuestion === 0}
+            className="px-4 sm:px-6 py-3 bg-gray-200 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <span className="hidden sm:inline">← Previous</span>
+            <span className="sm:hidden">←</span>
+          </button>
+        )}
+        
+        {currentQuestion < quizData.totalQuestions - 1 ? (
+          <button
+            onClick={handleNextQuestion}
+            className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all"
+          >
+            <span className="hidden sm:inline">Next Question →</span>
+            <span className="sm:hidden">Next →</span>
+          </button>
+        ) : (
+          <button
+            onClick={handleSubmitQuiz}
+            className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all"
+          >
+            <span className="hidden sm:inline">Submit Quiz ✓</span>
+            <span className="sm:hidden">Submit ✓</span>
+          </button>
+        )}
+      </div>
       </div> 
     </div>
     <style jsx>{`
@@ -846,6 +911,7 @@ return (
         animation: slide-up 0.3s ease-out;
       }
     `}</style>
+    
   </div>
 );
 }

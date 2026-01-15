@@ -119,7 +119,7 @@ function SoloMode() {
       </div>
 
     {/* Quiz Info */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-6 space-y-2">
+     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600 font-medium">Questions:</span>
           <span className="text-gray-900 font-bold">{numQuestions}</span>
@@ -139,6 +139,22 @@ function SoloMode() {
           </span>
         </div>
       </div>
+
+{/* Keyboard Shortcuts Info - MINIMAL BADGE */}
+<div className="flex items-center justify-center gap-2 bg-purple-50 border border-purple-200 rounded-full px-4 py-2.5 mb-6">
+  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  </svg>
+  <span className="text-xs font-semibold text-purple-700">Press</span>
+  <div className="flex items-center gap-1">
+    {['A', 'B', 'C', 'D'].map((key) => (
+      <kbd key={key} className="min-w-[22px] h-5 px-1.5 bg-white rounded border border-purple-300 font-mono font-bold text-xs text-purple-700 flex items-center justify-center">
+        {key}
+      </kbd>
+    ))}
+  </div>
+  <span className="text-xs font-semibold text-purple-700">for quick answers</span>
+</div>
 
       {/* Begin Quiz Button */}
       <button
