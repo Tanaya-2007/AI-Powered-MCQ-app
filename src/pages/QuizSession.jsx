@@ -7,7 +7,7 @@ function QuizSession() {
   const quizData = {
     title: "AI Generated Quiz",
     difficulty: "medium",
-    totalQuestions: 100,
+    totalQuestions: 5,
     timePerQuestion: 60,
     timerEnabled: true,
     backNavigationEnabled: true,
@@ -33,9 +33,24 @@ function QuizSession() {
         correctAnswer: 1,
         explanation: "RAM (Random Access Memory) is used for temporary storage of data that the CPU needs quick access to while running programs."
       },
-     
+      {
+        id: 4,
+        question: "Which programming language is known as the 'language of the web'?",
+        options: ["Python", "JavaScript", "Java", "C++"],
+        correctAnswer: 1,
+        explanation: "JavaScript is primarily used for web development and runs in web browsers, making it the language of the web."
+      },
+      {
+        id: 5,
+        question: "What does HTML stand for?",
+        options: ["Hyper Text Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language"],
+        correctAnswer: 0,
+        explanation: "HTML stands for Hyper Text Markup Language, which is the standard markup language for creating web pages."
+      }
     ]
   };
+  // Override totalQuestions with actual questions length
+quizData.totalQuestions = quizData.questions.length;
   // States
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -70,8 +85,7 @@ useEffect(() => {
     }, 1000);
     return () => clearTimeout(timer);
   } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
-    
-    if (currentQuestion < quizData.totalQuestions - 1) {
+      if (currentQuestion < quizData.totalQuestions - 1) {
       const nextIndex = currentQuestion + 1;
       setCurrentQuestion(nextIndex);
       setSelectedAnswer(answers[nextIndex]);
@@ -79,7 +93,15 @@ useEffect(() => {
       setShowExplanation(false);
       setTimeLeft(quizData.timePerQuestion);
     } else {
-      setQuizComplete(true);
+      // Last question - check if should show submit confirmation
+      const finalUnanswered = answers.filter(a => a === null).length;
+      const finalMarked = markedForReview.filter(m => m).length;
+      
+      if (finalUnanswered > 0 || finalMarked > 0) {
+        setShowSubmitConfirm(true);
+      } else {
+        setQuizComplete(true);
+      }
     }
   }
   
@@ -91,8 +113,7 @@ useEffect(() => {
 // Keyboard shortcuts (A, B, C, D)
 useEffect(() => {
   const handleKeyPress = (e) => {
-    // Don't allow shortcuts if quiz is complete, in review mode, or already answered
-    if (quizComplete || showReview || isAnswered) return;
+      if (quizComplete || showReview || isAnswered) return;
     
     const key = e.key.toUpperCase();
     
@@ -160,7 +181,11 @@ useEffect(() => {
       setShowExplanation(false);
       setTimeLeft(quizData.timePerQuestion);
     } else {
-      setQuizComplete(true);
+      if (unansweredCount > 0 || markedCount > 0) {
+        setShowSubmitConfirm(true);
+      } else {
+        setQuizComplete(true);
+      }
     }
   };
 
@@ -314,11 +339,47 @@ if (quizComplete && !showReview) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
       {/* Confetti for high scores */}
-      {performance.showConfetti && (
-        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
-          <div className="text-6xl animate-bounce">🎉</div>
-        </div>
-      )}
+    {performance.showConfetti && (
+  <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+  
+    {[...Array(50)].map((_, i) => (
+      <div
+        key={i}
+        className="absolute animate-confetti"
+        style={{
+          left: `${Math.random() * 100}%`,
+          top: '-10%',
+          animationDelay: `${Math.random() * 10 }s`,
+          animationDuration: `${2 + Math.random() * 2}s`
+        }}
+      >
+        <div
+          className="w-3 h-3 rounded-full"
+          style={{
+            backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'][Math.floor(Math.random() * 8)],
+            transform: `rotate(${Math.random() * 360}deg)`
+          }}
+        />
+      </div>
+    ))}
+    
+    {/* Emoji confetti */}
+    {['🎉', '🎊', '⭐', '✨', '🏆', '👏', '🔥', '💯'].map((emoji, i) => (
+      <div
+        key={`emoji-${i}`}
+        className="absolute text-4xl animate-confetti-emoji"
+        style={{
+          left: `${10 + i * 12}%`,
+          top: '-10%',
+          animationDelay: `${i * 0.1}s`,
+          animationDuration: `${3 + Math.random()}s`
+        }}
+      >
+        {emoji}
+      </div>
+    ))}
+  </div>
+)}
 
       <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
         {/* Dynamic Icon */}
