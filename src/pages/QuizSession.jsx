@@ -51,7 +51,7 @@ function QuizSession() {
   const [quizComplete, setQuizComplete] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showInvalidKeyToast, setShowInvalidKeyToast] = useState(false);
-  //const [pressedKey, setPressedKey] = useState('');
+  const [pressedKey, setPressedKey] = useState('');
 
   const question = quizData.questions[currentQuestion];
   const progress = ((currentQuestion + 1) / quizData.totalQuestions) * 100;
@@ -61,19 +61,33 @@ function QuizSession() {
   const totalQuizTime = quizData.totalQuestions * quizData.timePerQuestion;
   const remainingTime = totalQuizTime - totalTimeElapsed;
 
-  // Timer countdown
-  useEffect(() => {
-    if (quizData.timerEnabled && timeLeft > 0 && !quizComplete) {
-      const timer = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
-        setTotalTimeElapsed(totalTimeElapsed + 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
-      handleNextQuestion();
+// Timer countdown
+useEffect(() => {
+  if (quizData.timerEnabled && timeLeft > 0 && !quizComplete) {
+    const timer = setTimeout(() => {
+      setTimeLeft(timeLeft - 1);
+      setTotalTimeElapsed(totalTimeElapsed + 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
+    
+    if (currentQuestion < quizData.totalQuestions - 1) {
+      const nextIndex = currentQuestion + 1;
+      setCurrentQuestion(nextIndex);
+      setSelectedAnswer(answers[nextIndex]);
+      setIsAnswered(answers[nextIndex] !== null);
+      setShowExplanation(false);
+      setTimeLeft(quizData.timePerQuestion);
+    } else {
+      setQuizComplete(true);
     }
-  }, [timeLeft, quizComplete, totalTimeElapsed]);
-
+  }
+  
+  // Auto-submit when total time runs out
+  if (quizData.timerEnabled && remainingTime <= 0 && !quizComplete) {
+    setQuizComplete(true);
+  }
+}, [timeLeft, quizComplete, totalTimeElapsed, remainingTime, quizData.timerEnabled, currentQuestion, quizData.totalQuestions, quizData.timePerQuestion, answers]);
 // Keyboard shortcuts (A, B, C, D)
 useEffect(() => {
   const handleKeyPress = (e) => {
@@ -230,110 +244,181 @@ useEffect(() => {
     }
   };
 
-  // RESULTS PAGE
-  if (quizComplete && !showReview) {
-    const results = calculateResults();
-    const isHighScore = results.accuracy >= 80;
+// RESULTS PAGE
+if (quizComplete && !showReview) {
+  const results = calculateResults();
+  
+  // Smart performance evaluation
+  const getPerformanceData = () => {
+    const acc = parseFloat(results.accuracy);
+    
+    if (acc === 0) {
+      return {
+        icon: '😢',
+        iconBg: 'from-gray-400 to-gray-500',
+        title: 'Quiz Complete',
+        message: 'No correct answers. Don\'t worry, practice makes perfect!',
+        emoji: '',
+        showConfetti: false
+      };
+    } else if (acc < 40) {
+      return {
+        icon: '📚',
+        iconBg: 'from-orange-400 to-red-500',
+        title: 'Keep Learning!',
+        message: 'You need more practice. Review the material and try again!',
+        emoji: '💪',
+        showConfetti: false
+      };
+    } else if (acc < 60) {
+      return {
+        icon: '📖',
+        iconBg: 'from-yellow-400 to-orange-500',
+        title: 'Good Try!',
+        message: 'You\'re getting there! Keep studying and you\'ll improve!',
+        emoji: '👍',
+        showConfetti: false
+      };
+    } else if (acc < 80) {
+      return {
+        icon: '✓',
+        iconBg: 'from-blue-400 to-indigo-500',
+        title: 'Well Done!',
+        message: 'Good performance! A bit more practice and you\'ll ace it!',
+        emoji: '🎯',
+        showConfetti: false
+      };
+    } else if (acc < 95) {
+      return {
+        icon: '⭐',
+        iconBg: 'from-green-500 to-emerald-600',
+        title: 'Excellent Work!',
+        message: 'Outstanding performance! You really know your stuff!',
+        emoji: '🎉',
+        showConfetti: true
+      };
+    } else {
+      return {
+        icon: '🏆',
+        iconBg: 'from-yellow-500 to-amber-600',
+        title: 'Perfect Score!',
+        message: 'Absolutely incredible! You\'re a master at this!',
+        emoji: '🔥',
+        showConfetti: true
+      };
+    }
+  };
+  
+  const performance = getPerformanceData();
 
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
-        {/* Confetti for high scores */}
-        {isHighScore && (
-          <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
-            <div className="text-6xl animate-bounce">🎉</div>
-          </div>
-        )}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
+      {/* Confetti for high scores */}
+      {performance.showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
+          <div className="text-6xl animate-bounce">🎉</div>
+        </div>
+      )}
 
-        <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
-          {/* Success Icon */}
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl">
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-4xl font-black text-gray-900 mb-2">Quiz Complete!</h2>
-            <p className="text-xl text-gray-600">
-              {isHighScore ? "Outstanding Performance! 🎉" : "Good effort! Keep practicing! 💪"}
-            </p>
+      <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
+        {/* Dynamic Icon */}
+        <div className="text-center mb-8">
+          <div className={`w-24 h-24 mx-auto mb-6 bg-gradient-to-br ${performance.iconBg} rounded-full flex items-center justify-center shadow-xl`}>
+            <span className="text-5xl">{performance.icon}</span>
           </div>
+          <h2 className="text-4xl font-black text-gray-900 mb-2">{performance.title}</h2>
+          <p className="text-xl text-gray-600">
+            {performance.message} {performance.emoji}
+          </p>
+        </div>
 
           {/* Score Circle */}
-          <div className="flex justify-center mb-8">
-            <div className="relative w-40 h-40">
-              <svg className="transform -rotate-90 w-40 h-40">
-                <circle cx="80" cy="80" r="70" stroke="#E5E7EB" strokeWidth="12" fill="none" />
-                <circle 
-                  cx="80" 
-                  cy="80" 
-                  r="70" 
-                  stroke="url(#gradient)" 
-                  strokeWidth="12" 
-                  fill="none"
-                  strokeDasharray={`${(results.accuracy / 100) * 440} 440`}
-                  className="transition-all duration-1000"
-                />
-                <defs>
-                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#6366F1" />
-                    <stop offset="100%" stopColor="#A855F7" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-4xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    {results.accuracy}%
-                  </div>
-                  <div className="text-xs text-gray-500 font-semibold">Accuracy</div>
-                </div>
-              </div>
-            </div>
-          </div>
+<div className="flex justify-center mb-6 sm:mb-8">
+  <div className="relative w-32 h-32 sm:w-40 sm:h-40">
+    <svg className="transform -rotate-90 w-32 h-32 sm:w-40 sm:h-40">
+      <circle cx="64" cy="64" r="56" stroke="#E5E7EB" strokeWidth="10" fill="none" className="sm:hidden" />
+      <circle cx="80" cy="80" r="70" stroke="#E5E7EB" strokeWidth="12" fill="none" className="hidden sm:block" />
+      <circle 
+        cx="64" 
+        cy="64" 
+        r="56" 
+        stroke="url(#gradient)" 
+        strokeWidth="10" 
+        fill="none"
+        strokeDasharray={`${(results.accuracy / 100) * 352} 352`}
+        className="transition-all duration-1000 sm:hidden"
+      />
+      <circle 
+        cx="80" 
+        cy="80" 
+        r="70" 
+        stroke="url(#gradient)" 
+        strokeWidth="12" 
+        fill="none"
+        strokeDasharray={`${(results.accuracy / 100) * 440} 440`}
+        className="transition-all duration-1000 hidden sm:block"
+      />
+      <defs>
+        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#6366F1" />
+          <stop offset="100%" stopColor="#A855F7" />
+        </linearGradient>
+      </defs>
+    </svg>
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          {results.accuracy}%
+        </div>
+        <div className="text-xs text-gray-500 font-semibold">Accuracy</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 text-center border-2 border-green-200">
-              <div className="text-3xl font-black text-green-600">{results.correct}</div>
-              <div className="text-sm text-green-700 font-semibold">Correct</div>
-            </div>
-            <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-2xl p-4 text-center border-2 border-red-200">
-              <div className="text-3xl font-black text-red-600">{results.wrong}</div>
-              <div className="text-sm text-red-700 font-semibold">Wrong</div>
-            </div>
-            <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl p-4 text-center border-2 border-gray-200">
-              <div className="text-3xl font-black text-gray-600">{results.skipped}</div>
-              <div className="text-sm text-gray-700 font-semibold">Skipped</div>
-            </div>
-          </div>
+          {/* Stats Grid - Compact */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-green-200">
+          <div className="text-2xl sm:text-3xl font-black text-green-600">{results.correct}</div>
+          <div className="text-xs sm:text-sm text-green-700 font-semibold">Correct</div>
+        </div>
+        <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-red-200">
+          <div className="text-2xl sm:text-3xl font-black text-red-600">{results.wrong}</div>
+          <div className="text-xs sm:text-sm text-red-700 font-semibold">Wrong</div>
+        </div>
+        <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-gray-200">
+          <div className="text-2xl sm:text-3xl font-black text-gray-600">{results.skipped}</div>
+          <div className="text-xs sm:text-sm text-gray-700 font-semibold">Skipped</div>
+        </div>
+      </div>
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            <button
-              onClick={() => setShowReview(true)}
-              className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                Review Answers
-              </span>
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full py-4 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
-            >
-              Retake Quiz
-            </button>
-            <button
-              onClick={() => navigate('/solo-mode')}
-              className="w-full py-4 bg-white border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
-            >
-              Generate New Quiz
-            </button>
-          </div>
+          <button
+            onClick={() => setShowReview(true)}
+            className="w-full py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105"
+          >
+            <span className="flex items-center justify-center gap-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Review Answers
+            </span>
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
+          >
+            Retake Quiz
+          </button>
+          <button
+            onClick={() => navigate('/solo-mode')}
+            className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
+          >
+            Generate New Quiz
+          </button>
+        </div>
         </div>
       </div>
     );
@@ -452,36 +537,68 @@ useEffect(() => {
 // MAIN QUIZ SESSION
 return (
   <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden">
-    {/* Exit Confirmation Popup */}
-    {showExitConfirm && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-        <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">Exit Quiz?</h3>
-            <p className="text-gray-600">Your progress will be lost. Are you sure?</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowExitConfirm(false)}
-              className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => navigate('/solo-mode')}
-              className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all"
-            >
-              Exit
-            </button>
-          </div>
+{/* Finish Quiz Confirmation Popup */}
+{showExitConfirm && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
+    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform scale-100 animate-scale-in">
+      {/* Close Button */}
+      <button
+        onClick={() => setShowExitConfirm(false)}
+        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <div className="text-center mb-6">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
+          <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
+        <h3 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">Finish Quiz?</h3>
+        <p className="text-sm sm:text-base text-gray-600">You can review your answers after finishing.</p>
+      </div>
+        
+      {/* Show stats */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 sm:p-4 mb-6 space-y-2">
+        <div className="flex justify-between text-sm sm:text-base">
+          <span className="text-gray-600 font-medium">Answered:</span>
+          <span className="font-bold text-green-600">{answeredCount}/{quizData.totalQuestions}</span>
         </div>
-    )}
+        {unansweredCount > 0 && (
+          <div className="flex justify-between text-sm sm:text-base">
+            <span className="text-gray-600 font-medium">Unanswered:</span>
+            <span className="font-bold text-red-600">{unansweredCount}</span>
+          </div>
+        )}
+        {markedCount > 0 && (
+          <div className="flex justify-between text-sm sm:text-base">
+            <span className="text-gray-600 font-medium">Marked for Review:</span>
+            <span className="font-bold text-yellow-600">{markedCount}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={() => setShowExitConfirm(false)}
+          className="flex-1 py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all"
+        >
+          Continue Quiz
+        </button>
+        <button
+          onClick={() => setQuizComplete(true)}
+          className="flex-1 py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all"
+        >
+          Finish & Submit
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       {/* Submit Confirmation Popup */}
       {showSubmitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
@@ -684,35 +801,30 @@ return (
         </span>
       )}
     </button>
-    {/* Invalid Key Toast Notification */}
-{showInvalidKeyToast && (
-  <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
-    <div className="bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-red-600">
-      <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+    {/* Invalid Key Toast Notification - CLEAN MODERN DESIGN */}
+    {showInvalidKeyToast && (
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
+        <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 px-5 py-3 flex items-center gap-3 min-w-[280px]">
+          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-gray-900 mb-0.5">Use A, B, C, or D only</p>
+            <p className="text-xs text-gray-600">Press the correct option keys</p>
+          </div>
+          <button 
+            onClick={() => setShowInvalidKeyToast(false)}
+            className="w-7 h-7 hover:bg-gray-100 rounded-full flex items-center justify-center transition-all"
+          >
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <div>
-        <p className="font-bold text-sm">Invalid Key!</p>
-        <p className="text-xs opacity-90">
-          Press <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold">A</kbd>, 
-          <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold ml-1">B</kbd>, 
-          <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold ml-1">C</kbd>, or 
-          <kbd className="px-1.5 py-0.5 bg-white/30 rounded font-mono font-bold ml-1">D</kbd>
-        </p>
-      </div>
-      <button 
-        onClick={() => setShowInvalidKeyToast(false)}
-        className="ml-2 hover:bg-white/20 rounded-full p-1 transition-all"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-  </div>
-)}
+    )}
    
     {/* Main Content */}
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">

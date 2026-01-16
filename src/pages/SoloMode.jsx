@@ -140,20 +140,53 @@ function SoloMode() {
         </div>
       </div>
 
-{/* Keyboard Shortcuts Info - MINIMAL BADGE */}
-<div className="flex items-center justify-center gap-2 bg-purple-50 border border-purple-200 rounded-full px-4 py-2.5 mb-6">
-  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-  <span className="text-xs font-semibold text-purple-700">Press</span>
-  <div className="flex items-center gap-1">
-    {['A', 'B', 'C', 'D'].map((key) => (
-      <kbd key={key} className="min-w-[22px] h-5 px-1.5 bg-white rounded border border-purple-300 font-mono font-bold text-xs text-purple-700 flex items-center justify-center">
-        {key}
-      </kbd>
-    ))}
+{/* Keyboard Shortcuts Info*/}
+<div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-6 border border-gray-200">
+  
+  <div className="block sm:hidden">
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <span className="text-xs font-bold text-gray-700">Keyboard Shortcuts</span>
+    </div>
+    <div className="grid grid-cols-4 gap-2">
+      {['A', 'B', 'C', 'D'].map((key) => (
+        <div key={key} className="flex flex-col items-center gap-1">
+          <div className="w-full aspect-square bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center shadow-sm">
+            <span className="text-base font-black text-gray-800">{key}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+    <p className="text-xs text-center text-gray-500 mt-2">Tap keys to select options</p>
   </div>
-  <span className="text-xs font-semibold text-purple-700">for quick answers</span>
+
+  {/* Desktop Layout (horizontal) */}
+  <div className="hidden sm:block">
+    <div className="text-center mb-3">
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 rounded-full">
+        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span className="text-xs font-bold text-purple-700">Keyboard Shortcuts</span>
+      </div>
+    </div>
+    
+    <div className="flex items-center justify-center gap-3">
+      <span className="text-sm text-gray-600 font-medium">Press</span>
+      <div className="flex items-center gap-2">
+        {['A', 'B', 'C', 'D'].map((key) => (
+          <div key={key} className="w-9 h-9 bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center shadow-sm hover:border-purple-400 hover:shadow-md transition-all">
+            <span className="text-base font-black text-gray-800">{key}</span>
+          </div>
+        ))}
+      </div>
+      <span className="text-sm text-gray-600 font-medium">to answer</span>
+    </div>
+  </div>
 </div>
 
       {/* Begin Quiz Button */}
