@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
-
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from 'react-router-dom';
 function QuizSession() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const quizConfig = location.state || {};
   
   const quizData = {
     title: "AI Generated Quiz",
-    difficulty: "medium",
-    totalQuestions: 5,
-    timePerQuestion: 60,
+    difficulty: quizConfig.difficulty || "medium",
+    totalQuestions: quizConfig.numQuestions || 5,
+    timePerQuestion: quizConfig.timePerQuestion || 60,
     timerEnabled: true,
     backNavigationEnabled: true,
     questions: [
@@ -48,17 +49,17 @@ function QuizSession() {
         explanation: "HTML stands for Hyper Text Markup Language, which is the standard markup language for creating web pages."
       }
     ]
-
   };
 
-quizData.totalQuestions = quizData.questions.length;
+  quizData.totalQuestions = quizData.questions.length;
+  
   // States
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [maxQuestionReached, setMaxQuestionReached] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(quizData.timePerQuestion);
+  const [timeLeft, setTimeLeft] = useState(30); 
   const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
   const [answers, setAnswers] = useState(Array(quizData.questions.length).fill(null));
   const [markedForReview, setMarkedForReview] = useState(Array(quizData.questions.length).fill(false));
@@ -69,87 +70,16 @@ quizData.totalQuestions = quizData.questions.length;
   const [showReview, setShowReview] = useState(false);
   const [showInvalidKeyToast, setShowInvalidKeyToast] = useState(false);
 
-
   const question = quizData.questions[currentQuestion];
-  const progress = ((maxQuestionReached + 1) / quizData.questions.length) * 100;
+  const totalQuizTime = quizData.totalQuestions * quizData.timePerQuestion;
+  const remainingTime = totalQuizTime - totalTimeElapsed;
+  const progress = ((totalTimeElapsed / totalQuizTime) * 100);
   const answeredCount = answers.filter(a => a !== null).length;
   const unansweredCount = quizData.questions.length - answeredCount;
   const markedCount = markedForReview.filter(m => m).length;
-  const totalQuizTime = quizData.totalQuestions * quizData.timePerQuestion;
-  const remainingTime = totalQuizTime - totalTimeElapsed;
-  const actualTotalQuestions = quizData.questions.length;
 
-// Timer countdown
-useEffect(() => {
-  if (quizData.timerEnabled && timeLeft > 0 && !quizComplete) {
-    const timer = setTimeout(() => {
-      setTimeLeft(timeLeft - 1);
-      setTotalTimeElapsed(totalTimeElapsed + 1);
-    }, 1000);
-    return () => clearTimeout(timer);
-  } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
-    if (currentQuestion < quizData.questions.length - 1) {
-      const nextIndex = currentQuestion + 1;
-      setCurrentQuestion(nextIndex);
-     
-      if (nextIndex > maxQuestionReached) {
-        setMaxQuestionReached(nextIndex);
-      }
-      
-      setSelectedAnswer(answers[nextIndex]);
-      setIsAnswered(answers[nextIndex] !== null);
-      setShowExplanation(false);
-      setTimeLeft(quizData.timePerQuestion);
-    } else {
-      // Last question - check if should show submit confirmation
-      const finalUnanswered = answers.filter(a => a === null).length;
-      const finalMarked = markedForReview.filter(m => m).length;
-      
-      if (finalUnanswered > 0 || finalMarked > 0) {
-        setShowSubmitConfirm(true);
-      } else {
-        setQuizComplete(true);
-      }
-    }
-  }
   
-  // Auto-submit when total time runs out
-  if (quizData.timerEnabled && remainingTime <= 0 && !quizComplete) {
-    setQuizComplete(true);
-  }
-}, [timeLeft, quizComplete, totalTimeElapsed, remainingTime, quizData.timerEnabled, currentQuestion, quizData.questions.length, quizData.timePerQuestion, answers, markedForReview]);
-// Keyboard shortcuts (A, B, C, D)
-
-useEffect(() => {
-  const handleKeyPress = (e) => {
-      if (quizComplete || showReview || isAnswered) return;
-    
-    const key = e.key.toUpperCase();
-    
-    // Valid keys (A, B, C, D)
-    if (['A', 'B', 'C', 'D'].includes(key)) {
-      const optionIndex = key.charCodeAt(0) - 65;
-      if (optionIndex < question.options.length) {
-        handleSelectAnswer(optionIndex);
-      }
-    } 
-    // Invalid keys - show toast
-    else if (key.length === 1 && key.match(/[A-Z]/)) {
-       setShowInvalidKeyToast(true);
-      
-      // Auto hide after 2 seconds
-      setTimeout(() => {
-        setShowInvalidKeyToast(false);
-      }, 2000);
-    }
-  };
-
-  window.addEventListener('keydown', handleKeyPress);
-  return () => window.removeEventListener('keydown', handleKeyPress);
-}, [isAnswered, currentQuestion, quizComplete, showReview, question]);
-
-
-  const handleSelectAnswer = (index) => {
+  const handleSelectAnswer = useCallback((index) => {
     if (isAnswered) return;
     setSelectedAnswer(index);
     setIsAnswered(true);
@@ -157,7 +87,69 @@ useEffect(() => {
     const newAnswers = [...answers];
     newAnswers[currentQuestion] = index;
     setAnswers(newAnswers);
-  };
+  }, [isAnswered, answers, currentQuestion]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (quizData.timerEnabled && timeLeft > 0 && !quizComplete) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+        setTotalTimeElapsed(totalTimeElapsed + 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
+      if (currentQuestion < quizData.questions.length - 1) {
+        const nextIndex = currentQuestion + 1;
+        setCurrentQuestion(nextIndex);
+       
+        if (nextIndex > maxQuestionReached) {
+          setMaxQuestionReached(nextIndex);
+        }
+        
+        setSelectedAnswer(answers[nextIndex]);
+        setIsAnswered(answers[nextIndex] !== null);
+        setShowExplanation(false);
+        setTimeLeft(quizData.timePerQuestion);
+      } else {
+        const finalUnanswered = answers.filter(a => a === null).length;
+        const finalMarked = markedForReview.filter(m => m).length;
+        
+        if (finalUnanswered > 0 || finalMarked > 0) {
+          setShowSubmitConfirm(true);
+        } else {
+          setQuizComplete(true);
+        }
+      }
+    }
+    
+    if (quizData.timerEnabled && remainingTime <= 0 && !quizComplete) {
+      setQuizComplete(true);
+    }
+  }, [timeLeft, quizComplete, totalTimeElapsed, remainingTime, quizData.timerEnabled, currentQuestion, quizData.questions.length, quizData.timePerQuestion, answers, markedForReview, maxQuestionReached]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (quizComplete || showReview || isAnswered) return;
+      
+      const key = e.key.toUpperCase();
+      
+      if (['A', 'B', 'C', 'D'].includes(key)) {
+        const optionIndex = key.charCodeAt(0) - 65;
+        if (optionIndex < question.options.length) {
+          handleSelectAnswer(optionIndex);
+        }
+      } else if (key.length === 1 && key.match(/[A-Z]/)) {
+        setShowInvalidKeyToast(true);
+        setTimeout(() => {
+          setShowInvalidKeyToast(false);
+        }, 2000);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isAnswered, currentQuestion, quizComplete, showReview, question, handleSelectAnswer]);
 
   const handleNextQuestion = () => {
     if (currentQuestion < quizData.questions.length - 1) {
@@ -173,7 +165,6 @@ useEffect(() => {
       setShowExplanation(false);
       setTimeLeft(quizData.timePerQuestion);
     } else {
-      // Last question - show submit confirmation if needed
       if (unansweredCount > 0 || markedCount > 0) {
         setShowSubmitConfirm(true);
       } else {
@@ -219,7 +210,6 @@ useEffect(() => {
   };
 
   const handleSubmitQuiz = () => {
-   
     if (unansweredCount > 0 || markedCount > 0) {
       setShowSubmitConfirm(true); 
     } else {
@@ -227,7 +217,6 @@ useEffect(() => {
     }
   };
   
-  // Add this NEW function right after handleSubmitQuiz
   const confirmSubmit = () => {
     setShowSubmitConfirm(false);
     setQuizComplete(true);
@@ -267,246 +256,237 @@ useEffect(() => {
     }
   };
 
-// RESULTS PAGE
-if (quizComplete && !showReview) {
-  const results = calculateResults();
-  
-  // Smart performance evaluation
-  const getPerformanceData = () => {
-    const acc = parseFloat(results.accuracy);
+  // RESULTS PAGE
+  if (quizComplete && !showReview) {
+    const results = calculateResults();
     
-    if (acc === 0) {
-      return {
-        icon: '😢',
-        iconBg: 'from-gray-400 to-gray-500',
-        title: 'Quiz Complete',
-        message: 'No correct answers. Don\'t worry, practice makes perfect!',
-        emoji: '',
-        showConfetti: false
-      };
-    } else if (acc < 40) {
-      return {
-        icon: '📚',
-        iconBg: 'from-orange-400 to-red-500',
-        title: 'Keep Learning!',
-        message: 'You need more practice. Review the material and try again!',
-        emoji: '💪',
-        showConfetti: false
-      };
-    } else if (acc < 60) {
-      return {
-        icon: '📖',
-        iconBg: 'from-yellow-400 to-orange-500',
-        title: 'Good Try!',
-        message: 'You\'re getting there! Keep studying and you\'ll improve!',
-        emoji: '👍',
-        showConfetti: false
-      };
-    } else if (acc < 80) {
-      return {
-        icon: '✓',
-        iconBg: 'from-blue-400 to-indigo-500',
-        title: 'Well Done!',
-        message: 'Good performance! A bit more practice and you\'ll ace it!',
-        emoji: '🎯',
-        showConfetti: false
-      };
-    } else if (acc < 95) {
-      return {
-        icon: '⭐',
-        iconBg: 'from-green-500 to-emerald-600',
-        title: 'Excellent Work!',
-        message: 'Outstanding performance! You really know your stuff!',
-        emoji: '🎉',
-        showConfetti: true
-      };
-    } else {
-      return {
-        icon: '🏆',
-        iconBg: 'from-yellow-500 to-amber-600',
-        title: 'Perfect Score!',
-        message: 'Absolutely incredible! You\'re a master at this!',
-        emoji: '🔥',
-        showConfetti: true
-      };
-    }
-  };
-  
-  const performance = getPerformanceData();
+    const getPerformanceData = () => {
+      const acc = parseFloat(results.accuracy);
+      
+      if (acc === 0) {
+        return {
+          icon: '😢',
+          iconBg: 'from-gray-400 to-gray-500',
+          title: 'Quiz Complete',
+          message: 'No correct answers. Don\'t worry, practice makes perfect!',
+          emoji: '',
+          showConfetti: false
+        };
+      } else if (acc < 40) {
+        return {
+          icon: '📚',
+          iconBg: 'from-orange-400 to-red-500',
+          title: 'Keep Learning!',
+          message: 'You need more practice. Review the material and try again!',
+          emoji: '💪',
+          showConfetti: false
+        };
+      } else if (acc < 60) {
+        return {
+          icon: '📖',
+          iconBg: 'from-yellow-400 to-orange-500',
+          title: 'Good Try!',
+          message: 'You\'re getting there! Keep studying and you\'ll improve!',
+          emoji: '👍',
+          showConfetti: false
+        };
+      } else if (acc < 80) {
+        return {
+          icon: '✓',
+          iconBg: 'from-blue-400 to-indigo-500',
+          title: 'Well Done!',
+          message: 'Good performance! A bit more practice and you\'ll ace it!',
+          emoji: '🎯',
+          showConfetti: false
+        };
+      } else if (acc < 95) {
+        return {
+          icon: '⭐',
+          iconBg: 'from-green-500 to-emerald-600',
+          title: 'Excellent Work!',
+          message: 'Outstanding performance! You really know your stuff!',
+          emoji: '🎉',
+          showConfetti: true
+        };
+      } else {
+        return {
+          icon: '🏆',
+          iconBg: 'from-yellow-500 to-amber-600',
+          title: 'Perfect Score!',
+          message: 'Absolutely incredible! You\'re a master at this!',
+          emoji: '🔥',
+          showConfetti: true
+        };
+      }
+    };
+    
+    const performance = getPerformanceData();
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
-      {/* Confetti for high scores */}
- {/* MINIMAL ELEGANT CONFETTI */}
-{performance.showConfetti && (
-  <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-    {/* Confetti Emojis - Cleanfall */}
-    {[...Array(15)].map((_, i) => (
-      <div
-        key={`confetti-${i}`}
-        className="absolute animate-confetti-minimal"
-        style={{
-          left: `${(i * 6.66) + 3}%`,
-          top: '-10%',
-          animationDelay: `${i * 0.15}s`,
-          animationDuration: `${4 + Math.random()}s`,
-          animationIterationCount: '8'
-        }}
-      >
-        <span 
-          className="text-4xl sm:text-5xl"
-          style={{
-            display: 'block',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))'
-          }}
-        >
-          {i % 2 === 0 ? '🎉' : '🎊'}
-        </span>
-      </div>
-    ))}
-    
-    {/* Colorful Dots - Elegant scatter */}
-    {[...Array(25)].map((_, i) => (
-      <div
-        key={`dot-${i}`}
-        className="absolute animate-dot-fall"
-        style={{
-          left: `${Math.random() * 100}%`,
-          top: '-5%',
-          animationDelay: `${Math.random() * 2}s`,
-          animationDuration: `${3 + Math.random() * 2}s`,
-          animationIterationCount: '10'
-        }}
-      >
-        <div
-          className="rounded-full shadow-md"
-          style={{
-            width: '8px',
-            height: '8px',
-            backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#F7DC6F', '#BB8FCE', '#85C1E2', '#FF69B4', '#FFD700', '#00CED1'][Math.floor(Math.random() * 10)]
-          }}
-        />
-      </div>
-    ))}
-    
-    {/* Sparkle Effect - Subtle twinkle */}
-    {[...Array(12)].map((_, i) => (
-      <div
-        key={`sparkle-${i}`}
-        className="absolute animate-sparkle-minimal"
-        style={{
-          left: `${10 + i * 7}%`,
-          top: `${20 + (i % 3) * 30}%`,
-          animationDelay: `${i * 0.2}s`,
-          animationDuration: '2.5s',
-          animationIterationCount: '20'
-        }}
-      >
-        <span className="text-2xl opacity-80">✨</span>
-      </div>
-    ))}
-  </div>
-)}
-
-      <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
-        {/* Dynamic Icon */}
-        <div className="text-center mb-8">
-          <div className={`w-24 h-24 mx-auto mb-6 bg-gradient-to-br ${performance.iconBg} rounded-full flex items-center justify-center shadow-xl`}>
-            <span className="text-5xl">{performance.icon}</span>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
+       {performance.showConfetti && (
+          <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+            {/* Falling Colorful Dots */}
+            {[...Array(50)].map((_, i) => (
+              <div
+                key={`dot-${i}`}
+                className="absolute"
+                style={{
+                  left: `${(i * 2) % 100}%`,
+                  top: '-20px',
+                  animation: `fall-smooth ${2.5 + Math.random() * 1.5}s ease-in ${i * 0.04}s 1 forwards`
+                }}
+              >
+                <div
+                  className="rounded-full"
+                  style={{
+                    width: `${4 + Math.random() * 4}px`,
+                    height: `${4 + Math.random() * 4}px`,
+                    backgroundColor: ['#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#34D399', '#60A5FA'][Math.floor(Math.random() * 6)],
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                  }}
+                />
+              </div>
+            ))}
+            
+            {/* Falling Sparkles ✨ */}
+            {[...Array(25)].map((_, i) => (
+              <div
+                key={`sparkle-${i}`}
+                className="absolute"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: '-30px',
+                  animation: `fall-sparkle ${3 + Math.random() * 2}s ease-in ${i * 0.08}s 1 forwards`
+                }}
+              >
+                <span className="text-2xl" style={{ 
+                  filter: 'drop-shadow(0 0 4px rgba(255,215,0,0.6))',
+                  display: 'inline-block',
+                  animation: `spin-sparkle ${1 + Math.random()}s linear infinite`
+                }}>✨</span>
+              </div>
+            ))}
+            
+            {/* Minimal Floating Dots (Slower, Subtle) */}
+            {[...Array(15)].map((_, i) => (
+              <div
+                key={`float-${i}`}
+                className="absolute"
+                style={{
+                  left: `${(i * 6.66) % 100}%`,
+                  top: '-10px',
+                  animation: `float-gentle ${4 + Math.random() * 2}s ease-in-out ${i * 0.1}s 1 forwards`
+                }}
+              >
+                <div
+                  className="rounded-full opacity-60"
+                  style={{
+                    width: '3px',
+                    height: '3px',
+                    backgroundColor: ['#C4B5FD', '#DDD6FE', '#FDE68A', '#A7F3D0'][i % 4]
+                  }}
+                />
+              </div>
+            ))}
           </div>
-          <h2 className="text-4xl font-black text-gray-900 mb-2">{performance.title}</h2>
-          <p className="text-xl text-gray-600">
-            {performance.message} {performance.emoji}
-          </p>
-        </div>
+        )}
 
-          {/* Score Circle */}
-<div className="flex justify-center mb-6 sm:mb-8">
-  <div className="relative w-32 h-32 sm:w-40 sm:h-40">
-    <svg className="transform -rotate-90 w-32 h-32 sm:w-40 sm:h-40">
-      <circle cx="64" cy="64" r="56" stroke="#E5E7EB" strokeWidth="10" fill="none" className="sm:hidden" />
-      <circle cx="80" cy="80" r="70" stroke="#E5E7EB" strokeWidth="12" fill="none" className="hidden sm:block" />
-      <circle 
-        cx="64" 
-        cy="64" 
-        r="56" 
-        stroke="url(#gradient)" 
-        strokeWidth="10" 
-        fill="none"
-        strokeDasharray={`${(results.accuracy / 100) * 352} 352`}
-        className="transition-all duration-1000 sm:hidden"
-      />
-      <circle 
-        cx="80" 
-        cy="80" 
-        r="70" 
-        stroke="url(#gradient)" 
-        strokeWidth="12" 
-        fill="none"
-        strokeDasharray={`${(results.accuracy / 100) * 440} 440`}
-        className="transition-all duration-1000 hidden sm:block"
-      />
-      <defs>
-        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#6366F1" />
-          <stop offset="100%" stopColor="#A855F7" />
-        </linearGradient>
-      </defs>
-    </svg>
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          {results.accuracy}%
-        </div>
-        <div className="text-xs text-gray-500 font-semibold">Accuracy</div>
-      </div>
-    </div>
-  </div>
-</div>
+        <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
+          <div className="text-center mb-8">
+            <div className={`w-24 h-24 mx-auto mb-6 bg-gradient-to-br ${performance.iconBg} rounded-full flex items-center justify-center shadow-xl`}>
+              <span className="text-5xl">{performance.icon}</span>
+            </div>
+            <h2 className="text-4xl font-black text-gray-900 mb-2">{performance.title}</h2>
+            <p className="text-xl text-gray-600">
+              {performance.message} {performance.emoji}
+            </p>
+          </div>
 
-          {/* Stats Grid - Compact */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-green-200">
-          <div className="text-2xl sm:text-3xl font-black text-green-600">{results.correct}</div>
-          <div className="text-xs sm:text-sm text-green-700 font-semibold">Correct</div>
-        </div>
-        <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-red-200">
-          <div className="text-2xl sm:text-3xl font-black text-red-600">{results.wrong}</div>
-          <div className="text-xs sm:text-sm text-red-700 font-semibold">Wrong</div>
-        </div>
-        <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-gray-200">
-          <div className="text-2xl sm:text-3xl font-black text-gray-600">{results.skipped}</div>
-          <div className="text-xs sm:text-sm text-gray-700 font-semibold">Skipped</div>
-        </div>
-      </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-          <button
-            onClick={() => setShowReview(true)}
-            className="w-full py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105"
-          >
-            <span className="flex items-center justify-center gap-2">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          <div className="flex justify-center mb-6 sm:mb-8">
+            <div className="relative w-32 h-32 sm:w-40 sm:h-40">
+              <svg className="transform -rotate-90 w-32 h-32 sm:w-40 sm:h-40">
+                <circle cx="64" cy="64" r="56" stroke="#E5E7EB" strokeWidth="10" fill="none" className="sm:hidden" />
+                <circle cx="80" cy="80" r="70" stroke="#E5E7EB" strokeWidth="12" fill="none" className="hidden sm:block" />
+                <circle 
+                  cx="64" 
+                  cy="64" 
+                  r="56" 
+                  stroke="url(#gradient)" 
+                  strokeWidth="10" 
+                  fill="none"
+                  strokeDasharray={`${(results.accuracy / 100) * 352} 352`}
+                  className="transition-all duration-1000 sm:hidden"
+                />
+                <circle 
+                  cx="80" 
+                  cy="80" 
+                  r="70" 
+                  stroke="url(#gradient)" 
+                  strokeWidth="12" 
+                  fill="none"
+                  strokeDasharray={`${(results.accuracy / 100) * 440} 440`}
+                  className="transition-all duration-1000 hidden sm:block"
+                />
+                <defs>
+                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#6366F1" />
+                    <stop offset="100%" stopColor="#A855F7" />
+                  </linearGradient>
+                </defs>
               </svg>
-              Review Answers
-            </span>
-          </button>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
-          >
-            Retake Quiz
-          </button>
-          <button
-            onClick={() => navigate('/solo-mode')}
-            className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
-          >
-            Generate New Quiz
-          </button>
-        </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    {results.accuracy}%
+                  </div>
+                  <div className="text-xs text-gray-500 font-semibold">Accuracy</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-green-200">
+              <div className="text-2xl sm:text-3xl font-black text-green-600">{results.correct}</div>
+              <div className="text-xs sm:text-sm text-green-700 font-semibold">Correct</div>
+            </div>
+            <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-red-200">
+              <div className="text-2xl sm:text-3xl font-black text-red-600">{results.wrong}</div>
+              <div className="text-xs sm:text-sm text-red-700 font-semibold">Wrong</div>
+            </div>
+            <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center border-2 border-gray-200">
+              <div className="text-2xl sm:text-3xl font-black text-gray-600">{results.skipped}</div>
+              <div className="text-xs sm:text-sm text-gray-700 font-semibold">Skipped</div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => setShowReview(true)}
+              className="w-full py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Review Answers
+              </span>
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
+            >
+              Retake Quiz
+            </button>
+            <button
+              onClick={() => navigate('/solo-mode')}
+              className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
+            >
+              Generate New Quiz
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -517,7 +497,6 @@ if (quizComplete && !showReview) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-12 px-4">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-black text-gray-900">Review Answers</h2>
@@ -530,7 +509,6 @@ if (quizComplete && !showReview) {
             </div>
           </div>
 
-          {/* All Questions */}
           <div className="space-y-6">
             {quizData.questions.map((q, index) => {
               const userAnswer = answers[index];
@@ -539,7 +517,6 @@ if (quizComplete && !showReview) {
 
               return (
                 <div key={q.id} className="bg-white rounded-2xl shadow-xl p-6">
-                  {/* Question Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -558,7 +535,6 @@ if (quizComplete && !showReview) {
                     </div>
                   </div>
 
-                  {/* Options */}
                   <div className="space-y-3 mb-4">
                     {q.options.map((option, optIndex) => {
                       const isUserAnswer = userAnswer === optIndex;
@@ -601,7 +577,6 @@ if (quizComplete && !showReview) {
                     })}
                   </div>
 
-                  {/* Explanation */}
                   <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4">
                     <div className="flex items-start gap-2">
                       <svg className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -866,12 +841,15 @@ return (
           <div className="w-full h-2.5 sm:h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
             <div 
               className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-700 ease-out shadow-lg relative"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${(remainingTime / totalQuizTime) * 100}%` }}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer"></div>
             </div>
           </div>
-        </div>
+          <div className="text-xs text-gray-500 text-right mt-1">
+            Time Remaining: {formatTime(remainingTime)} / {formatTime(totalQuizTime)}
+          </div>
+        </div>  
       </div>
     </div>
 
@@ -1087,31 +1065,7 @@ return (
       </div>
       </div> 
     </div>
-    <style jsx>{`
-      @keyframes shimmer {
-        0% {
-          transform: translateX(-100%);
-        }
-        100% {
-          transform: translateX(100%);
-        }
-      }
-      .animate-shimmer {
-        animation: shimmer 2s infinite;
-      }
-      @keyframes slide-up {
-        0% {
-          transform: translateY(100%);
-        }
-        100% {
-          transform: translateY(0);
-        }
-      }
-      .animate-slide-up {
-        animation: slide-up 0.3s ease-out;
-      }
-    `}</style>
-    
+        
   </div>
 );
 }

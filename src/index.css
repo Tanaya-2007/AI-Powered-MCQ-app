@@ -30,56 +30,103 @@
 }
 .animate-slide-down {
   animation: slide-down 0.3s ease-out;
-}@keyframes confetti-minimal {
-  0% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(110vh) rotate(720deg);
-    opacity: 0;
-  }
 }
 
-@keyframes dot-fall {
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-shimmer {
+  animation: shimmer 5s infinite;
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+@keyframes fall-smooth {
   0% {
     transform: translateY(0) translateX(0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.9;
+    opacity: 1;
   }
   100% {
-    transform: translateY(110vh) translateX(calc(var(--random-x, 0) * 50px));
+    transform: translateY(110vh) translateX(20px);
     opacity: 0;
   }
 }
 
-@keyframes sparkle-minimal {
-  0%, 100% {
-    transform: scale(0) rotate(0deg);
+@keyframes fall-sparkle {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg) scale(0.8);
     opacity: 0;
   }
-  50% {
-    transform: scale(1.2) rotate(180deg);
+}
+
+@keyframes spin-sparkle {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes float-gentle {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(110vh) translateX(-10px);
+    opacity: 0;
+  }
+}
+
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+@keyframes scale-in {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
     opacity: 1;
   }
 }
-
-.animate-confetti-minimal {
-  animation: confetti-minimal ease-in-out forwards;
+.animate-scale-in {
+  animation: scale-in 0.5s ease-out;
 }
 
-.animate-dot-fall {
-  animation: dot-fall linear forwards;
+@keyframes bounce-once {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-bounce-once {
+  animation: bounce-once 0.6s ease-in-out;
 }
 
-.animate-sparkle-minimal {
-  animation: sparkle-minimal ease-in-out infinite;
+@keyframes slide-down {
+  0% {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+.animate-slide-down {
+  animation: slide-down 0.5s ease-out;
 }
