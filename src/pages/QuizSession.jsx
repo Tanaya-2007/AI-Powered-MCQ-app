@@ -48,18 +48,20 @@ function QuizSession() {
         explanation: "HTML stands for Hyper Text Markup Language, which is the standard markup language for creating web pages."
       }
     ]
+  }
   };
-  // Override totalQuestions with actual questions length
+
 quizData.totalQuestions = quizData.questions.length;
   // States
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [maxQuestionReached, setMaxQuestionReached] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeLeft, setTimeLeft] = useState(quizData.timePerQuestion);
   const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
-  const [answers, setAnswers] = useState(Array(quizData.totalQuestions).fill(null));
-  const [markedForReview, setMarkedForReview] = useState(Array(quizData.totalQuestions).fill(false)); 
+  const [answers, setAnswers] = useState(Array(quizData.questions.length).fill(null));
+  const [markedForReview, setMarkedForReview] = useState(Array(quizData.questions.length).fill(false));
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false); 
   const [showReviewBoard, setShowReviewBoard] = useState(false); 
@@ -69,12 +71,13 @@ quizData.totalQuestions = quizData.questions.length;
   const [pressedKey, setPressedKey] = useState('');
 
   const question = quizData.questions[currentQuestion];
-  const progress = ((currentQuestion + 1) / quizData.totalQuestions) * 100;
+  const progress = ((maxQuestionReached + 1) / quizData.questions.length) * 100;
   const answeredCount = answers.filter(a => a !== null).length;
-  const unansweredCount = quizData.totalQuestions - answeredCount;
+  const unansweredCount = quizData.questions.length - answeredCount;
   const markedCount = markedForReview.filter(m => m).length;
   const totalQuizTime = quizData.totalQuestions * quizData.timePerQuestion;
   const remainingTime = totalQuizTime - totalTimeElapsed;
+  const actualTotalQuestions = quizData.questions.length;
 
 // Timer countdown
 useEffect(() => {
@@ -85,25 +88,19 @@ useEffect(() => {
     }, 1000);
     return () => clearTimeout(timer);
   } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
-      if (currentQuestion < quizData.totalQuestions - 1) {
+    
+    if (currentQuestion < quizData.questions.length - 1) {
       const nextIndex = currentQuestion + 1;
       setCurrentQuestion(nextIndex);
+     
+      if (nextIndex > maxQuestionReached) {
+        setMaxQuestionReached(nextIndex);
+      }
+      
       setSelectedAnswer(answers[nextIndex]);
       setIsAnswered(answers[nextIndex] !== null);
       setShowExplanation(false);
       setTimeLeft(quizData.timePerQuestion);
-    } else {
-      // Last question - check if should show submit confirmation
-      const finalUnanswered = answers.filter(a => a === null).length;
-      const finalMarked = markedForReview.filter(m => m).length;
-      
-      if (finalUnanswered > 0 || finalMarked > 0) {
-        setShowSubmitConfirm(true);
-      } else {
-        setQuizComplete(true);
-      }
-    }
-  }
   
   // Auto-submit when total time runs out
   if (quizData.timerEnabled && remainingTime <= 0 && !quizComplete) {
@@ -111,6 +108,7 @@ useEffect(() => {
   }
 }, [timeLeft, quizComplete, totalTimeElapsed, remainingTime, quizData.timerEnabled, currentQuestion, quizData.totalQuestions, quizData.timePerQuestion, answers]);
 // Keyboard shortcuts (A, B, C, D)
+
 useEffect(() => {
   const handleKeyPress = (e) => {
       if (quizComplete || showReview || isAnswered) return;
@@ -173,39 +171,42 @@ useEffect(() => {
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestion < quizData.totalQuestions - 1) {
+    if (currentQuestion < quizData.questions.length - 1) {
       const nextIndex = currentQuestion + 1;
       setCurrentQuestion(nextIndex);
+      
+      if (nextIndex > maxQuestionReached) {
+        setMaxQuestionReached(nextIndex);
+      }
+      
       setSelectedAnswer(answers[nextIndex]); 
       setIsAnswered(answers[nextIndex] !== null); 
       setShowExplanation(false);
       setTimeLeft(quizData.timePerQuestion);
     } else {
-      if (unansweredCount > 0 || markedCount > 0) {
-        setShowSubmitConfirm(true);
-      } else {
-        setQuizComplete(true);
-      }
-    }
-  };
 
-  const handlePreviousQuestion = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-      setSelectedAnswer(answers[currentQuestion - 1]);
-      setIsAnswered(answers[currentQuestion - 1] !== null);
-      setShowExplanation(false);
-      setTimeLeft(quizData.timePerQuestion);
-    }
-  };
+      const handlePreviousQuestion = () => {
+        if (currentQuestion > 0) {
+          setCurrentQuestion(currentQuestion - 1);
+          setSelectedAnswer(answers[currentQuestion - 1]);
+          setIsAnswered(answers[currentQuestion - 1] !== null);
+          setShowExplanation(false);
+          setTimeLeft(quizData.timePerQuestion);
+        }
+      };
 
   const handleJumpToQuestion = (index) => {
     setCurrentQuestion(index);
+    
+    if (index > maxQuestionReached) {
+      setMaxQuestionReached(index);
+    }
+    
     setSelectedAnswer(answers[index]);
     setIsAnswered(answers[index] !== null);
     setShowExplanation(false);
     setTimeLeft(quizData.timePerQuestion);
-    setShowReviewBoard(false); // Close review board after jumping
+    setShowReviewBoard(false);
   };
   
   const toggleMarkForReview = () => {
@@ -339,43 +340,126 @@ if (quizComplete && !showReview) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
       {/* Confetti for high scores */}
-    {performance.showConfetti && (
+ {/* MINIMAL ELEGANT CONFETTI */}
+{performance.showConfetti && (
   <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-  
-    {[...Array(50)].map((_, i) => (
+    {/* Confetti Emojis - Cleanfall */}
+    {[...Array(15)].map((_, i) => (
       <div
-        key={i}
-        className="absolute animate-confetti"
+        key={`confetti-${i}`}
+        className="absolute animate-confetti-minimal"
+        style={{
+          left: `${(i * 6.66) + 3}%`,
+          top: '-10%',
+          animationDelay: `${i * 0.15}s`,
+          animationDuration: `${4 + Math.random()}s`,
+          animationIterationCount: '8'
+        }}
+      >
+        <span 
+          className="text-4xl sm:text-5xl"
+          style={{
+            display: 'block',
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))'
+          }}
+        >
+          {i % 2 === 0 ? '🎉' : '🎊'}
+        </span>
+      </div>
+    ))}
+    
+    {/* Colorful Dots - Elegant scatter */}
+    {[...Array(25)].map((_, i) => (
+      <div
+        key={`dot-${i}`}
+        className="absolute animate-dot-fall"
         style={{
           left: `${Math.random() * 100}%`,
-          top: '-10%',
-          animationDelay: `${Math.random() * 10 }s`,
-          animationDuration: `${2 + Math.random() * 2}s`
+          top: '-5%',
+          animationDelay: `${Math.random() * 2}s`,
+          animationDuration: `${3 + Math.random() * 2}s`,
+          animationIterationCount: '10'
         }}
       >
         <div
-          className="w-3 h-3 rounded-full"
+          className="rounded-full shadow-md"
           style={{
-            backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'][Math.floor(Math.random() * 8)],
-            transform: `rotate(${Math.random() * 360}deg)`
+            width: '8px',
+            height: '8px',
+            backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#F7DC6F', '#BB8FCE', '#85C1E2', '#FF69B4', '#FFD700', '#00CED1'][Math.floor(Math.random() * 10)]
           }}
         />
       </div>
     ))}
     
-    {/* Emoji confetti */}
-    {['🎉', '🎊', '⭐', '✨', '🏆', '👏', '🔥', '💯'].map((emoji, i) => (
+    {/* Sparkle Effect - Subtle twinkle */}
+    {[...Array(12)].map((_, i) => (
       <div
-        key={`emoji-${i}`}
-        className="absolute text-4xl animate-confetti-emoji"
+        key={`sparkle-${i}`}
+        className="absolute animate-sparkle-minimal"
         style={{
-          left: `${10 + i * 12}%`,
-          top: '-10%',
-          animationDelay: `${i * 0.1}s`,
-          animationDuration: `${3 + Math.random()}s`
+          left: `${10 + i * 7}%`,
+          top: `${20 + (i % 3) * 30}%`,
+          animationDelay: `${i * 0.2}s`,
+          animationDuration: '2.5s',
+          animationIterationCount: '20'
         }}
       >
-        {emoji}
+        <span className="text-2xl opacity-80">✨</span>
+      </div>
+    ))}
+  </div>
+)}
+    
+    {/* WAVE 4 - Extra 🎊 from sides */}
+    {[...Array(20)].map((_, i) => (
+      <div
+        key={`side-confetti-${i}`}
+        className="absolute animate-confetti-side"
+        style={{
+          left: i % 2 === 0 ? '105%' : '-5%',
+          top: `${((i * 5) + 2.5) % 100}%`,
+          animationDelay: `${(i * 0.1) + 0.5}s`,
+          animationDuration: '4s',
+          animationIterationCount: '15'
+        }}
+      >
+        <span 
+          className="text-4xl sm:text-5xl md:text-6xl"
+          style={{
+            display: 'block',
+            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
+          }}
+        >
+          🎊
+        </span>
+      </div>
+    ))}
+    
+    {/* WAVE 5 - Burst from center */}
+    {[...Array(30)].map((_, i) => (
+      <div
+        key={`burst-${i}`}
+        className="absolute animate-confetti-burst"
+        style={{
+          left: '50%',
+          top: '50%',
+          animationDelay: `${i * 0.03}s`,
+          animationDuration: '3s',
+          animationIterationCount: '10',
+          '--angle': `${(i * 12)}deg`,
+          '--distance': `${150 + Math.random() * 200}px`
+        }}
+      >
+        <span 
+          className="text-4xl sm:text-5xl"
+          style={{
+            display: 'block',
+            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
+          }}
+        >
+          {i % 2 === 0 ? '🎉' : '🎊'}
+        </span>
       </div>
     ))}
   </div>
