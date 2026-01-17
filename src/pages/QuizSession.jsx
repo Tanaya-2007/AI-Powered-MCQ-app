@@ -48,7 +48,7 @@ function QuizSession() {
         explanation: "HTML stands for Hyper Text Markup Language, which is the standard markup language for creating web pages."
       }
     ]
-  }
+
   };
 
 quizData.totalQuestions = quizData.questions.length;
@@ -68,7 +68,7 @@ quizData.totalQuestions = quizData.questions.length;
   const [quizComplete, setQuizComplete] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showInvalidKeyToast, setShowInvalidKeyToast] = useState(false);
-  const [pressedKey, setPressedKey] = useState('');
+
 
   const question = quizData.questions[currentQuestion];
   const progress = ((maxQuestionReached + 1) / quizData.questions.length) * 100;
@@ -88,7 +88,6 @@ useEffect(() => {
     }, 1000);
     return () => clearTimeout(timer);
   } else if (quizData.timerEnabled && timeLeft === 0 && !quizComplete) {
-    
     if (currentQuestion < quizData.questions.length - 1) {
       const nextIndex = currentQuestion + 1;
       setCurrentQuestion(nextIndex);
@@ -101,12 +100,24 @@ useEffect(() => {
       setIsAnswered(answers[nextIndex] !== null);
       setShowExplanation(false);
       setTimeLeft(quizData.timePerQuestion);
+    } else {
+      // Last question - check if should show submit confirmation
+      const finalUnanswered = answers.filter(a => a === null).length;
+      const finalMarked = markedForReview.filter(m => m).length;
+      
+      if (finalUnanswered > 0 || finalMarked > 0) {
+        setShowSubmitConfirm(true);
+      } else {
+        setQuizComplete(true);
+      }
+    }
+  }
   
   // Auto-submit when total time runs out
   if (quizData.timerEnabled && remainingTime <= 0 && !quizComplete) {
     setQuizComplete(true);
   }
-}, [timeLeft, quizComplete, totalTimeElapsed, remainingTime, quizData.timerEnabled, currentQuestion, quizData.totalQuestions, quizData.timePerQuestion, answers]);
+}, [timeLeft, quizComplete, totalTimeElapsed, remainingTime, quizData.timerEnabled, currentQuestion, quizData.questions.length, quizData.timePerQuestion, answers, markedForReview]);
 // Keyboard shortcuts (A, B, C, D)
 
 useEffect(() => {
@@ -124,8 +135,7 @@ useEffect(() => {
     } 
     // Invalid keys - show toast
     else if (key.length === 1 && key.match(/[A-Z]/)) {
-      setPressedKey(key);
-      setShowInvalidKeyToast(true);
+       setShowInvalidKeyToast(true);
       
       // Auto hide after 2 seconds
       setTimeout(() => {
@@ -138,28 +148,7 @@ useEffect(() => {
   return () => window.removeEventListener('keydown', handleKeyPress);
 }, [isAnswered, currentQuestion, quizComplete, showReview, question]);
 
-  // Keyboard shortcuts 
-    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-4 mt-4">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-bold text-indigo-900 mb-2">⌨️ Keyboard Shortcuts</p>
-          <div className="space-y-1 text-sm text-indigo-700">
-            <p className="flex items-center gap-2">
-              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">A</span>
-              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">B</span>
-              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">C</span>
-              <span className="px-2 py-0.5 bg-white rounded font-mono font-bold text-xs">D</span>
-              <span>to select options quickly!</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+
   const handleSelectAnswer = (index) => {
     if (isAnswered) return;
     setSelectedAnswer(index);
@@ -184,16 +173,24 @@ useEffect(() => {
       setShowExplanation(false);
       setTimeLeft(quizData.timePerQuestion);
     } else {
+      // Last question - show submit confirmation if needed
+      if (unansweredCount > 0 || markedCount > 0) {
+        setShowSubmitConfirm(true);
+      } else {
+        setQuizComplete(true);
+      }
+    }
+  };
 
-      const handlePreviousQuestion = () => {
-        if (currentQuestion > 0) {
-          setCurrentQuestion(currentQuestion - 1);
-          setSelectedAnswer(answers[currentQuestion - 1]);
-          setIsAnswered(answers[currentQuestion - 1] !== null);
-          setShowExplanation(false);
-          setTimeLeft(quizData.timePerQuestion);
-        }
-      };
+  const handlePreviousQuestion = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+      setSelectedAnswer(answers[currentQuestion - 1]);
+      setIsAnswered(answers[currentQuestion - 1] !== null);
+      setShowExplanation(false);
+      setTimeLeft(quizData.timePerQuestion);
+    }
+  };
 
   const handleJumpToQuestion = (index) => {
     setCurrentQuestion(index);
@@ -406,60 +403,6 @@ if (quizComplete && !showReview) {
         }}
       >
         <span className="text-2xl opacity-80">✨</span>
-      </div>
-    ))}
-  </div>
-)}
-    
-    {/* WAVE 4 - Extra 🎊 from sides */}
-    {[...Array(20)].map((_, i) => (
-      <div
-        key={`side-confetti-${i}`}
-        className="absolute animate-confetti-side"
-        style={{
-          left: i % 2 === 0 ? '105%' : '-5%',
-          top: `${((i * 5) + 2.5) % 100}%`,
-          animationDelay: `${(i * 0.1) + 0.5}s`,
-          animationDuration: '4s',
-          animationIterationCount: '15'
-        }}
-      >
-        <span 
-          className="text-4xl sm:text-5xl md:text-6xl"
-          style={{
-            display: 'block',
-            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
-          }}
-        >
-          🎊
-        </span>
-      </div>
-    ))}
-    
-    {/* WAVE 5 - Burst from center */}
-    {[...Array(30)].map((_, i) => (
-      <div
-        key={`burst-${i}`}
-        className="absolute animate-confetti-burst"
-        style={{
-          left: '50%',
-          top: '50%',
-          animationDelay: `${i * 0.03}s`,
-          animationDuration: '3s',
-          animationIterationCount: '10',
-          '--angle': `${(i * 12)}deg`,
-          '--distance': `${150 + Math.random() * 200}px`
-        }}
-      >
-        <span 
-          className="text-4xl sm:text-5xl"
-          style={{
-            display: 'block',
-            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
-          }}
-        >
-          {i % 2 === 0 ? '🎉' : '🎊'}
-        </span>
       </div>
     ))}
   </div>
