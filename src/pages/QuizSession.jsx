@@ -73,7 +73,6 @@ function QuizSession() {
   const question = quizData.questions[currentQuestion];
   const totalQuizTime = quizData.totalQuestions * quizData.timePerQuestion;
   const remainingTime = totalQuizTime - totalTimeElapsed;
-  const progress = ((totalTimeElapsed / totalQuizTime) * 100);
   const answeredCount = answers.filter(a => a !== null).length;
   const unansweredCount = quizData.questions.length - answeredCount;
   const markedCount = markedForReview.filter(m => m).length;
