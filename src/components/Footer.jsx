@@ -76,7 +76,7 @@ function Footer() {
               </h4>
               <div className="flex gap-3">
                 <a
-                  href="https://github.com"
+                  href="https://github.com/Tanaya-2007"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center text-gray-600 hover:text-white hover:bg-gradient-to-br hover:from-indigo-600 hover:to-purple-600 shadow-md hover:shadow-lg hover:shadow-indigo-500/30 transform hover:scale-110 transition-all duration-300"
@@ -87,9 +87,8 @@ function Footer() {
                   </svg>
                 </a>
                 <a
-                  href="https://linkedin.com"
+                  href="https://www.linkedin.com/in/tanaya-pawar-2b04892b8?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app"
                   target="_blank"
-                  rel="noopener noreferrer"
                   className="w-11 h-11 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center text-gray-600 hover:text-white hover:bg-gradient-to-br hover:from-indigo-600 hover:to-purple-600 shadow-md hover:shadow-lg hover:shadow-indigo-500/30 transform hover:scale-110 transition-all duration-300"
                   aria-label="LinkedIn"
                 >
