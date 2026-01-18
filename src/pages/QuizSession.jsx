@@ -59,7 +59,7 @@ function QuizSession() {
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30); 
+  const [timeLeft, setTimeLeft] = useState(quizData.timePerQuestion);
   const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
   const [answers, setAnswers] = useState(Array(quizData.questions.length).fill(null));
   const [markedForReview, setMarkedForReview] = useState(Array(quizData.questions.length).fill(false));
@@ -323,74 +323,34 @@ function QuizSession() {
     const performance = getPerformanceData();
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
-       {performance.showConfetti && (
-          <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-            {/* Falling Colorful Dots */}
-            {[...Array(50)].map((_, i) => (
-              <div
-                key={`dot-${i}`}
-                className="absolute"
-                style={{
-                  left: `${(i * 2) % 100}%`,
-                  top: '-20px',
-                  animation: `fall-smooth ${2.5 + Math.random() * 1.5}s ease-in ${i * 0.04}s 1 forwards`
-                }}
-              >
-                <div
-                  className="rounded-full"
-                  style={{
-                    width: `${4 + Math.random() * 4}px`,
-                    height: `${4 + Math.random() * 4}px`,
-                    backgroundColor: ['#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#34D399', '#60A5FA'][Math.floor(Math.random() * 6)],
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-                  }}
-                />
-              </div>
-            ))}
-            
-            {/* Falling Sparkles ✨ */}
-            {[...Array(25)].map((_, i) => (
-              <div
-                key={`sparkle-${i}`}
-                className="absolute"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: '-30px',
-                  animation: `fall-sparkle ${3 + Math.random() * 2}s ease-in ${i * 0.08}s 1 forwards`
-                }}
-              >
-                <span className="text-2xl" style={{ 
-                  filter: 'drop-shadow(0 0 4px rgba(255,215,0,0.6))',
-                  display: 'inline-block',
-                  animation: `spin-sparkle ${1 + Math.random()}s linear infinite`
-                }}>✨</span>
-              </div>
-            ))}
-            
-            {/* Minimal Floating Dots (Slower, Subtle) */}
-            {[...Array(15)].map((_, i) => (
-              <div
-                key={`float-${i}`}
-                className="absolute"
-                style={{
-                  left: `${(i * 6.66) % 100}%`,
-                  top: '-10px',
-                  animation: `float-gentle ${4 + Math.random() * 2}s ease-in-out ${i * 0.1}s 1 forwards`
-                }}
-              >
-                <div
-                  className="rounded-full opacity-60"
-                  style={{
-                    width: '3px',
-                    height: '3px',
-                    backgroundColor: ['#C4B5FD', '#DDD6FE', '#FDE68A', '#A7F3D0'][i % 4]
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12 animate-page-enter">
+      {performance.showConfetti && (
+  <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+    {/* Simple Colorful Dots Falling from Top */}
+    {[...Array(80)].map((_, i) => (
+      <div
+        key={`dot-${i}`}
+        className="absolute animate-elegant-fall"
+        style={{
+          left: `${Math.random() * 100}%`,
+          top: '-20px',
+          animationDelay: `${Math.random() * 2}s`,
+          animationDuration: `${2 + Math.random() * 2}s`
+        }}
+      >
+        <div
+          className="rounded-full shadow-lg"
+          style={{
+            width: `${6 + Math.random() * 6}px`,
+            height: `${6 + Math.random() * 6}px`,
+            backgroundColor: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#14B8A6', '#F97316', '#EF4444', '#A855F7'][Math.floor(Math.random() * 10)],
+            opacity: 0.9
+          }}
+        />
+      </div>
+    ))}
+  </div>
+)}
 
         <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
           <div className="text-center mb-8">
@@ -462,31 +422,31 @@ function QuizSession() {
           </div>
 
           <div className="space-y-3">
-            <button
-              onClick={() => setShowReview(true)}
-              className="w-full py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                Review Answers
-              </span>
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
-            >
-              Retake Quiz
-            </button>
-            <button
-              onClick={() => navigate('/solo-mode')}
-              className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
-            >
-              Generate New Quiz
-            </button>
-          </div>
+        <button
+          onClick={() => setShowReview(true)}
+          className="w-full py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105"
+        >
+          <span className="flex items-center justify-center gap-2">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            Review Answers
+          </span>
+        </button>
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
+        >
+          Retake Quiz
+        </button>
+        <button
+          onClick={() => navigate('/solo-mode')}
+          className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
+        >
+          Generate New Quiz
+        </button>
+      </div>
         </div>
       </div>
     );
@@ -495,19 +455,19 @@ function QuizSession() {
   // REVIEW MODE
   if (showReview) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-12 px-4 animate-page-enter">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-black text-gray-900">Review Answers</h2>
-              <button
-                onClick={() => setShowReview(false)}
-                className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-lg hover:shadow-lg transition-all"
-              >
-                Back to Results
-              </button>
-            </div>
-          </div>
+        <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <h2 className="text-xl sm:text-2xl font-black text-gray-900">Review Answers</h2>
+        <button
+        onClick={() => setShowReview(false)}
+        className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-lg hover:shadow-lg transition-all duration-300"
+      >
+        Back to Results
+      </button>
+        </div>
+      </div>
 
           <div className="space-y-6">
             {quizData.questions.map((q, index) => {
@@ -599,7 +559,7 @@ function QuizSession() {
 
 // MAIN QUIZ SESSION
 return (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
 {/* Finish Quiz Confirmation Popup */}
 {showExitConfirm && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
@@ -645,18 +605,18 @@ return (
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={() => setShowExitConfirm(false)}
-          className="flex-1 py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all"
-        >
-          Continue Quiz
-        </button>
-        <button
-          onClick={() => setQuizComplete(true)}
-          className="flex-1 py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all"
-        >
-          Finish & Submit
-        </button>
+      <button
+        onClick={() => setShowExitConfirm(false)}
+        className="flex-1 py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
+      >
+        Continue Quiz
+      </button>
+      <button
+        onClick={() => setQuizComplete(true)}
+        className="flex-1 py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all duration-300"
+      >
+        Finish & Submit
+      </button>
       </div>
     </div>
   </div>
@@ -684,18 +644,18 @@ return (
               </div>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowSubmitConfirm(false)}
-                className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all"
-              >
-                Review Again
-              </button>
-              <button
-                onClick={confirmSubmit}
-                className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
-              >
-                Submit Anyway
-              </button>
+            <button
+            onClick={() => setShowSubmitConfirm(false)}
+            className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all duration-300"
+          >
+            Review Again
+          </button>
+          <button
+            onClick={confirmSubmit}
+            className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300"
+          >
+            Submit Anyway
+          </button>
             </div>
            </div>
           </div>
@@ -837,19 +797,6 @@ return (
           </div>
         </div>
        
-        <div className="relative">
-          <div className="w-full h-2.5 sm:h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
-            <div 
-              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-700 ease-out shadow-lg relative"
-              style={{ width: `${(remainingTime / totalQuizTime) * 100}%` }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer"></div>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 text-right mt-1">
-            Time Remaining: {formatTime(remainingTime)} / {formatTime(totalQuizTime)}
-          </div>
-        </div>  
       </div>
     </div>
 
@@ -1055,12 +1002,12 @@ return (
           </button>
         ) : (
           <button
-            onClick={handleSubmitQuiz}
-            className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all"
-          >
-            <span className="hidden sm:inline">Submit Quiz ✓</span>
-            <span className="sm:hidden">Submit ✓</span>
-          </button>
+          onClick={handleSubmitQuiz}
+          className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all duration-300"
+        >
+          <span className="hidden sm:inline">Submit Quiz ✓</span>
+          <span className="sm:hidden">Submit ✓</span>
+        </button>
         )}
       </div>
       </div> 
