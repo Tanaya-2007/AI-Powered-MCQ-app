@@ -11,7 +11,6 @@ function SoloMode() {
   const [difficulty, setDifficulty] = useState('medium');
   const [numQuestions, setNumQuestions] = useState(10);
   const [timePerQuestion, setTimePerQuestion] = useState(60);
-//   const [customQuestions, setCustomQuestions] = useState('');
   const [customTime, setCustomTime] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [quizReady, setQuizReady] = useState(false);
