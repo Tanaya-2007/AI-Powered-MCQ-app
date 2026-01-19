@@ -76,6 +76,7 @@ function QuizSession() {
   const answeredCount = answers.filter(a => a !== null).length;
   const unansweredCount = quizData.questions.length - answeredCount;
   const markedCount = markedForReview.filter(m => m).length;
+  const [pageTransition, setPageTransition] = useState('fade-in');
 
   
   const handleSelectAnswer = useCallback((index) => {
@@ -255,6 +256,14 @@ function QuizSession() {
     }
   };
 
+  const smoothTransition = (callback) => {
+    setPageTransition('fade-out');
+    setTimeout(() => {
+      callback();
+      setPageTransition('fade-in');
+    }, 300);
+  };
+
   // RESULTS PAGE
   if (quizComplete && !showReview) {
     const results = calculateResults();
@@ -322,7 +331,7 @@ function QuizSession() {
     const performance = getPerformanceData();
 
     return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12 animate-page-enter">
+      <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12 ${pageTransition === 'fade-in' ? 'animate-page-enter' : 'animate-page-exit'}`}>
       {performance.showConfetti && (
   <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
     {/* Simple Colorful Dots Falling from Top */}
@@ -422,7 +431,7 @@ function QuizSession() {
 
           <div className="space-y-3">
         <button
-          onClick={() => setShowReview(true)}
+          onClick={() => smoothTransition(() => setShowReview(true))}
           className="w-full py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105"
         >
           <span className="flex items-center justify-center gap-2">
@@ -434,13 +443,13 @@ function QuizSession() {
           </span>
         </button>
         <button
-          onClick={() => window.location.reload()}
-          className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
-        >
-          Retake Quiz
-        </button>
+        onClick={() => window.location.reload()}
+        className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
+      >
+        Retake Quiz
+      </button>
         <button
-          onClick={() => navigate('/solo-mode')}
+          onClick={() => smoothTransition(() => navigate('/solo-mode'))}
           className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
         >
           Generate New Quiz
@@ -454,17 +463,17 @@ function QuizSession() {
   // REVIEW MODE
   if (showReview) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-12 px-4 animate-page-enter">
-        <div className="max-w-4xl mx-auto">
+    <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-12 px-4 ${pageTransition === 'fade-in' ? 'animate-page-enter' : 'animate-page-exit'}`}>
+     <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <h2 className="text-xl sm:text-2xl font-black text-gray-900">Review Answers</h2>
-        <button
-        onClick={() => setShowReview(false)}
-        className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-lg hover:shadow-lg transition-all duration-300"
-      >
-        Back to Results
-      </button>
+          <button
+          onClick={() => smoothTransition(() => setShowReview(false))}
+          className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-bold rounded-lg hover:shadow-lg transition-all duration-300"
+        >
+          Back to Results
+        </button>
         </div>
       </div>
 
@@ -558,7 +567,7 @@ function QuizSession() {
 
 // MAIN QUIZ SESSION
 return (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
+  <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden ${pageTransition === 'fade-in' ? 'animate-page-enter' : 'animate-page-exit'}`}>
 {/* Finish Quiz Confirmation Popup */}
 {showExitConfirm && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
@@ -611,7 +620,7 @@ return (
         Continue Quiz
       </button>
       <button
-        onClick={() => setQuizComplete(true)}
+        onClick={() => smoothTransition(() => setQuizComplete(true))}
         className="flex-1 py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:shadow-xl transition-all duration-300"
       >
         Finish & Submit
@@ -650,11 +659,11 @@ return (
             Review Again
           </button>
           <button
-            onClick={confirmSubmit}
-            className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300"
-          >
-            Submit Anyway
-          </button>
+              onClick={() => smoothTransition(() => confirmSubmit())}
+              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300"
+            >
+              Submit Anyway
+            </button>
             </div>
            </div>
           </div>
