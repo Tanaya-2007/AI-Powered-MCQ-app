@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function SoloResults() {
@@ -9,16 +9,17 @@ function SoloResults() {
   const [pageTransition, setPageTransition] = useState('fade-in');
 
 
-  const confettiDots = useMemo(() => {
+  const [confettiDots] = useState(() => {
     return Array.from({ length: 80 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       delay: Math.random() * 2,
       duration: 2 + Math.random() * 2,
       size: 6 + Math.random() * 6,
+      translateX: -20 + Math.random() * 40,
       color: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#14B8A6', '#F97316', '#EF4444', '#A855F7'][Math.floor(Math.random() * 10)]
     }));
-  }, []);
+  });
 
   if (!results) {
     navigate('/solo-mode');
@@ -196,23 +197,6 @@ function SoloResults() {
             })}
           </div>
         </div>
-
-        <style jsx>{`
-          @keyframes page-enter {
-            0% { opacity: 0; transform: translateY(20px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes page-exit {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-20px); }
-          }
-          .animate-page-enter {
-            animation: page-enter 0.3s ease-out;
-          }
-          .animate-page-exit {
-            animation: page-exit 0.3s ease-out;
-          }
-        `}</style>
       </div>
     );
   }
@@ -225,12 +209,11 @@ function SoloResults() {
           {confettiDots.map((dot) => (
             <div
               key={dot.id}
-              className="absolute animate-elegant-fall"
+              className="absolute"
               style={{
                 left: `${dot.left}%`,
                 top: '-20px',
-                animationDelay: `${dot.delay}s`,
-                animationDuration: `${dot.duration}s`
+                animation: `fall-${dot.id} ${dot.duration}s ease-in ${dot.delay}s forwards`
               }}
             >
               <div
@@ -242,6 +225,19 @@ function SoloResults() {
                   opacity: 0.9
                 }}
               />
+              {/* ✅ FIXED: Individual keyframe for each dot */}
+              <style>{`
+                @keyframes fall-${dot.id} {
+                  0% {
+                    transform: translateY(0) translateX(0);
+                    opacity: 1;
+                  }
+                  100% {
+                    transform: translateY(110vh) translateX(${dot.translateX}px);
+                    opacity: 0;
+                  }
+                }
+              `}</style>
             </div>
           ))}
         </div>
@@ -343,36 +339,6 @@ function SoloResults() {
           </button>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes elegant-fall {
-          0% {
-            transform: translateY(0) translateX(0);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(110vh) translateX(${-20 + Math.random() * 40}px);
-            opacity: 0;
-          }
-        }
-        .animate-elegant-fall {
-          animation: elegant-fall forwards;
-        }
-        @keyframes page-enter {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes page-exit {
-          0% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(-20px); }
-        }
-        .animate-page-enter {
-          animation: page-enter 0.3s ease-out;
-        }
-        .animate-page-exit {
-          animation: page-exit 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

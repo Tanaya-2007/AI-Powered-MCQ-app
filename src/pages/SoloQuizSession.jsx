@@ -213,20 +213,20 @@ function SoloQuizSession() {
     if (unansweredCount > 0 || markedCount > 0) {
       setShowSubmitConfirm(true); 
     } else {
-      setQuizComplete(true); 
+      const results = calculateResults();
+      navigate('/solo-results', {
+        state: {
+          results,
+          quizData,
+          answers
+        }
+      });
     }
   };
   
   const confirmSubmit = () => {
     setShowSubmitConfirm(false);
-    const results = calculateResults();
-    navigate('/solo-results', {
-      state: {
-        results,
-        quizData,
-        answers
-      }
-    });
+    setQuizComplete(true);
   };
 
   const calculateResults = () => {
