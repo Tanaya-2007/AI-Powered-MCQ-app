@@ -66,7 +66,7 @@ function Home() {
   return (
     <>
       {/* HERO SECTION */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 px-4 py-20 sm:px-6 lg:px-8">
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 px-4 py-20 sm:px-6 lg:px-8 animate-page-enter">
         {/* ANIMATED DOT PATTERN BACKGROUND */}
         <div 
           className="absolute inset-0 opacity-50"

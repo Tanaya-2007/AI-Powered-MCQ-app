@@ -131,13 +131,11 @@
   animation: slide-down 0.5s ease-out;
 }
 
-/* 🔥 ADD THESE NEW ANIMATIONS BELOW 🔥 */
-
 /* Smooth Page Transitions */
 @keyframes page-fade-in {
   0% {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   100% {
     opacity: 1;
@@ -146,7 +144,8 @@
 }
 
 .animate-page-enter {
-  animation: page-fade-in 0.4s ease-out;
+  animation: page-fade-in 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
 }
 
 /* Elegant Confetti Animations */
@@ -252,10 +251,11 @@
   }
   100% {
     opacity: 0;
-    transform: translateY(-20px);
+    transform: translateY(-30px);
   }
 }
 
 .animate-page-exit {
-  animation: page-fade-out 0.3s ease-out forwards;
+  animation: page-fade-out 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
 }

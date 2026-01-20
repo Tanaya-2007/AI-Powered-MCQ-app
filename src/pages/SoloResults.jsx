@@ -326,26 +326,26 @@ function SoloResults() {
             </span>
           </button>
           <button
-                onClick={() => {
-                    navigate('/quiz-session', { 
-                    state: {
-                        difficulty: quizData.difficulty,
-                        numQuestions: quizData.totalQuestions,
-                        timePerQuestion: quizData.timePerQuestion
-                    },
-                    replace: true 
-                    });
-                }}
-                className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
-                >
-                Retake Quiz
-                </button>
-          <button
-            onClick={() => smoothTransition(() => navigate('/solo-quiz-session'))}
-            className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
+            onClick={() => smoothTransition(() => {
+              navigate('/quiz-session', { 
+                state: {
+                  difficulty: quizData.difficulty,
+                  numQuestions: quizData.totalQuestions,
+                  timePerQuestion: quizData.timePerQuestion
+                },
+                replace: true 
+              });
+            })}
+            className="w-full py-3 sm:py-4 bg-white border-2 border-indigo-600 text-indigo-600 text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105"
           >
-            Generate New Quiz
+            Retake Quiz
           </button>
+                <button
+                onClick={() => smoothTransition(() => navigate('/solo-mode', { replace: true }))}
+                className="w-full py-3 sm:py-4 bg-white border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-bold rounded-xl hover:bg-gray-50 transition-all duration-300"
+              >
+                Generate New Quiz
+              </button>
         </div>
       </div>
     </div>
