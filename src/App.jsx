@@ -1,9 +1,9 @@
 import Home from './pages/home';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ModeSelection from './pages/ModeSelection';
-import SoloMode from './pages/SoloMode';
-import SoloQuizSession from './pages/SoloQuizSession';
-import SoloResults from './pages/SoloResults';
+import SoloMode from './pages/solo/SoloMode';
+import SoloQuizSession from './pages/solo/SoloQuizSession';
+import SoloResults from './pages/solo/SoloResults';
 
 function App() {
   return (
