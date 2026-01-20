@@ -223,7 +223,9 @@ function ModeSelection() {
                   </div>
 
                   {/* CTA Button */}
-                  <button className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/60 transform hover:scale-105 transition-all duration-300 group/btn">
+                  <button 
+                  onClick={() => navigate('/collaborative')}
+                  className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/60 transform hover:scale-105 transition-all duration-300 group/btn">
                     <span className="flex items-center justify-center gap-2">
                       Start Collaborative Mode
                       <svg className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
