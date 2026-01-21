@@ -15,6 +15,27 @@ function SoloMode() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [quizReady, setQuizReady] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const [quizCode, setQuizCode] = useState('');
+
+  const generateQuizCode = () => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return code;
+};
+
+const showToastMessage = (message) => {
+  setToastMessage(message);
+  setShowToast(true);
+  setTimeout(() => {
+    setShowToast(false);
+  }, 3000);
+};
 
   const handleFileUpload = (file) => {
     if (file) {
@@ -77,9 +98,10 @@ function SoloMode() {
     }
   
     setIsGenerating(true);
-    
-    // Simulate quiz generation
+
     setTimeout(() => {
+      const newCode = generateQuizCode();
+      setQuizCode(newCode); 
       setIsGenerating(false);
       setQuizReady(true);
     }, 3000);
@@ -95,7 +117,6 @@ function SoloMode() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
        {/* Quiz Ready POPUP */}
-{/* Quiz Ready POPUP - COLLABORATIVE VERSION */}
 {quizReady && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
     <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform scale-100 animate-scale-in">
@@ -124,17 +145,17 @@ function SoloMode() {
       <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 mb-6 text-center">
         <p className="text-white/80 text-sm font-semibold mb-2">Quiz Code</p>
         <div className="text-5xl font-black text-white tracking-wider mb-3">
-          ABC123
+        {quizCode}
         </div>
         <button
-          onClick={() => {
-            navigator.clipboard.writeText('ABC123');
-            alert('Code copied to clipboard!');
-          }}
-          className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg backdrop-blur-sm transition-all"
-        >
-          📋 Copy Code
-        </button>
+        onClick={() => {
+          navigator.clipboard.writeText(quizCode);
+          showToastMessage('Code copied to clipboard!');
+        }}
+        className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg backdrop-blur-sm transition-all"
+      >
+        📋 Copy Code
+      </button>
       </div>
 
       {/* Quiz Info */}
@@ -157,7 +178,7 @@ function SoloMode() {
       <div className="space-y-3">
         <button
           onClick={() => navigate('/collab/quiz-lobby', { 
-            state: { quizCode: 'ABC123', difficulty, numQuestions, timePerQuestion: customTime || timePerQuestion } 
+            state: { quizCode: quizCode, difficulty, numQuestions, timePerQuestion: customTime || timePerQuestion } 
           })}
           className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
         >
@@ -171,13 +192,13 @@ function SoloMode() {
         
         <button
           onClick={() => {
-            const shareText = `Join my quiz! Code: ABC123`;
-            const shareUrl = `${window.location.origin}/collab/join?code=ABC123`;
+            const shareText = `Join my quiz! Code: ${quizCode}`;
+            const shareUrl = `${window.location.origin}/collab/join?code=${quizCode}`;
             if (navigator.share) {
               navigator.share({ title: 'Join Quiz', text: shareText, url: shareUrl });
             } else {
               navigator.clipboard.writeText(shareUrl);
-              alert('Share link copied to clipboard!');
+              showToastMessage('🔗 Share link copied to clipboard!');
             }
           }}
           className="w-full py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300"
@@ -537,13 +558,29 @@ function SoloMode() {
                   )}
                 </button>
               )}
-
              </div>
-
           </div>
-
         </div>
       </div>
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+          <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 px-6 py-4 flex items-center gap-3 min-w-[320px]">
+            {/* Gradient Accent Bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-l-2xl"></div>
+            
+            {/* Icon */}
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            
+            {/* Message */}
+            <span className="text-sm font-bold text-gray-900 flex-1">{toastMessage}</span>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
   @keyframes moveDots {
