@@ -5,6 +5,7 @@ import SoloMode from './pages/solo/SoloMode';
 import SoloQuizSession from './pages/solo/SoloQuizSession';
 import SoloResults from './pages/solo/SoloResults';
 import CollabLanding from './pages/collaborative/CollabLanding';
+import CreateQuiz from './pages/collaborative/CreateQuiz';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
       <Route path="/quiz-session" element={<SoloQuizSession />} />
       <Route path="/solo-results" element={<SoloResults />} />
       <Route path="/collaborative" element={<CollabLanding />} />
+      <Route path="/collab/create-quiz" element={<CreateQuiz />} />
     </Routes>
     </BrowserRouter>
   );
