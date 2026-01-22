@@ -221,11 +221,7 @@ function QuizLobby() {
                 <div className="text-6xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent tracking-wider mb-4">
                   {quizCode}
                 </div>
-                <div className="flex justify-center gap-1">
-                  {quizCode.split('').map((_, i) => (
-                    <div key={i} className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"></div>
-                  ))}
-                </div>
+                
               </div>
 
               <div className="space-y-2">
