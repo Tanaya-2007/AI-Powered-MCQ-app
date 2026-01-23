@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function CollabQuizSession() {
@@ -49,12 +49,25 @@ function CollabQuizSession() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(timePerQuestion || 60);
   const [showResultScreen, setShowResultScreen] = useState(false);
-  const [answeredParticipants, setAnsweredParticipants] = useState([]);
-  const isHost = true; // You would determine this based on actual user
+  const [participantAnswers, setParticipantAnswers] = useState([]); // Stores {participantId, answer}
+  const [currentParticipants, setCurrentParticipants] = useState(participants);
+  const isHost = participants[0]?.isHost || false; // First participant is host
 
   const question = quizData.questions[currentQuestion];
   const totalQuestions = quizData.questions.length;
   const isLastQuestion = currentQuestion === totalQuestions - 1;
+
+  // Pre-calculate random values for confetti
+  const confettiDots = useMemo(() => {
+    return Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+      size: 6 + Math.random() * 6,
+      color: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][Math.floor(Math.random() * 6)]
+    }));
+  }, []);
 
   // Timer countdown
   useEffect(() => {
@@ -64,71 +77,80 @@ function CollabQuizSession() {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && !showResultScreen) {
-      handleTimeUp();
+      // Time's up - host must manually show results
+      if (isHost) {
+        // Auto-show results for host
+        setShowResultScreen(true);
+      }
     }
-  }, [timeLeft, showResultScreen]);
+  }, [timeLeft, showResultScreen, isHost]);
 
   // Simulate participants answering (REMOVE IN PRODUCTION)
   useEffect(() => {
-    if (!isAnswered && !showResultScreen) {
+    if (!showResultScreen) {
       const interval = setInterval(() => {
-        if (answeredParticipants.length < participants.length - 1) {
-          const randomParticipant = participants.filter(p => 
-            !answeredParticipants.find(ap => ap.id === p.id) && !p.isHost
-          )[0];
+        if (participantAnswers.length < currentParticipants.length - 1) {
+          // Random participant answers random option
+          const unansweredParticipants = currentParticipants.filter(p => 
+            !participantAnswers.find(pa => pa.participantId === p.id) && !p.isHost
+          );
           
-          if (randomParticipant) {
-            setAnsweredParticipants(prev => [...prev, randomParticipant]);
+          if (unansweredParticipants.length > 0) {
+            const randomParticipant = unansweredParticipants[Math.floor(Math.random() * unansweredParticipants.length)];
+            const randomAnswer = Math.floor(Math.random() * question.options.length);
+            
+            setParticipantAnswers(prev => [...prev, {
+              participantId: randomParticipant.id,
+              participant: randomParticipant,
+              answer: randomAnswer
+            }]);
           }
         }
       }, 1500);
       return () => clearInterval(interval);
     }
-  }, [answeredParticipants, isAnswered, showResultScreen, participants]);
+  }, [participantAnswers, showResultScreen, currentParticipants, question.options.length]);
 
   const handleSelectAnswer = (index) => {
     if (isAnswered) return;
     setSelectedAnswer(index);
     setIsAnswered(true);
     
-    // Add host to answered participants
-    const host = participants.find(p => p.isHost);
-    setAnsweredParticipants(prev => [...prev, host]);
+    // Add host's answer
+    const host = currentParticipants.find(p => p.isHost);
+    setParticipantAnswers(prev => [...prev, {
+      participantId: host.id,
+      participant: host,
+      answer: index
+    }]);
   };
 
-  const handleTimeUp = () => {
+  const handleShowResults = () => {
+    if (!isHost) return;
     setShowResultScreen(true);
-    
-    // Auto-transition after 3 seconds
-    setTimeout(() => {
-      if (isLastQuestion) {
-        navigate('/collab/results', { 
-          state: { quizCode, participants, quizData } 
-        });
-      } else {
-        handleNextQuestion();
-      }
-    }, 3000);
   };
 
   const handleNextQuestion = () => {
-    setCurrentQuestion(currentQuestion + 1);
-    setSelectedAnswer(null);
-    setIsAnswered(false);
-    setTimeLeft(timePerQuestion || 60);
-    setShowResultScreen(false);
-    setAnsweredParticipants([]);
-  };
-
-  const handleForceNext = () => {
     if (!isHost) return;
-    handleTimeUp();
+    
+    if (isLastQuestion) {
+      navigate('/collab/results', { 
+        state: { quizCode, participants: currentParticipants, quizData } 
+      });
+    } else {
+      setCurrentQuestion(currentQuestion + 1);
+      setSelectedAnswer(null);
+      setIsAnswered(false);
+      setTimeLeft(timePerQuestion || 60);
+      setShowResultScreen(false);
+      setParticipantAnswers([]);
+    }
   };
 
   const handleEndQuiz = () => {
     if (!isHost) return;
     navigate('/collab/results', { 
-      state: { quizCode, participants, quizData } 
+      state: { quizCode, participants: currentParticipants, quizData } 
     });
   };
 
@@ -138,43 +160,150 @@ function CollabQuizSession() {
     return 'from-indigo-500 to-purple-600';
   };
 
+  // Calculate vote statistics for each option
+  const getVoteStats = () => {
+    const totalVotes = participantAnswers.length;
+    return question.options.map((option, index) => {
+      const votes = participantAnswers.filter(pa => pa.answer === index).length;
+      const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+      return { option, index, votes, percentage, isCorrect: index === question.correctAnswer };
+    });
+  };
+
   // Between Questions Result Screen
   if (showResultScreen) {
-    const correctAnswers = answeredParticipants.length; // Simplified - in real app, check actual answers
+    const voteStats = getVoteStats();
+    const correctVotes = voteStats.find(s => s.isCorrect)?.votes || 0;
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 animate-fade-in">
-        <div className="bg-white rounded-3xl shadow-2xl border-2 border-gray-100 p-12 max-w-2xl w-full text-center animate-scale-in">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
-            <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden flex items-center justify-center px-4 animate-fade-in">
+        {/* Confetti for correct answers */}
+        {correctVotes > 0 && (
+          <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+            {confettiDots.map((dot) => (
+              <div
+                key={dot.id}
+                className="absolute animate-elegant-fall"
+                style={{
+                  left: `${dot.left}%`,
+                  top: '-20px',
+                  animationDelay: `${dot.delay}s`,
+                  animationDuration: `${dot.duration}s`
+                }}
+              >
+                <div
+                  className="rounded-full shadow-lg"
+                  style={{
+                    width: `${dot.size}px`,
+                    height: `${dot.size}px`,
+                    backgroundColor: dot.color,
+                    opacity: 0.9
+                  }}
+                />
+              </div>
+            ))}
           </div>
-          
-          <h2 className="text-3xl font-black text-gray-900 mb-4">Correct Answer</h2>
-          
-          <div className="inline-flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-500 rounded-2xl mb-6">
-            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center text-white text-xl font-black">
-              {String.fromCharCode(65 + question.correctAnswer)}
+        )}
+
+        <div className="bg-white rounded-3xl shadow-2xl border-2 border-gray-100 p-8 sm:p-12 max-w-3xl w-full animate-scale-in">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
+              <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
             </div>
-            <span className="text-lg font-bold text-gray-900">{question.options[question.correctAnswer]}</span>
+            <h2 className="text-3xl font-black text-gray-900 mb-2">Correct Answer</h2>
+            <p className="text-gray-600">🔥 {correctVotes} players got it right</p>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-gray-600 mb-6">
-            <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-            </svg>
-            <span className="text-lg font-bold">🔥 {correctAnswers} players got it right</span>
+          {/* Vote Statistics - ALL OPTIONS */}
+          <div className="space-y-3 mb-8">
+            {voteStats.sort((a, b) => b.percentage - a.percentage).map((stat) => (
+              <div 
+                key={stat.index}
+                className={`relative rounded-2xl p-4 border-2 transition-all ${
+                  stat.isCorrect
+                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-500'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                {/* Progress bar background */}
+                <div 
+                  className={`absolute inset-0 rounded-2xl transition-all duration-1000 ${
+                    stat.isCorrect ? 'bg-green-200/30' : 'bg-indigo-200/20'
+                  }`}
+                  style={{ width: `${stat.percentage}%` }}
+                ></div>
+
+                {/* Content */}
+                <div className="relative flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shadow-lg ${
+                      stat.isCorrect
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
+                      {String.fromCharCode(65 + stat.index)}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-base font-bold ${stat.isCorrect ? 'text-green-900' : 'text-gray-900'}`}>
+                        {stat.option}
+                      </p>
+                      <p className="text-xs text-gray-500">{stat.votes} {stat.votes === 1 ? 'player' : 'players'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-2xl font-black ${stat.isCorrect ? 'text-green-600' : 'text-gray-600'}`}>
+                      {stat.percentage}%
+                    </span>
+                    {stat.isCorrect && (
+                      <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
-            <span className="text-sm text-gray-500">Moving to next question...</span>
-          </div>
+          {/* Host Controls - ONLY VISIBLE TO HOST */}
+          {isHost && (
+            <div className="space-y-3">
+              <button
+                onClick={handleNextQuestion}
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-black rounded-2xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+              >
+                {isLastQuestion ? '🏁 Show Final Results' : '➡️ Next Question'}
+              </button>
+              <button
+                onClick={handleEndQuiz}
+                className="w-full py-3 bg-white border-2 border-red-500 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-all duration-300"
+              >
+                End Quiz Now
+              </button>
+            </div>
+          )}
+
+          {/* Participant View - Waiting */}
+          {!isHost && (
+            <div className="text-center py-6">
+              <div className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-50 rounded-full">
+                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+                <span className="text-sm font-bold text-indigo-600">Waiting for host to continue...</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
   }
+
+  // Participants who have answered
+  const answeredParticipants = participantAnswers.map(pa => pa.participant);
+  const displayParticipants = currentParticipants.slice(0, 15);
+  const hiddenCount = currentParticipants.length - 15;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
@@ -195,253 +324,317 @@ function CollabQuizSession() {
       </div>
 
       {/* Top Bar - FIXED */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-xl shadow-lg border-b border-gray-200/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            {/* Quiz Title */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-lg font-black text-gray-900">{quizData.title}</h1>
-                <p className="text-xs text-gray-500 font-semibold">Live Quiz Arena</p>
-              </div>
-            </div>
-
-            {/* Question Counter */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200">
-              <span className="text-sm font-bold text-gray-600">Question</span>
-              <span className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                {currentQuestion + 1} / {totalQuestions}
-              </span>
-            </div>
-
-            {/* Timer - BIG & VISIBLE */}
-            <div className={`px-6 py-3 bg-gradient-to-r ${getTimerColor()} rounded-2xl shadow-xl ${timeLeft <= 10 ? 'animate-pulse scale-110' : ''} transition-all`}>
-              <div className="flex items-center gap-2">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-3xl font-black text-white">{timeLeft}s</span>
-              </div>
-            </div>
-
-            {/* Participants Count */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-              </svg>
-              <span className="text-lg font-black text-gray-900">{participants.length}</span>
-            </div>
-          </div>
+      {/* Top Bar - FIXED & RESPONSIVE */}
+<div className="fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl shadow-xl border-b border-indigo-200/50">
+  <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
+    <div className="flex items-center justify-between flex-wrap gap-2">
+      {/* Quiz Title - SMALLER ON MOBILE */}
+      <div className="flex items-center gap-2">
+        <div className="w-9 h-9 sm:w-11 sm:h-11 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div className="hidden sm:block">
+          <h1 className="text-base sm:text-lg font-black text-gray-900">{quizData.title}</h1>
+          <p className="text-xs text-gray-500 font-semibold">Live Arena ⚡</p>
         </div>
       </div>
+
+      {/* Question Counter */}
+      <div className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg sm:rounded-xl border-2 border-indigo-300">
+        <span className="text-xs sm:text-sm font-bold text-gray-700">Q</span>
+        <span className="text-lg sm:text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          {currentQuestion + 1}/{totalQuestions}
+        </span>
+      </div>
+
+      {/* Timer - COMPACT ON MOBILE */}
+      <div className={`px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r ${getTimerColor()} rounded-xl sm:rounded-2xl shadow-xl ${timeLeft <= 10 ? 'animate-pulse' : ''} transition-all duration-300`}>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <svg className="w-4 h-4 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-xl sm:text-3xl font-black text-white tabular-nums">{timeLeft}s</span>
+        </div>
+      </div>
+
+      {/* Participants Count */}
+      <div className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg sm:rounded-xl border-2 border-green-300">
+        <svg className="w-4 h-4 sm:w-6 sm:h-6 text-green-700" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+        </svg>
+        <span className="text-base sm:text-xl font-black text-gray-900">{currentParticipants.length}</span>
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* Main Content */}
       <div className="relative z-20 pt-32 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           
-          {/* Question Card */}
-          <div className="bg-white rounded-3xl shadow-2xl border-2 border-indigo-200 p-8 sm:p-12 mb-8 animate-glow">
-            <div className="flex items-start gap-4 mb-8">
-              <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                <span className="text-2xl font-black text-white">Q{currentQuestion + 1}</span>
-              </div>
-              <div className="flex-1">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 leading-tight">
-                  {question.question}
-                </h2>
-              </div>
-            </div>
+          {/* Question Card - RESPONSIVE TEXT */}
+<div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-3 border-indigo-300 p-4 sm:p-6 md:p-10 mb-6 relative overflow-hidden animate-glow">
+  {/* Gradient Accent */}
+  <div className="absolute top-0 left-0 right-0 h-1.5 sm:h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+  
+  <div className="flex items-start gap-3 sm:gap-4 mb-6 sm:mb-8">
+    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 shadow-xl">
+      <span className="text-xl sm:text-3xl font-black text-white">Q{currentQuestion + 1}</span>
+    </div>
+    <div className="flex-1">
+      <h2 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 leading-tight">
+        {question.question}
+      </h2>
+    </div>
+  </div>
 
-            {/* Options Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {question.options.map((option, index) => {
-                const isSelected = selectedAnswer === index;
-                
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleSelectAnswer(index)}
-                    disabled={isAnswered}
-                    className={`group relative p-6 rounded-2xl border-3 text-left transition-all duration-300 ${
-                      isAnswered
-                        ? isSelected
-                          ? 'bg-indigo-50 border-indigo-500 shadow-xl'
-                          : 'bg-gray-50 border-gray-200'
-                        : 'bg-white border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 hover:scale-105 hover:shadow-xl cursor-pointer'
-                    } ${!isAnswered && 'active:scale-95'}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg transition-all ${
-                        isAnswered
-                          ? isSelected
-                            ? 'bg-indigo-600 text-white scale-110'
-                            : 'bg-gray-300 text-gray-700'
-                          : 'bg-gray-200 text-gray-700 group-hover:bg-indigo-600 group-hover:text-white group-hover:scale-110'
-                      }`}>
-                        {String.fromCharCode(65 + index)}
-                      </div>
-                      <span className={`text-base sm:text-lg font-bold ${
-                        isAnswered
-                          ? isSelected
-                            ? 'text-indigo-900'
-                            : 'text-gray-600'
-                          : 'text-gray-900 group-hover:text-indigo-900'
-                      }`}>
-                        {option}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+  {/* Options Grid - RESPONSIVE */}
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
+    {question.options.map((option, index) => {
+      const isSelected = selectedAnswer === index;
+      
+      return (
+        <button
+          key={index}
+          onClick={() => handleSelectAnswer(index)}
+          disabled={isAnswered}
+          className={`group relative p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl border-3 text-left transition-all duration-300 ${
+            isAnswered
+              ? isSelected
+                ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-500 shadow-2xl scale-105'
+                : 'bg-gray-50 border-gray-200 opacity-50'
+              : 'bg-white border-gray-300 hover:border-indigo-500 hover:bg-indigo-50 hover:scale-105 hover:shadow-2xl cursor-pointer active:scale-95'
+          }`}
+        >
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-base sm:text-xl transition-all ${
+              isAnswered
+                ? isSelected
+                  ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white scale-110 shadow-lg'
+                  : 'bg-gray-300 text-gray-600'
+                : 'bg-gradient-to-br from-gray-200 to-gray-300 text-gray-700 group-hover:from-indigo-600 group-hover:to-purple-600 group-hover:text-white group-hover:scale-110'
+            }`}>
+              {String.fromCharCode(65 + index)}
             </div>
-
-            {/* Answer Submitted Indicator */}
-            {isAnswered && (
-              <div className="mt-6 text-center">
-                <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl shadow-xl animate-bounce-once">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-lg font-black">Answer Submitted ✅</span>
-                </div>
-              </div>
-            )}
+            <span className={`text-sm sm:text-base md:text-lg font-bold flex-1 ${
+              isAnswered
+                ? isSelected
+                  ? 'text-indigo-900'
+                  : 'text-gray-500'
+                : 'text-gray-900 group-hover:text-indigo-900'
+            }`}>
+              {option}
+            </span>
           </div>
+        </button>
+      );
+    })}
+  </div>
 
-          {/* Live Answer Status - AVATAR FILL (PRESSURE BUILDER 😈) */}
-          <div className="bg-white rounded-3xl shadow-xl border-2 border-gray-100 p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                Live Answers
-              </h3>
-              <span className="text-sm font-bold text-gray-600">
-                {answeredParticipants.length} / {participants.length} answered
+  {/* Answer Submitted Indicator */}
+  {isAnswered && (
+    <div className="text-center animate-bounce-once">
+      <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl sm:rounded-2xl shadow-2xl">
+        <svg className="w-5 h-5 sm:w-7 sm:h-7" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+        <span className="text-base sm:text-xl font-black">Answer Locked ✅</span>
+      </div>
+    </div>
+  )}
+</div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   {/* Live Answer Status - CLEAN FOR ANY NUMBER */}
+<div className="lg:col-span-2 bg-white rounded-3xl shadow-xl border-2 border-gray-100 p-6">
+  <div className="flex items-center justify-between mb-6">
+    <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+      Live Answers
+    </h3>
+    <div className="px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-300">
+      <span className="text-lg font-black text-gray-900">
+        {answeredParticipants.length} / {currentParticipants.length}
+      </span>
+    </div>
+  </div>
+
+  {/* Show avatars ONLY if <= 8 participants */}
+  {currentParticipants.length <= 8 ? (
+    <>
+      {/* Avatar Grid */}
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 mb-6">
+        {currentParticipants.map((participant) => {
+          const hasAnswered = answeredParticipants.find(p => p.id === participant.id);
+          
+          return (
+            <div 
+              key={participant.id}
+              className="flex flex-col items-center gap-2"
+            >
+              <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl border-3 shadow-lg transition-all duration-500 ${
+                hasAnswered
+                  ? 'bg-gradient-to-br from-green-500 to-emerald-600 border-green-400 scale-110 animate-bounce-once'
+                  : 'bg-gray-100 border-gray-300 opacity-50'
+              }`}>
+                {participant.avatar}
+              </div>
+              <span className={`text-xs font-bold truncate w-full text-center transition-colors ${
+                hasAnswered ? 'text-green-700' : 'text-gray-400'
+              }`}>
+                {participant.name}
               </span>
             </div>
+          );
+        })}
+      </div>
+    </>
+  ) : (
+    /* For >8 participants, show ONLY percentage */
+    <div className="text-center py-8">
+      <div className="text-6xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+        {Math.round((answeredParticipants.length / currentParticipants.length) * 100)}%
+      </div>
+      <p className="text-sm text-gray-600 font-semibold">of players answered</p>
+    </div>
+  )}
 
-            {/* Avatar Grid - Turn GREEN as they answer */}
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-              {participants.map((participant) => {
-                const hasAnswered = answeredParticipants.find(p => p.id === participant.id);
-                
-                return (
-                  <div 
-                    key={participant.id}
-                    className="flex flex-col items-center gap-2"
-                  >
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl border-3 transition-all duration-500 ${
-                      hasAnswered
-                        ? 'bg-gradient-to-br from-green-500 to-emerald-600 border-green-500 shadow-lg scale-110'
-                        : 'bg-gray-100 border-gray-300'
-                    }`}>
-                      {participant.avatar}
-                    </div>
-                    <span className={`text-xs font-semibold truncate w-full text-center ${
-                      hasAnswered ? 'text-green-600' : 'text-gray-500'
-                    }`}>
-                      {participant.name}
-                    </span>
+  {/* Progress Bar - ALWAYS SHOW */}
+  <div className="mt-6">
+    <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+      <div 
+        className="h-full bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 transition-all duration-500 rounded-full relative overflow-hidden"
+        style={{ width: `${(answeredParticipants.length / currentParticipants.length) * 100}%` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+            {/* Host Controls - ONLY VISIBLE TO HOST */}
+            {isHost && (
+              <div className="lg:col-span-1 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-3xl border-3 border-yellow-300 p-6 shadow-xl">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-10 h-10 bg-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                    </svg>
                   </div>
-                );
-              })}
-            </div>
+                  <h3 className="text-lg font-black text-gray-900">Host Controls</h3>
+                </div>
+                
+                <div className="space-y-3">
+                  <button
+                    onClick={handleShowResults}
+                    disabled={timeLeft === 0}
+                    className="w-full px-4 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Show Results
+                      </button>
+                      <button
+                onClick={handleEndQuiz}
+                className="w-full px-4 py-3 bg-white border-2 border-red-500 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-all duration-300 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                End Quiz
+              </button>
 
-            {/* Progress Bar */}
-            <div className="mt-6">
-              <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-500 rounded-full"
-                  style={{ width: `${(answeredParticipants.length / participants.length) * 100}%` }}
-                ></div>
+              <div className="pt-4 border-t-2 border-yellow-300">
+                <div className="text-xs text-gray-600 space-y-2">
+                  <p className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    Waiting: {currentParticipants.length - answeredParticipants.length}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                    Answered: {answeredParticipants.length}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Host Controls */}
-          {isHost && (
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border-2 border-yellow-300 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <svg className="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-                </svg>
-                <h3 className="text-lg font-black text-gray-900">Host Controls</h3>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={handleForceNext}
-                  className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300 flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  </svg>
-                  Force Next Question
-                </button>
-                <button
-                  onClick={handleEndQuiz}
-                  className="px-6 py-3 bg-white border-2 border-red-500 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-all duration-300 flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  End Quiz
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-
-      <style jsx>{`
-        @keyframes moveDots {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-
-        @keyframes glow {
-          0%, 100% {
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-          }
-          50% {
-            box-shadow: 0 0 40px rgba(99, 102, 241, 0.5);
-          }
-        }
-
-        .animate-glow {
-          animation: glow 2s ease-in-out infinite;
-        }
-
-        @keyframes bounce-once {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-
-        .animate-bounce-once {
-          animation: bounce-once 0.6s ease-in-out;
-        }
-
-        @keyframes scale-in {
-          0% {
-            transform: scale(0.9);
-            opacity: 0;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-
-        .animate-scale-in {
-          animation: scale-in 0.3s ease-out;
-        }
-      `}</style>
     </div>
-  );
+  </div>
+
+  <style jsx>{`
+    @keyframes moveDots {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(50px, 50px); }
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.4); }
+      50% { box-shadow: 0 0 60px rgba(99, 102, 241, 0.6); }
+    }
+
+    .animate-glow {
+      animation: glow 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .animate-shimmer {
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes bounce-once {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .animate-bounce-once {
+      animation: bounce-once 0.6s ease-in-out;
+    }
+
+    @keyframes scale-in {
+      0% {
+        transform: scale(0.9);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .animate-scale-in {
+      animation: scale-in 0.3s ease-out;
+    }
+
+   @keyframes elegant-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg);
+    opacity: 0;
+  }
 }
 
-export default CollabQuizSession;
+    .animate-elegant-fall {
+      animation: elegant-fall forwards;
+    }
+  `}</style>
+</div>   
+);
+}
+export default CollabQuizSession
