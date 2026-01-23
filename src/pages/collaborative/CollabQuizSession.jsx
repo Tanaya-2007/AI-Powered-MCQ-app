@@ -170,193 +170,389 @@ function CollabQuizSession() {
     });
   };
 
-  // Between Questions Result Screen
-  if (showResultScreen) {
-    const voteStats = getVoteStats();
-    const correctVotes = voteStats.find(s => s.isCorrect)?.votes || 0;
-    
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden flex items-center justify-center px-4 py-8">
-        {/* Animated Background */}
-        <div 
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage: `radial-gradient(circle, rgba(99, 102, 241, 0.15) 2px, transparent 2px)`,
-            backgroundSize: '50px 50px',
-            animation: 'moveDots 20s linear infinite'
-          }}
-        />
+// 🎨 REPLACE THE ENTIRE "if (showResultScreen)" BLOCK WITH THIS:
+
+if (showResultScreen) {
+  const voteStats = getVoteStats();
+  const correctVotes = voteStats.find(s => s.isCorrect)?.votes || 0;
+  const totalVotes = participantAnswers.length;
+  const accuracy = totalVotes > 0 ? Math.round((correctVotes / totalVotes) * 100) : 0;
+
+  // Sort options by: 1) Correct first, 2) Most votes, 3) Highest percentage
+  const rankedStats = [...voteStats].sort((a, b) => {
+    if (a.isCorrect !== b.isCorrect) return b.isCorrect ? 1 : -1;
+    if (b.votes !== a.votes) return b.votes - a.votes;
+    return b.percentage - a.percentage;
+  });
+
+  // Rank badges
+  const getRankBadge = (index) => {
+    if (index === 0) return '🥇';
+    if (index === 1) return '🥈';
+    if (index === 2) return '🥉';
+    return `#${index + 1}`;
+  };
+
+  const getRankColor = (index, isCorrect) => {
+    if (isCorrect) return 'from-yellow-400 to-orange-500';
+    if (index === 0) return 'from-purple-500 to-indigo-600';
+    if (index === 1) return 'from-slate-400 to-slate-500';
+    if (index === 2) return 'from-amber-600 to-amber-700';
+    return 'from-gray-400 to-gray-500';
+  };
   
-        {/* Confetti */}
-        {correctVotes > 0 && (
-          <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-            {confettiDots.map((dot) => (
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 relative overflow-hidden flex items-center justify-center px-4 py-8">
+      
+      {/* Background Decorations */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-purple-300 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-40 h-40 bg-indigo-300 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-1/2 left-1/2 w-36 h-36 bg-pink-300 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+      </div>
+
+      {/* Confetti */}
+      {correctVotes > 0 && (
+        <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+          {confettiDots.map((dot) => (
+            <div
+              key={dot.id}
+              className="absolute"
+              style={{
+                left: `${dot.left}%`,
+                top: '-20px',
+                animation: `confettiFall ${dot.duration}s ease-out ${dot.delay}s infinite`
+              }}
+            >
               <div
-                key={dot.id}
-                className="absolute animate-elegant-fall"
+                className="rounded-full shadow-lg"
                 style={{
-                  left: `${dot.left}%`,
-                  top: '-20px',
-                  animationDelay: `${dot.delay}s`,
-                  animationDuration: `${dot.duration}s`
+                  width: `${dot.size}px`,
+                  height: `${dot.size}px`,
+                  backgroundColor: dot.color
                 }}
-              >
-                <div
-                  className="rounded-full shadow-lg"
-                  style={{
-                    width: `${dot.size}px`,
-                    height: `${dot.size}px`,
-                    backgroundColor: dot.color,
-                    opacity: 0.9
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-  
-        <div className="bg-white rounded-3xl shadow-2xl border-2 border-gray-100 p-6 sm:p-8 md:p-12 max-w-4xl w-full relative z-10 animate-scale-in">
-          {/* Header with Trophy Animation */}
-          <div className="text-center mb-8">
-            <div className="relative inline-block mb-6">
-              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-2xl animate-bounce-slow">
-                <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="relative z-10 w-full max-w-4xl">
+        
+        {/* Header */}
+        <div className="text-center mb-8 animate-slide-down">
+          <div className="inline-flex items-center justify-center mb-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full blur-2xl opacity-60 animate-pulse"></div>
+              <div className="relative w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-2xl">
+                <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
                 </svg>
               </div>
-              {/* Pulse rings */}
-              <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20"></div>
-              <div className="absolute inset-0 rounded-full bg-green-400 animate-pulse opacity-10"></div>
+            </div>
+          </div>
+          
+          <h1 className="text-5xl md:text-6xl font-black text-gray-900 mb-2">
+            Results Revealed!
+          </h1>
+          <p className="text-lg text-gray-600 font-semibold">📊 Final Leaderboard Rankings</p>
+        </div>
+
+        {/* Stats Bar */}
+        <div className="bg-white rounded-2xl shadow-lg border-2 border-purple-200 p-5 mb-6 animate-slide-up">
+          <div className="flex items-center justify-around flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-600">Correct</p>
+                <p className="text-2xl font-black text-gray-900">{correctVotes}/{totalVotes}</p>
+              </div>
             </div>
             
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 mb-3">
-              Answer Revealed!
-            </h2>
-            <div className="inline-flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full border-2 border-green-300">
-              <span className="text-2xl">🎯</span>
-              <p className="text-lg font-black text-gray-900">
-                {correctVotes} {correctVotes === 1 ? 'player' : 'players'} got it right
-              </p>
-            </div>
-          </div>
-  
-          {/* Statistics - ALL OPTIONS with Modern Design */}
-          <div className="space-y-4 mb-8">
-            {voteStats.sort((a, b) => b.percentage - a.percentage).map((stat, idx) => (
-              <div 
-                key={stat.index}
-                className={`relative rounded-2xl overflow-hidden border-2 transition-all duration-500 transform hover:scale-102 ${
-                  stat.isCorrect
-                    ? 'border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg shadow-green-200'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
-                style={{
-                  animationDelay: `${idx * 0.1}s`,
-                  animation: 'slideInRight 0.5s ease-out forwards'
-                }}
-              >
-                {/* Animated Progress Bar */}
-                <div 
-                  className={`absolute inset-0 transition-all duration-1000 ease-out ${
-                    stat.isCorrect 
-                      ? 'bg-gradient-to-r from-green-300/40 to-emerald-300/40' 
-                      : 'bg-gradient-to-r from-indigo-200/30 to-purple-200/30'
-                  }`}
-                  style={{ 
-                    width: `${stat.percentage}%`,
-                    transformOrigin: 'left'
-                  }}
-                />
-  
-                {/* Content */}
-                <div className="relative p-4 sm:p-5 md:p-6 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    {/* Option Letter with Glow */}
-                    <div className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-xl sm:text-2xl shadow-xl transition-all ${
-                      stat.isCorrect
-                        ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white scale-110 shadow-green-400'
-                        : stat.votes > 0
-                        ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}>
-                      {String.fromCharCode(65 + stat.index)}
-                      {stat.isCorrect && (
-                        <div className="absolute inset-0 rounded-xl animate-ping bg-green-400 opacity-20"></div>
-                      )}
-                    </div>
-  
-                    {/* Option Text */}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-base sm:text-lg md:text-xl font-black truncate ${
-                        stat.isCorrect ? 'text-green-900' : 'text-gray-900'
-                      }`}>
-                        {stat.option}
-                      </p>
-                      <p className="text-sm text-gray-600 font-semibold">
-                        {stat.votes} {stat.votes === 1 ? 'vote' : 'votes'}
-                      </p>
-                    </div>
-                  </div>
-  
-                  {/* Percentage & Icon */}
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <div className="text-right">
-                      <div className={`text-2xl sm:text-3xl md:text-4xl font-black tabular-nums ${
-                        stat.isCorrect 
-                          ? 'bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent' 
-                          : 'text-gray-700'
-                      }`}>
-                        {stat.percentage}%
-                      </div>
-                    </div>
-                    
-                    {stat.isCorrect && (
-                      <div className="animate-bounce-slow">
-                        <svg className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                </svg>
               </div>
-            ))}
-          </div>
-  
-          {/* Host Controls - ONLY HOST SEES THIS */}
-          {isHost ? (
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <button
-                onClick={handleNextQuestion}
-                className="flex-1 py-4 sm:py-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-lg sm:text-xl font-black rounded-2xl shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-500/60 transition-all duration-300 transform hover:scale-105"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  {isLastQuestion ? '🏆 Show Final Results' : '➡️ Next Question'}
-                </span>
-              </button>
-              <button
-                onClick={handleEndQuiz}
-                className="px-6 py-4 sm:py-5 bg-white border-2 border-red-500 text-red-600 text-lg font-bold rounded-2xl hover:bg-red-50 transition-all duration-300"
-              >
-                End Quiz
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <div className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border-2 border-indigo-200">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                </div>
-                <span className="text-base font-bold text-gray-700">Waiting for host...</span>
+              <div>
+                <p className="text-sm font-semibold text-gray-600">Accuracy</p>
+                <p className="text-2xl font-black text-gray-900">{accuracy}%</p>
               </div>
             </div>
-          )}
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-600">Players</p>
+                <p className="text-2xl font-black text-gray-900">{totalVotes}</p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* LEADERBOARD - Social Media Style */}
+        <div className="space-y-4 mb-8">
+          {rankedStats.map((stat, rank) => {
+            const playersWhoChose = participantAnswers.filter(pa => pa.answer === stat.index);
+            
+            return (
+              <div
+                key={stat.index}
+                className={`relative group animate-slide-in-right ${
+                  stat.isCorrect ? 'scale-105' : ''
+                }`}
+                style={{ animationDelay: `${rank * 0.15}s` }}
+              >
+                {/* Spotlight for Correct Answer */}
+                {stat.isCorrect && (
+                  <div className="absolute -inset-4 bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 rounded-3xl blur-2xl opacity-30 animate-pulse"></div>
+                )}
+
+                {/* Main Card */}
+                <div className={`relative bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-500 hover:scale-[1.02] ${
+                  stat.isCorrect ? 'border-4 border-yellow-400' : 'border-2 border-gray-200'
+                }`}>
+                  
+                  {/* Shine Effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+
+                  <div className="relative p-5">
+                    <div className="flex items-center gap-4">
+                      
+                      {/* Rank Badge */}
+                      <div className="flex-shrink-0">
+                        <div className={`w-16 h-16 bg-gradient-to-br ${getRankColor(rank, stat.isCorrect)} rounded-2xl flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform`}>
+                          <span className="text-3xl font-black text-white">
+                            {getRankBadge(rank)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Option Letter + Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
+                            stat.isCorrect 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-gray-200 text-gray-700'
+                          }`}>
+                            {String.fromCharCode(65 + stat.index)}
+                          </div>
+                          
+                          <div className="flex-1">
+                            <p className={`text-xl font-black truncate ${
+                              stat.isCorrect ? 'text-green-700' : 'text-gray-900'
+                            }`}>
+                              {stat.option}
+                            </p>
+                          </div>
+
+                          {/* Correct Badge */}
+                          {stat.isCorrect && (
+                            <div className="px-3 py-1 bg-green-500 text-white text-xs font-black rounded-full flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                              CORRECT
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Player Avatars */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex -space-x-2">
+                            {playersWhoChose.slice(0, 5).map((pa, idx) => (
+                              <div
+                                key={pa.participantId}
+                                className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-2 border-white flex items-center justify-center text-sm shadow-lg"
+                                style={{ zIndex: 5 - idx }}
+                              >
+                                {pa.participant.avatar}
+                              </div>
+                            ))}
+                            {playersWhoChose.length > 5 && (
+                              <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-700">
+                                +{playersWhoChose.length - 5}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm font-bold text-gray-600">
+                            {stat.votes} {stat.votes === 1 ? 'player' : 'players'}
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                              stat.isCorrect 
+                                ? 'bg-gradient-to-r from-green-400 to-emerald-500' 
+                                : 'bg-gradient-to-r from-purple-400 to-indigo-500'
+                            }`}
+                            style={{ 
+                              width: `${stat.percentage}%`,
+                              transitionDelay: `${rank * 0.2}s`
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Percentage - Animated Counter */}
+                      <div className="flex-shrink-0 text-right">
+                        <div className={`text-4xl font-black tabular-nums ${
+                          stat.isCorrect 
+                            ? 'text-green-600' 
+                            : 'text-gray-700'
+                        }`}>
+                          {stat.percentage}%
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Action Buttons */}
+        {isHost ? (
+          <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: '0.6s' }}>
+            <button
+              onClick={handleNextQuestion}
+              className="group flex-1 relative px-8 py-5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xl font-black rounded-2xl overflow-hidden shadow-2xl shadow-purple-300 hover:shadow-purple-400 transition-all duration-300 transform hover:scale-105 active:scale-95"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+              <span className="relative flex items-center justify-center gap-3">
+                {isLastQuestion ? (
+                  <>
+                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                    </svg>
+                    View Final Results
+                  </>
+                ) : (
+                  <>
+                    Next Question
+                    <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </>
+                )}
+              </span>
+            </button>
+            
+            <button
+              onClick={handleEndQuiz}
+              className="px-8 py-5 bg-white border-3 border-red-400 text-red-600 text-xl font-bold rounded-2xl hover:bg-red-50 hover:border-red-500 transition-all duration-300 shadow-lg active:scale-95"
+            >
+              End Quiz
+            </button>
+          </div>
+        ) : (
+          <div className="text-center py-6 animate-fade-in">
+            <div className="inline-flex items-center gap-4 px-8 py-4 bg-white rounded-2xl border-2 border-purple-200 shadow-lg">
+              <div className="flex gap-2">
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></div>
+                <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></div>
+              </div>
+              <span className="text-lg font-bold text-gray-700">Waiting for host...</span>
+            </div>
+          </div>
+        )}
+
       </div>
-    );
-  }
+
+      <style jsx>{`
+        @keyframes confettiFall {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          90% {
+            opacity: 0.9;
+          }
+          100% {
+            transform: translateY(110vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+
+        @keyframes slide-down {
+          from {
+            opacity: 0;
+            transform: translateY(-30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-slide-down {
+          animation: slide-down 0.6s ease-out;
+        }
+
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.6s ease-out;
+        }
+
+        @keyframes slide-in-right {
+          from {
+            opacity: 0;
+            transform: translateX(50px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        .animate-slide-in-right {
+          animation: slide-in-right 0.5s ease-out both;
+        }
+
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+      `}</style>
+    </div>
+  );
+}
 
   // Participants who have answered
   const answeredParticipants = participantAnswers.map(pa => pa.participant);
@@ -670,55 +866,6 @@ function CollabQuizSession() {
     .animate-scale-in {
       animation: scale-in 0.3s ease-out;
     }
-
-   @keyframes elegant-fall {
-  0% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(110vh) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-    .animate-elegant-fall {
-      animation: elegant-fall forwards;
-    }
-
-    @keyframes slideInRight {
-  0% {
-    transform: translateX(50px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes bounce-slow {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-15px);
-  }
-}
-
-.animate-bounce-slow {
-  animation: bounce-slow 2s ease-in-out infinite;
-}
-
-.hover:scale-102:hover {
-  transform: scale(1.02);
-}
   `}</style>
 </div>   
 );
