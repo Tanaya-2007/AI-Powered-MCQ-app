@@ -100,7 +100,7 @@ function QuizLobby() {
       alert('⚠️ Wait for at least one participant to join!');
       return;
     }
-    navigate('/collab/quiz-session', { 
+    navigate('/collab-quiz-session', { 
       state: { quizCode, difficulty, numQuestions, timePerQuestion, participants } 
     });
   };

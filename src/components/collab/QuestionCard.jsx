@@ -1,5 +1,3 @@
-// 📄 NEW FILE: src/components/QuestionCard.jsx
-
 import React from 'react';
 
 function QuestionCard({ 

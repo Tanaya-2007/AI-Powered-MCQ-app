@@ -1,13 +1,17 @@
 import React from 'react';
 
+
 function LiveLeaderboardMini({ participants, maxShow = 5 }) {
   // Filter out host and sort by score (highest first)
-  const sortedParticipants = [...participants]
-    .filter(p => !p.isHost) // ⚡ EXCLUDE HOST
+  const playersOnly = participants.filter(p => !p.isHost); 
+  const sortedParticipants = [...playersOnly]
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, maxShow);
 
-  const getRankMedal = (rank) => {
+ 
+  const allHaveZeroPoints = playersOnly.every(p => (p.score || 0) === 0);
+
+  const getMedalIcon = (rank) => {
     if (rank === 0) return '🥇';
     if (rank === 1) return '🥈';
     if (rank === 2) return '🥉';
@@ -38,7 +42,9 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
         </div>
         
         <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-purple-100 rounded-lg">
-          <span className="text-sm sm:text-base font-black text-purple-700">{participants.length} Players</span>
+          <span className="text-sm sm:text-base font-black text-purple-700">
+            {participants.filter(p => !p.isHost).length} Players
+          </span>
         </div>
       </div>
 
@@ -63,16 +69,12 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
               {participant.avatar}
             </div>
 
-            {/* Name */}
             <div className="flex-1 min-w-0">
               <p className={`text-sm sm:text-base font-bold truncate ${
                 rank === 0 ? 'text-orange-900' : 'text-gray-900'
               }`}>
                 {participant.name}
               </p>
-              {participant.isHost && (
-                <span className="text-xs font-semibold text-purple-600">👑 Host</span>
-              )}
             </div>
 
             {/* Score */}
@@ -89,10 +91,10 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
       </div>
 
       {/* Show More Link */}
-      {participants.length > maxShow && (
+      {participants.filter(p => !p.isHost).length > maxShow && (
         <div className="mt-4 text-center">
           <p className="text-sm font-semibold text-gray-500">
-            +{participants.length - maxShow} more players
+            +{participants.filter(p => !p.isHost).length - maxShow} more players
           </p>
         </div>
       )}

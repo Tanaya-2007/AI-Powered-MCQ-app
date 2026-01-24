@@ -1,4 +1,3 @@
-// 📄 NEW FILE: src/pages/collaborative/QuestionResultPage.jsx
 
 import React, { useEffect, useMemo } from 'react';
 import LiveLeaderboardMini from '../../components/collab/LiveLeaderboardMini';
@@ -12,17 +11,17 @@ function QuestionResultPage({
   isLastQuestion,
   isHost, 
   autoRedirectTime = 5 
-}) 
-
-{
+})
+ {
   const isCorrect = selectedAnswer === question.correctAnswer;
   const correctOption = question.options[question.correctAnswer];
 
-  // Filter out host from leaderboard
   const playersOnly = participants.filter(p => !p.isHost);
-  
-  // Find current user's rank
   const sortedPlayers = [...playersOnly].sort((a, b) => (b.score || 0) - (a.score || 0));
+  
+  const allHaveZeroPoints = playersOnly.every(p => (p.score || 0) === 0);
+  const myRank = allHaveZeroPoints ? 0 : sortedPlayers.findIndex(p => p.id === currentUserId) + 1;
+
   const currentUserRank = sortedPlayers.findIndex(p => p.id === currentUserId) + 1;
 
   // Confetti

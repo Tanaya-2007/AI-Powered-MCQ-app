@@ -1,5 +1,3 @@
-// 📄 NEW FILE: src/pages/collaborative/FinalLeaderboardPage.jsx
-
 import React, { useState, useMemo } from 'react';
 
 function FinalLeaderboardPage({ participants, onExit }) {
@@ -10,9 +8,9 @@ function FinalLeaderboardPage({ participants, onExit }) {
   // Filter out host and sort participants by score
   const playersOnly = participants.filter(p => !p.isHost);
   
-  const sortedParticipants = useMemo(() => {
-    return [...playersOnly].sort((a, b) => (b.score || 0) - (a.score || 0));
-  }, [playersOnly]);
+  const sortedParticipants = [...playersOnly]
+  .sort((a, b) => (b.score || 0) - (a.score || 0));
+  const allHaveZeroPoints = playersOnly.every(p => (p.score || 0) === 0);
 
   // Filter by search
   const filteredParticipants = useMemo(() => {
@@ -127,7 +125,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
 
           {/* 3rd Place */}
           {top3[2] && (
-            <div className="md:order-3 bg-gradient-to-br from-amber-100 to-orange-100 rounded-2xl sm:rounded-3xl p-6 shadow-xl border-2 border-amber-400 transform md:translate-y-8">
+            <div className="md:order-3 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl sm:rounded-3xl p-6 shadow-xl border-2 border-slate-300 transform md:translate-y-8">
               <div className="text-center">
                 <div className="text-5xl mb-3">🥉</div>
                 <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-4 border-white flex items-center justify-center text-2xl shadow-lg">
@@ -173,7 +171,6 @@ function FinalLeaderboardPage({ participants, onExit }) {
                   <th className="px-4 py-4 text-left text-sm font-black">Rank</th>
                   <th className="px-4 py-4 text-left text-sm font-black">Player</th>
                   <th className="px-4 py-4 text-center text-sm font-black">Score</th>
-                  <th className="px-4 py-4 text-center text-sm font-black hidden sm:table-cell">Accuracy</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
