@@ -1,3 +1,5 @@
+// 📄 NEW FILE: src/pages/collaborative/QuestionResultPage.jsx
+
 import React, { useEffect, useMemo } from 'react';
 import LiveLeaderboardMini from '../../components/collab/LiveLeaderboardMini';
 
@@ -5,12 +7,23 @@ function QuestionResultPage({
   question,
   selectedAnswer,
   participants,
+  currentUserId, 
   onNextQuestion,
   isLastQuestion,
-  autoRedirectTime = 5 // seconds
-}) {
+  isHost, 
+  autoRedirectTime = 5 
+}) 
+
+{
   const isCorrect = selectedAnswer === question.correctAnswer;
   const correctOption = question.options[question.correctAnswer];
+
+  // Filter out host from leaderboard
+  const playersOnly = participants.filter(p => !p.isHost);
+  
+  // Find current user's rank
+  const sortedPlayers = [...playersOnly].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const currentUserRank = sortedPlayers.findIndex(p => p.id === currentUserId) + 1;
 
   // Confetti
   const confettiDots = useMemo(() => {
@@ -24,14 +37,16 @@ function QuestionResultPage({
     }));
   }, []);
 
-  // Auto redirect
+  // Auto redirect (only for non-hosts, host controls manually)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onNextQuestion();
-    }, autoRedirectTime * 1000);
+    if (!isHost) {
+      const timer = setTimeout(() => {
+        onNextQuestion();
+      }, autoRedirectTime * 1000);
 
-    return () => clearTimeout(timer);
-  }, [autoRedirectTime, onNextQuestion]);
+      return () => clearTimeout(timer);
+    }
+  }, [autoRedirectTime, onNextQuestion, isHost]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 px-4 py-6 sm:py-12 relative overflow-hidden">
@@ -66,6 +81,15 @@ function QuestionResultPage({
         
         {/* Result Status Card */}
         <div className="text-center mb-6 sm:mb-8 animate-scale-in">
+          {!isHost && ( // ⚡ Only show rank for non-host players
+            <div className="inline-block mb-4 px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-2xl shadow-lg">
+              <p className="text-sm font-bold">Your Current Rank</p>
+              <p className="text-4xl font-black">
+                {currentUserRank > 0 ? `#${currentUserRank}` : 'N/A'}
+              </p>
+            </div>
+          )}
+          
           {isCorrect ? (
             <>
               {/* Correct Answer */}
@@ -120,18 +144,31 @@ function QuestionResultPage({
           <LiveLeaderboardMini participants={participants} maxShow={5} />
         </div>
 
-        {/* Auto Redirect Info */}
+        {/* Auto Redirect Info or Host Controls */}
         <div className="text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-xl border-2 border-purple-200 shadow-lg">
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 bg-purple-600 rounded-full animate-bounce"></div>
-              <div className="w-2.5 h-2.5 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></div>
-              <div className="w-2.5 h-2.5 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></div>
+          {isHost ? (
+            // ⚡ HOST: Manual controls
+            <div className="space-y-4">
+              <button
+                onClick={onNextQuestion}
+                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+              >
+                {isLastQuestion ? '🏆 View Final Results' : '➡️ Next Question'}
+              </button>
             </div>
-            <span className="text-sm sm:text-base font-bold text-gray-700">
-              {isLastQuestion ? 'Loading final results...' : `Next question in ${autoRedirectTime}s`}
-            </span>
-          </div>
+          ) : (
+            // ⚡ PLAYERS: Auto redirect message
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-xl border-2 border-purple-200 shadow-lg">
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 bg-purple-600 rounded-full animate-bounce"></div>
+                <div className="w-2.5 h-2.5 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></div>
+                <div className="w-2.5 h-2.5 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></div>
+              </div>
+              <span className="text-sm sm:text-base font-bold text-gray-700">
+                {isLastQuestion ? 'Loading final results...' : `Next question in ${autoRedirectTime}s`}
+              </span>
+            </div>
+          )}
         </div>
 
       </div>

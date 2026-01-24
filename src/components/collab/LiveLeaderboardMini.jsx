@@ -1,10 +1,9 @@
-// 📄 NEW FILE: src/components/LiveLeaderboardMini.jsx
-
 import React from 'react';
 
 function LiveLeaderboardMini({ participants, maxShow = 5 }) {
-  // Sort by score (highest first)
+  // Filter out host and sort by score (highest first)
   const sortedParticipants = [...participants]
+    .filter(p => !p.isHost) // ⚡ EXCLUDE HOST
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, maxShow);
 

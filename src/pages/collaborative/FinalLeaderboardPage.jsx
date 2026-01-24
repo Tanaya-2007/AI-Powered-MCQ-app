@@ -1,3 +1,5 @@
+// 📄 NEW FILE: src/pages/collaborative/FinalLeaderboardPage.jsx
+
 import React, { useState, useMemo } from 'react';
 
 function FinalLeaderboardPage({ participants, onExit }) {
@@ -5,10 +7,12 @@ function FinalLeaderboardPage({ participants, onExit }) {
   const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 25;
 
-  // Sort participants by score
+  // Filter out host and sort participants by score
+  const playersOnly = participants.filter(p => !p.isHost);
+  
   const sortedParticipants = useMemo(() => {
-    return [...participants].sort((a, b) => (b.score || 0) - (a.score || 0));
-  }, [participants]);
+    return [...playersOnly].sort((a, b) => (b.score || 0) - (a.score || 0));
+  }, [playersOnly]);
 
   // Filter by search
   const filteredParticipants = useMemo(() => {
@@ -85,7 +89,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
             Final Results! 🏆
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 font-semibold">
-            Complete Leaderboard - {participants.length} Players
+            Complete Leaderboard - {playersOnly.length} Players
           </p>
         </div>
 
@@ -155,7 +159,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
               </div>
             </div>
             <div className="text-sm font-bold text-gray-600">
-              Showing {filteredParticipants.length} of {participants.length}
+              Showing {filteredParticipants.length} of {playersOnly.length}
             </div>
           </div>
         </div>
@@ -191,9 +195,6 @@ function FinalLeaderboardPage({ participants, onExit }) {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900">{participant.name}</p>
-                            {participant.isHost && (
-                              <span className="text-xs font-semibold text-purple-600">👑 Host</span>
-                            )}
                           </div>
                         </div>
                       </td>
