@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 
 function LiveLeaderboardMini({ participants, maxShow = 5 }) {
@@ -7,11 +7,36 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
   const sortedParticipants = [...playersOnly]
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, maxShow);
-
+    const [prevRankings, setPrevRankings] = useState({});
+    const [rankChanges, setRankChanges] = useState({});
+    
+    useEffect(() => {
+      const newRankings = {};
+      const changes = {};
+      
+      sortedParticipants.forEach((p, index) => {
+        newRankings[p.id] = index;
+        
+        if (prevRankings[p.id] !== undefined) {
+          const change = prevRankings[p.id] - index;
+          if (change !== 0) {
+            changes[p.id] = change; // positive = rank up, negative = rank down
+          }
+        }
+      });
+      
+      setRankChanges(changes);
+      setPrevRankings(newRankings);
+      
+      // Clear animations after 2 seconds
+      if (Object.keys(changes).length > 0) {
+        setTimeout(() => setRankChanges({}), 2000);
+      }
+    }, [sortedParticipants.map(p => p.id).join(','), sortedParticipants.map(p => p.score).join(',')]);
  
   const allHaveZeroPoints = playersOnly.every(p => (p.score || 0) === 0);
 
-  const getMedalIcon = (rank) => {
+  const getRankMedal = (rank) => {  
     if (rank === 0) return '🥇';
     if (rank === 1) return '🥈';
     if (rank === 2) return '🥉';
@@ -61,7 +86,7 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
           >
             {/* Rank Badge */}
             <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${getRankColor(rank)} rounded-lg flex items-center justify-center font-black text-base sm:text-lg text-white shadow-md flex-shrink-0`}>
-              {getRankMedal(rank)}
+              {allHaveZeroPoints ? `#${rank + 1}` : getRankMedal(rank)}
             </div>
 
             {/* Avatar */}
@@ -78,14 +103,21 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
             </div>
 
             {/* Score */}
-            <div className="text-right flex-shrink-0">
-              <p className={`text-xl sm:text-2xl font-black ${
-                rank === 0 ? 'text-orange-600' : 'text-gray-700'
+          <div className="text-right flex-shrink-0 relative">
+            {rankChanges[participant.id] && (
+              <div className={`absolute -top-2 -right-2 animate-bounce-slow ${
+                rankChanges[participant.id] > 0 ? 'text-green-600' : 'text-red-600'
               }`}>
-                {participant.score || 0}
-              </p>
-              <p className="text-xs text-gray-500 font-semibold">points</p>
-            </div>
+                {rankChanges[participant.id] > 0 ? '↑' : '↓'}
+              </div>
+            )}
+            <p className={`text-xl sm:text-2xl font-black transition-all duration-500 ${
+              rank === 0 ? 'text-orange-600' : 'text-gray-700'
+            } ${rankChanges[participant.id] ? 'scale-110' : ''}`}>
+              {participant.score || 0}
+            </p>
+            <p className="text-xs text-gray-500 font-semibold">points</p>
+          </div>
           </div>
         ))}
       </div>

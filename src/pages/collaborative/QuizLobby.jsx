@@ -14,7 +14,6 @@ function QuizLobby() {
   const [copied, setCopied] = useState(false);
   const [showActivityToast, setShowActivityToast] = useState(null);
 
-  // Demo participants (REMOVE IN PRODUCTION)
   const demoParticipants = [
     { name: 'Alice', avatar: '👩' },
     { name: 'Bob', avatar: '👨' },
@@ -96,13 +95,24 @@ function QuizLobby() {
   };
 
   const handleStartQuiz = () => {
-    if (participants.length < 2) {
-      alert('⚠️ Wait for at least one participant to join!');
-      return;
-    }
-    navigate('/collab-quiz-session', { 
+    console.log('🔥 START QUIZ CLICKED!');
+    console.log('Participants:', participants);
+    console.log('Participants length:', participants.length);
+    
+    // if (participants.length < 2) {
+    //   console.log('❌ Not enough participants!');
+    //   alert('⚠️ Wait for at least one participant to join!');
+    //   return;
+    // }
+    
+    console.log('✅ Navigating to quiz session...');
+    console.log('State data:', { quizCode, difficulty, numQuestions, timePerQuestion, participants });
+    
+    navigate('/collab/quiz-session', { 
       state: { quizCode, difficulty, numQuestions, timePerQuestion, participants } 
     });
+    
+    console.log('✅ Navigate called!');
   };
 
   const getDifficultyColor = () => {
