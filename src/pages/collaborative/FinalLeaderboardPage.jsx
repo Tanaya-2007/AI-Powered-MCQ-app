@@ -9,7 +9,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
   const playersOnly = participants.filter(p => !p.isHost);
   
   const sortedParticipants = [...playersOnly]
-  .sort((a, b) => (b.score || 0) - (a.score || 0));
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
   const allHaveZeroPoints = playersOnly.every(p => (p.score || 0) === 0);
 
   // Filter by search
@@ -91,53 +91,55 @@ function FinalLeaderboardPage({ participants, onExit }) {
           </p>
         </div>
 
-        {/* 🥇 TOP 3 PODIUM */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
-          {/* 2nd Place */}
-          {top3[1] && (
-            <div className="md:order-1 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl sm:rounded-3xl p-6 shadow-xl border-2 border-slate-300 transform md:translate-y-8">
-              <div className="text-center">
-                <div className="text-5xl mb-3">🥈</div>
-                <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-4 border-white flex items-center justify-center text-2xl shadow-lg">
-                  {top3[1].avatar}
+        {/* 🥇 TOP 3 PODIUM - ORIGINAL DESIGN */}
+        {!allHaveZeroPoints && top3.length >= 3 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
+            {/* 2nd Place */}
+            {top3[1] && (
+              <div className="md:order-1 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl sm:rounded-3xl p-6 shadow-xl border-2 border-slate-300 transform md:translate-y-8">
+                <div className="text-center">
+                  <div className="text-5xl mb-3">🥈</div>
+                  <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-4 border-white flex items-center justify-center text-2xl shadow-lg">
+                    {top3[1].avatar}
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 mb-1">{top3[1].name}</h3>
+                  <p className="text-3xl font-black text-slate-600">{top3[1].score || 0}</p>
+                  <p className="text-sm text-gray-600 font-semibold">points</p>
                 </div>
-                <h3 className="text-xl font-black text-gray-900 mb-1">{top3[1].name}</h3>
-                <p className="text-3xl font-black text-slate-600">{top3[1].score || 0}</p>
-                <p className="text-sm text-gray-600 font-semibold">points</p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 1st Place */}
-          {top3[0] && (
-            <div className="md:order-2 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-2xl sm:rounded-3xl p-8 shadow-2xl border-4 border-yellow-400 transform scale-105">
-              <div className="text-center">
-                <div className="text-6xl mb-4 animate-bounce">🥇</div>
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-4 border-white flex items-center justify-center text-3xl shadow-2xl">
-                  {top3[0].avatar}
+            {/* 1st Place */}
+            {top3[0] && (
+              <div className="md:order-2 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-2xl sm:rounded-3xl p-8 shadow-2xl border-4 border-yellow-400 transform scale-105">
+                <div className="text-center">
+                  <div className="text-6xl mb-4 animate-bounce">🥇</div>
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-4 border-white flex items-center justify-center text-3xl shadow-2xl">
+                    {top3[0].avatar}
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-2">👑 {top3[0].name}</h3>
+                  <p className="text-5xl font-black text-orange-600">{top3[0].score || 0}</p>
+                  <p className="text-base text-gray-700 font-bold">points</p>
                 </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-2">👑 {top3[0].name}</h3>
-                <p className="text-5xl font-black text-orange-600">{top3[0].score || 0}</p>
-                <p className="text-base text-gray-700 font-bold">points</p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 3rd Place */}
-          {top3[2] && (
-            <div className="md:order-3 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl sm:rounded-3xl p-6 shadow-xl border-2 border-slate-300 transform md:translate-y-8">
-              <div className="text-center">
-                <div className="text-5xl mb-3">🥉</div>
-                <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-4 border-white flex items-center justify-center text-2xl shadow-lg">
-                  {top3[2].avatar}
+            {/* 3rd Place */}
+            {top3[2] && (
+              <div className="md:order-3 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl sm:rounded-3xl p-6 shadow-xl border-2 border-slate-300 transform md:translate-y-8">
+                <div className="text-center">
+                  <div className="text-5xl mb-3">🥉</div>
+                  <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-4 border-white flex items-center justify-center text-2xl shadow-lg">
+                    {top3[2].avatar}
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 mb-1">{top3[2].name}</h3>
+                  <p className="text-3xl font-black text-amber-700">{top3[2].score || 0}</p>
+                  <p className="text-sm text-gray-600 font-semibold">points</p>
                 </div>
-                <h3 className="text-xl font-black text-gray-900 mb-1">{top3[2].name}</h3>
-                <p className="text-3xl font-black text-amber-700">{top3[2].score || 0}</p>
-                <p className="text-sm text-gray-600 font-semibold">points</p>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* 🔍 SEARCH & FILTERS */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border-2 border-gray-200 p-4 sm:p-6 mb-6">
@@ -164,51 +166,54 @@ function FinalLeaderboardPage({ participants, onExit }) {
 
         {/* 📊 FULL LEADERBOARD (Paginated) */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden mb-6">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
-                <tr>
-                  <th className="px-4 py-4 text-left text-sm font-black">Rank</th>
-                  <th className="px-4 py-4 text-left text-sm font-black">Player</th>
-                  <th className="px-4 py-4 text-center text-sm font-black">Score</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {paginatedParticipants.map((participant, idx) => {
-                  const actualRank = startIndex + idx;
-                  return (
-                    <tr key={participant.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-black text-gray-700">
-                            {getRankDisplay(actualRank)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-2 border-white flex items-center justify-center text-lg shadow">
-                            {participant.avatar}
+          {allHaveZeroPoints ? (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">🎯</div>
+              <p className="text-2xl font-black text-gray-800 mb-2">No Scores Yet</p>
+              <p className="text-gray-600 text-lg">All players scored 0 points</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
+                  <tr>
+                    <th className="px-4 py-4 text-left text-sm font-black">Rank</th>
+                    <th className="px-4 py-4 text-left text-sm font-black">Player</th>
+                    <th className="px-4 py-4 text-center text-sm font-black">Score</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {paginatedParticipants.map((participant, idx) => {
+                    const actualRank = startIndex + idx;
+                    return (
+                      <tr key={participant.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-black text-gray-700">
+                              {getRankDisplay(actualRank)}
+                            </span>
                           </div>
-                          <div>
-                            <p className="font-bold text-gray-900">{participant.name}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-2 border-white flex items-center justify-center text-lg shadow">
+                              {participant.avatar}
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900">{participant.name}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <span className="text-2xl font-black text-gray-900">{participant.score || 0}</span>
-                      </td>
-                      <td className="px-4 py-4 text-center hidden sm:table-cell">
-                        <span className="text-lg font-bold text-purple-600">
-                          {participant.accuracy || 0}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className="text-2xl font-black text-gray-900">{participant.score || 0}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* 📄 PAGINATION */}
