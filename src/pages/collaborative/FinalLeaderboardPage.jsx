@@ -169,58 +169,58 @@ function FinalLeaderboardPage({ participants, onExit }) {
           </div>
         )}
 
-        {/* REST OF PLAYERS */}
-        {sortedParticipants.length > 3 && (
+      {/* REST OF PLAYERS */}
+      {sortedParticipants.length > 3 && (
           <div>
             {/* Search Bar */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-3 mb-4">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border-2 border-white/50 p-4 mb-5">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search players..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-sm"
+                  className="w-full px-5 py-3 pl-12 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-100 text-sm font-medium transition-all"
                 />
-                <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <p className="text-xs text-gray-500 font-semibold mt-2">
+              <p className="text-xs text-gray-500 font-semibold mt-3">
                 Showing {restOfPlayers.length} of {sortedParticipants.length - 3} players
               </p>
             </div>
 
             {/* Players List */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 divide-y divide-gray-200">
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border-2 border-white/50 divide-y divide-gray-100 overflow-hidden">
               {restOfPlayers.map((participant, idx) => {
                 const actualRank = sortedParticipants.indexOf(participant) + 1;
                 
                 return (
                   <div
                     key={participant.id}
-                    className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-4 p-4 hover:bg-purple-50/50 transition-all duration-200 group"
                   >
                     {/* Rank */}
-                    <div className="text-lg font-black text-gray-700 w-8">
-                      #{actualRank}
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:from-purple-100 group-hover:to-indigo-100 transition-all">
+                      <span className="text-base font-black text-gray-700 group-hover:text-purple-700">#{actualRank}</span>
                     </div>
 
                     {/* Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-2 border-white flex items-center justify-center text-xl shadow-sm flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 border-3 border-white flex items-center justify-center text-2xl shadow-md flex-shrink-0 group-hover:scale-110 transition-transform">
                       {participant.avatar}
                     </div>
 
                     {/* Name */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black text-gray-900 truncate">
+                      <p className="text-base font-black text-gray-900 truncate group-hover:text-purple-900 transition-colors">
                         {participant.name}
                       </p>
                     </div>
 
                     {/* Score */}
-                    <div className="text-right">
-                      <p className="text-xl font-black text-gray-900">
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-2xl font-black text-gray-900 group-hover:text-purple-700 transition-colors">
                         {participant.score || 0}
                       </p>
                       <p className="text-xs text-gray-500 font-semibold">points</p>
@@ -230,7 +230,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
               })}
 
               {restOfPlayers.length === 0 && searchQuery && (
-                <div className="p-6 text-center">
+                <div className="p-8 text-center">
                   <p className="text-sm text-gray-500 font-semibold">No players found</p>
                 </div>
               )}
@@ -239,10 +239,10 @@ function FinalLeaderboardPage({ participants, onExit }) {
         )}
 
         {/* Back Button */}
-        <div className="text-center mt-8">
+        <div className="text-center mt-10">
           <button
             onClick={onExit}
-            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
+            className="px-10 py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white text-lg font-black rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 transform"
           >
             Back to Home
           </button>
