@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 function LiveLeaderboardMini({ participants, maxShow = 5 }) {
-  // Filter out host and sort by score (highest first)
+  
   const playersOnly = participants.filter(p => !p.isHost); 
   const sortedParticipants = [...playersOnly]
     .sort((a, b) => (b.score || 0) - (a.score || 0))

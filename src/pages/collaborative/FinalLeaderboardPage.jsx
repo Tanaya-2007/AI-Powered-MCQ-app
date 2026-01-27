@@ -9,43 +9,53 @@ function FinalLeaderboardPage({ participants, onExit }) {
   const sortedParticipants = [...playersOnly]
     .sort((a, b) => (b.score || 0) - (a.score || 0));
 
-  // Filter by search
-  const filteredParticipants = useMemo(() => {
-    if (!searchQuery.trim()) return sortedParticipants;
-    return sortedParticipants.filter(p => 
+  // Top 3
+  const top3 = sortedParticipants.slice(0, 3);
+
+  // FIXED: Filter search on players AFTER top 3
+  const restOfPlayers = useMemo(() => {
+    const afterTop3 = sortedParticipants.slice(3);
+    if (!searchQuery.trim()) return afterTop3;
+    
+    return afterTop3.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [sortedParticipants, searchQuery]);
 
-  // Top 3
-  const top3 = sortedParticipants.slice(0, 3);
-  const restOfPlayers = filteredParticipants.slice(3);
+  const maxScore = Math.max(...playersOnly.map(p => p.score || 0), 1);
 
-  // Confetti dots
+  // Confetti matching Question Result Page
   const confettiDots = useMemo(() => {
-    return Array.from({ length: 30 }, (_, i) => ({
+    return Array.from({ length: 50 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      top: Math.random() * 100,
-      size: 4 + Math.random() * 8,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+      size: 6 + Math.random() * 6,
       color: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][Math.floor(Math.random() * 6)]
     }));
   }, []);
 
+  const getRankColor = (rank) => {
+    if (rank === 0) return 'from-yellow-400 to-orange-500';
+    if (rank === 1) return 'from-slate-400 to-slate-500';
+    if (rank === 2) return 'from-amber-600 to-amber-700';
+    return 'from-gray-300 to-gray-400';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 px-4 py-8 relative overflow-hidden">
       
-      {/* Falling Confetti */}
+      {/* Confetti - Matching Question Result Page */}
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
         {confettiDots.map((dot) => (
           <div
             key={dot.id}
-            className="absolute animate-confetti-fall"
+            className="absolute"
             style={{
               left: `${dot.left}%`,
               top: '-20px',
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${3 + Math.random() * 2}s`
+              animation: `confettiFall ${dot.duration}s ease-out ${dot.delay}s infinite`
             }}
           >
             <div
@@ -85,22 +95,15 @@ function FinalLeaderboardPage({ participants, onExit }) {
               {/* 2nd Place - Left */}
               {top3[1] && (
                 <div className="flex flex-col items-center w-24">
-                  {/* Medal Badge */}
                   <div className="w-16 h-16 bg-gradient-to-br from-slate-300 to-slate-400 rounded-full flex items-center justify-center shadow-lg mb-2 relative">
                     <span className="text-2xl font-black text-white">2</span>
                   </div>
-                  
-                  {/* Avatar */}
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border-4 border-white flex items-center justify-center text-2xl shadow-md mb-2">
                     {top3[1].avatar}
                   </div>
-
-                  {/* Name */}
                   <h3 className="text-sm font-black text-gray-900 mb-1 text-center">
                     {top3[1].name}
                   </h3>
-
-                  {/* Score */}
                   <p className="text-2xl font-black text-gray-900">{top3[1].score || 0}</p>
                   <p className="text-xs text-gray-600 font-semibold">points</p>
                 </div>
@@ -109,12 +112,9 @@ function FinalLeaderboardPage({ participants, onExit }) {
               {/* 1st Place - Center (WINNER) */}
               {top3[0] && (
                 <div className="flex flex-col items-center w-32 -mt-6">
-                  {/* Crown */}
                   <div className="mb-1">
                     <span className="text-3xl">👑</span>
                   </div>
-
-                  {/* Medal Badge with WINNER tag */}
                   <div className="relative mb-2">
                     <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-xl border-4 border-yellow-200">
                       <span className="text-3xl font-black text-white">1</span>
@@ -123,18 +123,12 @@ function FinalLeaderboardPage({ participants, onExit }) {
                       WINNER
                     </div>
                   </div>
-
-                  {/* Avatar */}
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 border-4 border-white flex items-center justify-center text-3xl shadow-lg mb-2 mt-3">
                     {top3[0].avatar}
                   </div>
-
-                  {/* Name */}
                   <h3 className="text-lg font-black text-gray-900 mb-1 text-center">
                     {top3[0].name}
                   </h3>
-
-                  {/* Score */}
                   <p className="text-4xl font-black bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
                     {top3[0].score || 0}
                   </p>
@@ -145,22 +139,15 @@ function FinalLeaderboardPage({ participants, onExit }) {
               {/* 3rd Place - Right */}
               {top3[2] && (
                 <div className="flex flex-col items-center w-24">
-                  {/* Medal Badge */}
                   <div className="w-16 h-16 bg-gradient-to-br from-slate-300 to-slate-400 rounded-full flex items-center justify-center shadow-lg mb-2 relative">
                     <span className="text-2xl font-black text-white">3</span>
                   </div>
-                  
-                  {/* Avatar */}
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border-4 border-white flex items-center justify-center text-2xl shadow-md mb-2">
                     {top3[2].avatar}
                   </div>
-
-                  {/* Name */}
                   <h3 className="text-sm font-black text-gray-900 mb-1 text-center">
                     {top3[2].name}
                   </h3>
-
-                  {/* Score */}
                   <p className="text-2xl font-black text-gray-900">{top3[2].score || 0}</p>
                   <p className="text-xs text-gray-600 font-semibold">points</p>
                 </div>
@@ -169,11 +156,11 @@ function FinalLeaderboardPage({ participants, onExit }) {
           </div>
         )}
 
-      {/* REST OF PLAYERS */}
-      {sortedParticipants.length > 3 && (
+        {/* REST OF PLAYERS - MATCHING MINI LEADERBOARD STYLE */}
+        {sortedParticipants.length > 3 && (
           <div>
             {/* Search Bar */}
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border-2 border-white/50 p-4 mb-5">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-4 mb-5">
               <div className="relative">
                 <input
                   type="text"
@@ -191,58 +178,64 @@ function FinalLeaderboardPage({ participants, onExit }) {
               </p>
             </div>
 
-            {/* Players List */}
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border-2 border-white/50 divide-y divide-gray-100 overflow-hidden">
-              {restOfPlayers.map((participant, idx) => {
-                const actualRank = sortedParticipants.indexOf(participant) + 1;
-                
-                return (
-                  <div
-                    key={participant.id}
-                    className="flex items-center gap-4 p-4 hover:bg-purple-50/50 transition-all duration-200 group"
-                  >
-                    {/* Rank */}
-                    <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:from-purple-100 group-hover:to-indigo-100 transition-all">
-                      <span className="text-base font-black text-gray-700 group-hover:text-purple-700">#{actualRank}</span>
-                    </div>
+            {/* Players List - MATCHING MINI LEADERBOARD */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5">
+              <div className="space-y-2.5">
+                {restOfPlayers.map((participant) => {
+                  const actualRank = sortedParticipants.indexOf(participant);
+                  const percentage = Math.round(((participant.score || 0) / maxScore) * 100);
+                  
+                  return (
+                    <div key={participant.id} className="group">
+                      <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50/80 transition-all duration-200">
+                        {/* Rank Badge */}
+                        <div className={`relative w-10 h-10 bg-gradient-to-br ${getRankColor(actualRank)} rounded-lg flex items-center justify-center shadow-sm flex-shrink-0`}>
+                          <span className="text-lg font-black text-white">{actualRank + 1}</span>
+                        </div>
 
-                    {/* Avatar */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 border-3 border-white flex items-center justify-center text-2xl shadow-md flex-shrink-0 group-hover:scale-110 transition-transform">
-                      {participant.avatar}
-                    </div>
+                        {/* Avatar & Name */}
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 border-2 border-white flex items-center justify-center text-lg shadow-sm flex-shrink-0">
+                            {participant.avatar}
+                          </div>
+                          <p className="text-sm font-bold text-gray-900 truncate">{participant.name}</p>
+                        </div>
 
-                    {/* Name */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-black text-gray-900 truncate group-hover:text-purple-900 transition-colors">
-                        {participant.name}
-                      </p>
-                    </div>
+                        {/* Score */}
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xl font-black text-gray-900 transition-all">
+                            {participant.score || 0}
+                          </p>
+                          <p className="text-xs text-gray-500">pts</p>
+                        </div>
+                      </div>
 
-                    {/* Score */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-2xl font-black text-gray-900 group-hover:text-purple-700 transition-colors">
-                        {participant.score || 0}
-                      </p>
-                      <p className="text-xs text-gray-500 font-semibold">points</p>
+                      {/* Progress Bar */}
+                      <div className="mt-1.5 ml-13 mr-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-purple-500 to-indigo-600"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
                     </div>
+                  );
+                })}
+
+                {restOfPlayers.length === 0 && searchQuery && (
+                  <div className="p-8 text-center">
+                    <p className="text-sm text-gray-500 font-semibold">No players found</p>
                   </div>
-                );
-              })}
-
-              {restOfPlayers.length === 0 && searchQuery && (
-                <div className="p-8 text-center">
-                  <p className="text-sm text-gray-500 font-semibold">No players found</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {/* Back Button */}
-        <div className="text-center mt-10">
+        <div className="text-center mt-8">
           <button
             onClick={onExit}
-            className="px-10 py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white text-lg font-black rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 transform"
+            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
           >
             Back to Home
           </button>
@@ -251,18 +244,18 @@ function FinalLeaderboardPage({ participants, onExit }) {
       </div>
 
       <style jsx>{`
-        @keyframes confetti-fall {
+        @keyframes confettiFall {
           0% {
-            transform: translateY(0) rotate(0deg);
+            transform: translateY(-20px) rotate(0deg);
             opacity: 1;
           }
           100% {
-            transform: translateY(100vh) rotate(720deg);
-            opacity: 0.7;
+            transform: translateY(100vh) rotate(1080deg);
+            opacity: 0.3;
           }
         }
         .animate-confetti-fall {
-          animation: confetti-fall linear infinite;
+          animation: confettiFall ease-out infinite;
         }
       `}</style>
     </div>
