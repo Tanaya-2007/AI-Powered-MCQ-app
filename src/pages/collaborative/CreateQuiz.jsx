@@ -17,54 +17,54 @@ function SoloMode() {
   const [isDragging, setIsDragging] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  const [quizCode, setQuizCode] = useState('');
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
 
-  const [quizCode, setQuizCode] = useState('');
+  // Generate mock questions based on study material
+  const generateMockQuestions = (count, material) => {
+    const topics = material ? material.split(' ').slice(0, 5) : ['JavaScript', 'React', 'Python', 'CSS', 'HTML'];
+    const mockQuestions = [];
+    
+    for (let i = 0; i < count; i++) {
+      const topic = topics[i % topics.length];
+      mockQuestions.push({
+        id: i + 1,
+        question: `What is the primary purpose of ${topic} in web development?`,
+        options: [
+          `${topic} is used for styling`,
+          `${topic} handles user interactions`,
+          `${topic} manages data flow`,
+          `${topic} creates server connections`
+        ],
+        correctAnswer: Math.floor(Math.random() * 4)
+      });
+    }
+    return mockQuestions;
+  };
 
   const generateQuizCode = () => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return code;
-};
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+  };
 
-const generateMockQuestions = (count) => {
-  const topics = ['JavaScript', 'React', 'Python', 'Java', 'CSS'];
-  const mockQuestions = [];
-  
-  for (let i = 0; i < count; i++) {
-    const topic = topics[i % topics.length];
-    mockQuestions.push({
-      id: i + 1,
-      question: `What is the main feature of ${topic}?`,
-      options: [
-        `${topic} feature A`,
-        `${topic} feature B`,
-        `${topic} feature C`,
-        `${topic} feature D`
-      ],
-      correctAnswer: Math.floor(Math.random() * 4)
-    });
-  }
-  return mockQuestions;
-};
-
-const showToastMessage = (message) => {
-  setToastMessage(message);
-  setShowToast(true);
-  setTimeout(() => {
-    setShowToast(false);
-  }, 3000);
-};
+  const showToastMessage = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
 
   const handleFileUpload = (file) => {
     if (file) {
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         alert('File size must be less than 10MB');
         return;
@@ -94,7 +94,6 @@ const showToastMessage = (message) => {
   };
 
   const handleGenerateQuiz = () => {
-    // Validate number of questions FIRST
     const questions = parseInt(numQuestions) || 0;
     if (questions === 0) {
       alert('❌ Please enter number of questions');
@@ -105,7 +104,6 @@ const showToastMessage = (message) => {
       return;
     }
   
-    // Validate time per question
     const time = customTime ? parseInt(customTime) : timePerQuestion;
     if (time === 0) {
       alert('❌ Please enter time per question');
@@ -116,7 +114,6 @@ const showToastMessage = (message) => {
       return;
     }
   
-    // Validate content input
     if (!textInput && !uploadedFile) {
       alert('❌ Please provide study material (text, image, or PDF)');
       return;
@@ -126,10 +123,10 @@ const showToastMessage = (message) => {
 
     setTimeout(() => {
       const newCode = generateQuizCode();
-      const mockQuestions = generateMockQuestions(questions); 
+      const mockQuestions = generateMockQuestions(questions, textInput);
       
-      setQuizCode(newCode);
-      setGeneratedQuestions(mockQuestions); 
+      setQuizCode(newCode); 
+      setGeneratedQuestions(mockQuestions);
       setIsGenerating(false);
       setQuizReady(true);
     }, 3000);
@@ -140,16 +137,17 @@ const showToastMessage = (message) => {
     setShowEdit(true);
     setShowPreview(false);
   };
-  
+
   const handleSaveEdit = (updatedQuestion) => {
     const updated = [...generatedQuestions];
     updated[editingQuestionIndex] = updatedQuestion;
     setGeneratedQuestions(updated);
     setShowEdit(false);
     setEditingQuestionIndex(null);
+    setShowPreview(true);
     showToastMessage('✅ Question updated successfully!');
   };
-  
+
   const handleDeleteQuestion = (index) => {
     if (confirm('Are you sure you want to delete this question?')) {
       const updated = generatedQuestions.filter((_, i) => i !== index);
@@ -159,20 +157,13 @@ const showToastMessage = (message) => {
     }
   };
 
-  const handleBeginQuiz = () => {
-    // Navigate to quiz lobby
-    navigate('/collab/quiz-lobby', { 
-      state: { quizCode: 'ABC123', difficulty, numQuestions, timePerQuestion: customTime || timePerQuestion } 
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
-       {/* Quiz Ready POPUP */}
-       {quizReady && (
+
+{/* Quiz Ready POPUP with Preview & Edit */}
+{quizReady && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in overflow-y-auto py-8">
-    <div className="relative bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-8 transform scale-100 animate-scale-in">
-      {/* Close Button */}
+    <div className="relative bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
       <button
         onClick={() => {
           setQuizReady(false);
@@ -186,10 +177,8 @@ const showToastMessage = (message) => {
         </svg>
       </button>
 
-      {/* CONDITIONAL RENDERING - Main View vs Preview vs Edit */}
       {!showPreview && !showEdit ? (
         <>
-          {/* YOUR EXISTING SUCCESS SCREEN CODE - ALL OF IT */}
           <div className="text-center mb-6">
             <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,14 +186,12 @@ const showToastMessage = (message) => {
               </svg>
             </div>
             <h3 className="text-3xl font-black text-gray-900 mb-2">Quiz Created Successfully! 🎉</h3>
-            <p className="text-gray-600">Review your quiz settings below</p>
+            <p className="text-gray-600">{generatedQuestions.length} questions generated and ready</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* LEFT: Quiz Code & Info */}
             <div className="space-y-6">
-              {/* Quiz Code Display */}
               <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-center">
                 <p className="text-white/80 text-sm font-semibold mb-2">Quiz Code</p>
                 <div className="text-5xl font-black text-white tracking-wider mb-3">
@@ -221,162 +208,45 @@ const showToastMessage = (message) => {
                 </button>
               </div>
 
-              {/* Quiz Settings - EDITABLE */}
               <div className="bg-white border-2 border-gray-200 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-black text-gray-900">Quiz Settings</h4>
-                  <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">EDITABLE</span>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Number of Questions - EDITABLE */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Number of Questions</label>
-                    <input
-                      type="number"
-                      value={numQuestions}
-                      onChange={(e) => setNumQuestions(e.target.value)}
-                      min="1"
-                      max="100"
-                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-center"
-                    />
+                <h4 className="text-lg font-black text-gray-900 mb-4">Quiz Settings</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 font-medium">Questions Generated</span>
+                    <span className="text-sm text-gray-900 font-bold">{generatedQuestions.length}</span>
                   </div>
-
-                  {/* Time Per Question - EDITABLE */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Time Per Question (seconds)</label>
-                    <div className="grid grid-cols-3 gap-2 mb-2">
-                      {[30, 60, 120].map((time) => (
-                        <button
-                          key={time}
-                          onClick={() => {
-                            setTimePerQuestion(time);
-                            setCustomTime('');
-                          }}
-                          className={`py-2 rounded-lg font-semibold text-sm transition-all ${
-                            (customTime ? parseInt(customTime) : timePerQuestion) === time
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {time}s
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      type="number"
-                      value={customTime}
-                      onChange={(e) => setCustomTime(e.target.value)}
-                      placeholder="Or enter custom time"
-                      max="300"
-                      className="w-full px-4 py-2 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 font-medium">Time/Question</span>
+                    <span className="text-sm text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
                   </div>
-
-                  {/* Difficulty - EDITABLE */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Difficulty Level</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { value: 'easy', label: 'Easy', color: 'from-green-500 to-emerald-600' },
-                        { value: 'medium', label: 'Medium', color: 'from-yellow-500 to-orange-600' },
-                        { value: 'hard', label: 'Hard', color: 'from-red-500 to-pink-600' }
-                      ].map((level) => (
-                        <button
-                          key={level.value}
-                          onClick={() => setDifficulty(level.value)}
-                          className={`py-2 rounded-lg font-bold text-sm transition-all ${
-                            difficulty === level.value
-                              ? `bg-gradient-to-r ${level.color} text-white shadow-lg`
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {level.label}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 font-medium">Difficulty</span>
+                    <span className="text-sm text-gray-900 font-bold capitalize">{difficulty}</span>
                   </div>
-
-                  {/* Save Changes Button */}
-                  <button
-                    onClick={() => {
-                      showToastMessage('✅ Settings updated successfully!');
-                    }}
-                    className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg transition-all"
-                  >
-                    💾 Save Changes
-                  </button>
                 </div>
               </div>
             </div>
 
-            {/* RIGHT: Quiz Preview & Review Section */}
             <div className="space-y-6">
               <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-black text-gray-900">Quiz Preview</h4>
-                  <span className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-bold">SAMPLE</span>
+                <h4 className="text-lg font-black text-gray-900 mb-4">📝 Review & Customize Questions</h4>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowPreview(true)}
+                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Preview & Edit All Questions
+                  </button>
+                  <p className="text-xs text-center text-gray-600">
+                    Review, edit, or delete questions before starting the quiz
+                  </p>
                 </div>
-
-                {/* Sample Question Preview */}
-                <div className="bg-white rounded-xl p-5 mb-4 border-2 border-indigo-200">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-black">Q1</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-500 font-semibold">Sample Question</p>
-                      <p className="text-xs text-indigo-600 font-bold">{customTime || timePerQuestion}s • {difficulty}</p>
-                    </div>
-                  </div>
-                  
-                  <h5 className="text-base font-bold text-gray-900 mb-4">What is the capital of France?</h5>
-                  
-                  <div className="space-y-2">
-                    {['Paris', 'London', 'Berlin', 'Madrid'].map((option, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center font-bold text-gray-700">
-                          {String.fromCharCode(65 + idx)}
-                        </div>
-                        <span className="text-sm font-semibold text-gray-700">{option}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quiz Stats */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-white rounded-xl p-3 text-center border border-gray-200">
-                    <p className="text-2xl font-black text-indigo-600">{generatedQuestions.length}</p>
-                    <p className="text-xs text-gray-600 font-semibold">Questions</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-3 text-center border border-gray-200">
-                    <p className="text-2xl font-black text-purple-600">{customTime || timePerQuestion}s</p>
-                    <p className="text-xs text-gray-600 font-semibold">Per Question</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-3 text-center border border-gray-200">
-                    <p className="text-2xl font-black text-pink-600 capitalize">{difficulty}</p>
-                    <p className="text-xs text-gray-600 font-semibold">Difficulty</p>
-                  </div>
-                </div>
-
-                {/* 🔥 THIS IS THE PREVIEW BUTTON - THE KEY PART YOU WERE MISSING! */}
-                <button
-                  onClick={() => setShowPreview(true)}
-                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  Preview & Edit All Questions
-                </button>
-                <p className="text-xs text-center text-gray-600 mt-2">
-                  Review and edit questions before starting
-                </p>
               </div>
 
-              {/* Study Material Info */}
               <div className="bg-white border-2 border-gray-200 rounded-2xl p-5">
                 <h4 className="text-sm font-black text-gray-900 mb-3">📚 Study Material</h4>
                 {textInput && (
@@ -398,11 +268,16 @@ const showToastMessage = (message) => {
             </div>
           </div>
 
-          {/* Action Buttons at Bottom */}
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               onClick={() => navigate('/collab/quiz-lobby', { 
-                state: { quizCode: quizCode, difficulty, numQuestions: generatedQuestions.length, timePerQuestion: customTime || timePerQuestion, questions: generatedQuestions } 
+                state: { 
+                  quizCode, 
+                  difficulty, 
+                  numQuestions: generatedQuestions.length, 
+                  timePerQuestion: customTime || timePerQuestion,
+                  questions: generatedQuestions 
+                } 
               })}
               className="py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
             >
@@ -439,6 +314,7 @@ const showToastMessage = (message) => {
       ) : showEdit ? (
         <QuestionEditor
           question={generatedQuestions[editingQuestionIndex]}
+          questionNumber={editingQuestionIndex + 1}
           onSave={handleSaveEdit}
           onCancel={() => {
             setShowEdit(false);
@@ -446,11 +322,10 @@ const showToastMessage = (message) => {
           }}
         />
       ) : null}
-
     </div>
   </div>
 )}
-      {/* Animated Background */}
+
       <div 
         className="absolute inset-0 opacity-40"
         style={{
@@ -460,13 +335,11 @@ const showToastMessage = (message) => {
         }}
       ></div>
 
-      {/* Floating Orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 -left-20 w-64 h-64 bg-gradient-to-br from-indigo-200/30 to-purple-200/30 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 -right-20 w-64 h-64 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
       </div>
 
-      {/* Navigation */}
       <nav className="relative z-30 px-4 sm:px-6 py-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
@@ -492,10 +365,8 @@ const showToastMessage = (message) => {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
         
-        {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-md rounded-full border border-indigo-300/30 shadow-lg mb-6">
             <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -519,19 +390,15 @@ const showToastMessage = (message) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* LEFT SECTION - Input Area (2/3 width) */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* INPUT SECTION */}
             <div className="bg-white rounded-3xl shadow-xl border-2 border-gray-100 overflow-hidden">
-              {/* Tab Header */}
               <div className="border-b-2 border-gray-100 bg-gray-50/50 px-6 py-4">
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>
                   Upload Study Material
                 </h3>
                 
-                {/* Tabs */}
             <div className="flex gap-2 justify-center sm:justify-start">
               {[
                 { id: 'text', label: 'Text', icon: 'M4 6h16M4 12h16M4 18h16' },
@@ -551,10 +418,8 @@ const showToastMessage = (message) => {
                   <svg className="w-6 h-6 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
                   </svg>
-                  {/* Show label on desktop, hide on mobile */}
                   <span className="hidden sm:inline">{tab.label}</span>
                   
-                  {/* Tooltip on mobile - shows on hover/touch */}
                   <span className="sm:hidden absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
                     {tab.label}
                   </span>
@@ -563,9 +428,7 @@ const showToastMessage = (message) => {
             </div>
               </div>
 
-              {/* Tab Content */}
               <div className="p-6">
-                {/* TEXT INPUT */}
                 {activeTab === 'text' && (
                   <div className="space-y-4">
                     <textarea
@@ -589,7 +452,6 @@ const showToastMessage = (message) => {
                   </div>
                 )}
 
-                {/* IMAGE/PDF UPLOAD */}
                 {(activeTab === 'image' || activeTab === 'pdf') && (
                   <div className="space-y-4">
                     {!uploadedFile ? (
