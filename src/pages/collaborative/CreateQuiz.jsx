@@ -247,24 +247,6 @@ function SoloMode() {
                 </div>
               </div>
 
-              <div className="bg-white border-2 border-gray-200 rounded-2xl p-5">
-                <h4 className="text-sm font-black text-gray-900 mb-3">📚 Study Material</h4>
-                {textInput && (
-                  <div className="bg-gray-50 rounded-lg p-3 mb-2">
-                    <p className="text-xs text-gray-600 font-semibold mb-1">Text Input</p>
-                    <p className="text-sm text-gray-900 font-medium truncate">{textInput.substring(0, 50)}...</p>
-                  </div>
-                )}
-                {uploadedFile && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600 font-semibold mb-1">Uploaded File</p>
-                    <p className="text-sm text-gray-900 font-medium">{uploadedFile.name}</p>
-                  </div>
-                )}
-                {!textInput && !uploadedFile && (
-                  <p className="text-sm text-gray-500">No material uploaded</p>
-                )}
-              </div>
             </div>
           </div>
 
