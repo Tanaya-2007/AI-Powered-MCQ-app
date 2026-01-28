@@ -233,12 +233,12 @@ function FinalLeaderboardPage({ participants, onExit }) {
 
         {/* Back Button */}
         <div className="text-center mt-8">
-          <button
-            onClick={onExit}
-            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
-          >
-            Back to Home
-          </button>
+        <button
+          onClick={onExit}
+          className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
+        >
+          Back to Home
+        </button>
         </div>
 
       </div>

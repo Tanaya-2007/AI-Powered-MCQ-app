@@ -17,6 +17,10 @@ function SoloMode() {
   const [isDragging, setIsDragging] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [generatedQuestions, setGeneratedQuestions] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
 
   const [quizCode, setQuizCode] = useState('');
 
@@ -27,6 +31,27 @@ function SoloMode() {
     code += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return code;
+};
+
+const generateMockQuestions = (count) => {
+  const topics = ['JavaScript', 'React', 'Python', 'Java', 'CSS'];
+  const mockQuestions = [];
+  
+  for (let i = 0; i < count; i++) {
+    const topic = topics[i % topics.length];
+    mockQuestions.push({
+      id: i + 1,
+      question: `What is the main feature of ${topic}?`,
+      options: [
+        `${topic} feature A`,
+        `${topic} feature B`,
+        `${topic} feature C`,
+        `${topic} feature D`
+      ],
+      correctAnswer: Math.floor(Math.random() * 4)
+    });
+  }
+  return mockQuestions;
 };
 
 const showToastMessage = (message) => {
@@ -101,10 +126,37 @@ const showToastMessage = (message) => {
 
     setTimeout(() => {
       const newCode = generateQuizCode();
-      setQuizCode(newCode); 
+      const mockQuestions = generateMockQuestions(questions); 
+      
+      setQuizCode(newCode);
+      setGeneratedQuestions(mockQuestions); 
       setIsGenerating(false);
       setQuizReady(true);
     }, 3000);
+  };
+
+  const handleEditQuestion = (index) => {
+    setEditingQuestionIndex(index);
+    setShowEdit(true);
+    setShowPreview(false);
+  };
+  
+  const handleSaveEdit = (updatedQuestion) => {
+    const updated = [...generatedQuestions];
+    updated[editingQuestionIndex] = updatedQuestion;
+    setGeneratedQuestions(updated);
+    setShowEdit(false);
+    setEditingQuestionIndex(null);
+    showToastMessage('✅ Question updated successfully!');
+  };
+  
+  const handleDeleteQuestion = (index) => {
+    if (confirm('Are you sure you want to delete this question?')) {
+      const updated = generatedQuestions.filter((_, i) => i !== index);
+      setGeneratedQuestions(updated);
+      setNumQuestions(updated.length.toString());
+      showToastMessage('🗑️ Question deleted!');
+    }
   };
 
   const handleBeginQuiz = () => {
@@ -117,95 +169,284 @@ const showToastMessage = (message) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
        {/* Quiz Ready POPUP */}
-{quizReady && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
-    <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform scale-100 animate-scale-in">
+       {quizReady && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in overflow-y-auto py-8">
+    <div className="relative bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-8 transform scale-100 animate-scale-in">
       {/* Close Button */}
       <button
-        onClick={() => setQuizReady(false)}
-        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all"
+        onClick={() => {
+          setQuizReady(false);
+          setShowPreview(false);
+          setShowEdit(false);
+        }}
+        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all z-10"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
-      {/* Success Icon */}
-      <div className="text-center mb-6">
-        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
-          <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-3xl font-black text-gray-900 mb-2">Quiz Created!</h3>
-        <p className="text-gray-600">Share this code with participants</p>
-      </div>
+      {/* CONDITIONAL RENDERING - Main View vs Preview vs Edit */}
+      {!showPreview && !showEdit ? (
+        <>
+          {/* YOUR EXISTING SUCCESS SCREEN CODE - ALL OF IT */}
+          <div className="text-center mb-6">
+            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-3xl font-black text-gray-900 mb-2">Quiz Created Successfully! 🎉</h3>
+            <p className="text-gray-600">Review your quiz settings below</p>
+          </div>
 
-      {/* Quiz Code Display */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 mb-6 text-center">
-        <p className="text-white/80 text-sm font-semibold mb-2">Quiz Code</p>
-        <div className="text-5xl font-black text-white tracking-wider mb-3">
-        {quizCode}
-        </div>
-        <button
-        onClick={() => {
-          navigator.clipboard.writeText(quizCode);
-          showToastMessage('Code copied to clipboard!');
-        }}
-        className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg backdrop-blur-sm transition-all"
-      >
-        📋 Copy Code
-      </button>
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* LEFT: Quiz Code & Info */}
+            <div className="space-y-6">
+              {/* Quiz Code Display */}
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-center">
+                <p className="text-white/80 text-sm font-semibold mb-2">Quiz Code</p>
+                <div className="text-5xl font-black text-white tracking-wider mb-3">
+                  {quizCode}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(quizCode);
+                    showToastMessage('✅ Code copied to clipboard!');
+                  }}
+                  className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg backdrop-blur-sm transition-all"
+                >
+                  📋 Copy Code
+                </button>
+              </div>
 
-      {/* Quiz Info */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-6 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 font-medium">Questions:</span>
-          <span className="text-gray-900 font-bold">{numQuestions}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 font-medium">Time per question:</span>
-          <span className="text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 font-medium">Difficulty:</span>
-          <span className="text-gray-900 font-bold capitalize">{difficulty}</span>
-        </div>
-      </div>
+              {/* Quiz Settings - EDITABLE */}
+              <div className="bg-white border-2 border-gray-200 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-black text-gray-900">Quiz Settings</h4>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold">EDITABLE</span>
+                </div>
 
-      {/* Action Buttons */}
-      <div className="space-y-3">
-        <button
-          onClick={() => navigate('/collab/quiz-lobby', { 
-            state: { quizCode: quizCode, difficulty, numQuestions, timePerQuestion: customTime || timePerQuestion } 
-          })}
-          className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
-        >
-          <span className="flex items-center justify-center gap-2">
-            🚀 Go to Lobby
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </span>
-        </button>
-        
-        <button
-          onClick={() => {
-            const shareText = `Join my quiz! Code: ${quizCode}`;
-            const shareUrl = `${window.location.origin}/collab/join?code=${quizCode}`;
-            if (navigator.share) {
-              navigator.share({ title: 'Join Quiz', text: shareText, url: shareUrl });
-            } else {
-              navigator.clipboard.writeText(shareUrl);
-              showToastMessage('🔗 Share link copied to clipboard!');
-            }
+                <div className="space-y-4">
+                  {/* Number of Questions - EDITABLE */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Number of Questions</label>
+                    <input
+                      type="number"
+                      value={numQuestions}
+                      onChange={(e) => setNumQuestions(e.target.value)}
+                      min="1"
+                      max="100"
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-center"
+                    />
+                  </div>
+
+                  {/* Time Per Question - EDITABLE */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Time Per Question (seconds)</label>
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      {[30, 60, 120].map((time) => (
+                        <button
+                          key={time}
+                          onClick={() => {
+                            setTimePerQuestion(time);
+                            setCustomTime('');
+                          }}
+                          className={`py-2 rounded-lg font-semibold text-sm transition-all ${
+                            (customTime ? parseInt(customTime) : timePerQuestion) === time
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {time}s
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number"
+                      value={customTime}
+                      onChange={(e) => setCustomTime(e.target.value)}
+                      placeholder="Or enter custom time"
+                      max="300"
+                      className="w-full px-4 py-2 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Difficulty - EDITABLE */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Difficulty Level</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'easy', label: 'Easy', color: 'from-green-500 to-emerald-600' },
+                        { value: 'medium', label: 'Medium', color: 'from-yellow-500 to-orange-600' },
+                        { value: 'hard', label: 'Hard', color: 'from-red-500 to-pink-600' }
+                      ].map((level) => (
+                        <button
+                          key={level.value}
+                          onClick={() => setDifficulty(level.value)}
+                          className={`py-2 rounded-lg font-bold text-sm transition-all ${
+                            difficulty === level.value
+                              ? `bg-gradient-to-r ${level.color} text-white shadow-lg`
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {level.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Save Changes Button */}
+                  <button
+                    onClick={() => {
+                      showToastMessage('✅ Settings updated successfully!');
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+                  >
+                    💾 Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT: Quiz Preview & Review Section */}
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-black text-gray-900">Quiz Preview</h4>
+                  <span className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-bold">SAMPLE</span>
+                </div>
+
+                {/* Sample Question Preview */}
+                <div className="bg-white rounded-xl p-5 mb-4 border-2 border-indigo-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-black">Q1</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500 font-semibold">Sample Question</p>
+                      <p className="text-xs text-indigo-600 font-bold">{customTime || timePerQuestion}s • {difficulty}</p>
+                    </div>
+                  </div>
+                  
+                  <h5 className="text-base font-bold text-gray-900 mb-4">What is the capital of France?</h5>
+                  
+                  <div className="space-y-2">
+                    {['Paris', 'London', 'Berlin', 'Madrid'].map((option, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center font-bold text-gray-700">
+                          {String.fromCharCode(65 + idx)}
+                        </div>
+                        <span className="text-sm font-semibold text-gray-700">{option}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quiz Stats */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-white rounded-xl p-3 text-center border border-gray-200">
+                    <p className="text-2xl font-black text-indigo-600">{generatedQuestions.length}</p>
+                    <p className="text-xs text-gray-600 font-semibold">Questions</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 text-center border border-gray-200">
+                    <p className="text-2xl font-black text-purple-600">{customTime || timePerQuestion}s</p>
+                    <p className="text-xs text-gray-600 font-semibold">Per Question</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 text-center border border-gray-200">
+                    <p className="text-2xl font-black text-pink-600 capitalize">{difficulty}</p>
+                    <p className="text-xs text-gray-600 font-semibold">Difficulty</p>
+                  </div>
+                </div>
+
+                {/* 🔥 THIS IS THE PREVIEW BUTTON - THE KEY PART YOU WERE MISSING! */}
+                <button
+                  onClick={() => setShowPreview(true)}
+                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Preview & Edit All Questions
+                </button>
+                <p className="text-xs text-center text-gray-600 mt-2">
+                  Review and edit questions before starting
+                </p>
+              </div>
+
+              {/* Study Material Info */}
+              <div className="bg-white border-2 border-gray-200 rounded-2xl p-5">
+                <h4 className="text-sm font-black text-gray-900 mb-3">📚 Study Material</h4>
+                {textInput && (
+                  <div className="bg-gray-50 rounded-lg p-3 mb-2">
+                    <p className="text-xs text-gray-600 font-semibold mb-1">Text Input</p>
+                    <p className="text-sm text-gray-900 font-medium truncate">{textInput.substring(0, 50)}...</p>
+                  </div>
+                )}
+                {uploadedFile && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-600 font-semibold mb-1">Uploaded File</p>
+                    <p className="text-sm text-gray-900 font-medium">{uploadedFile.name}</p>
+                  </div>
+                )}
+                {!textInput && !uploadedFile && (
+                  <p className="text-sm text-gray-500">No material uploaded</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons at Bottom */}
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              onClick={() => navigate('/collab/quiz-lobby', { 
+                state: { quizCode: quizCode, difficulty, numQuestions: generatedQuestions.length, timePerQuestion: customTime || timePerQuestion, questions: generatedQuestions } 
+              })}
+              className="py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+            >
+              🚀 Go to Lobby
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </button>
+            
+            <button
+              onClick={() => {
+                const shareText = `Join my quiz! Code: ${quizCode}`;
+                const shareUrl = `${window.location.origin}/collab/join?code=${quizCode}`;
+                if (navigator.share) {
+                  navigator.share({ title: 'Join Quiz', text: shareText, url: shareUrl });
+                } else {
+                  navigator.clipboard.writeText(shareUrl);
+                  showToastMessage('🔗 Share link copied!');
+                }
+              }}
+              className="py-4 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 flex items-center justify-center gap-2"
+            >
+              📤 Share Link
+            </button>
+          </div>
+        </>
+      ) : showPreview ? (
+        <QuestionPreview
+          questions={generatedQuestions}
+          onEdit={handleEditQuestion}
+          onDelete={handleDeleteQuestion}
+          onBack={() => setShowPreview(false)}
+        />
+      ) : showEdit ? (
+        <QuestionEditor
+          question={generatedQuestions[editingQuestionIndex]}
+          onSave={handleSaveEdit}
+          onCancel={() => {
+            setShowEdit(false);
+            setShowPreview(true);
           }}
-          className="w-full py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300"
-        >
-          📤 Share Link
-        </button>
-      </div>
+        />
+      ) : null}
+
     </div>
   </div>
 )}
@@ -620,6 +861,129 @@ const showToastMessage = (message) => {
     animation: bounce-once 0.6s ease-in-out;
   }
 `}</style>
+    </div>
+  );
+}
+
+// Question Preview Component
+function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-black text-gray-900">Review Questions ({questions.length})</h3>
+        <button onClick={onBack} className="px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200">
+          ← Back
+        </button>
+      </div>
+
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+        {questions.map((q, index) => (
+          <div key={q.id} className="bg-white border-2 border-gray-200 rounded-2xl p-5 hover:border-indigo-300 transition-all">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-black">Q{index + 1}</span>
+                </div>
+                <h4 className="text-base font-bold text-gray-900">{q.question}</h4>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onEdit(index)}
+                  className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-200"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  onClick={() => onDelete(index)}
+                  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {q.options.map((opt, i) => (
+                <div
+                  key={i}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium ${
+                    i === q.correctAnswer
+                      ? 'bg-green-50 border-green-400 text-green-900'
+                      : 'bg-gray-50 border-gray-200 text-gray-700'
+                  }`}
+                >
+                  <span className="font-bold">{String.fromCharCode(65 + i)}.</span> {opt}
+                  {i === q.correctAnswer && <span className="ml-2">✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Question Editor Component
+function QuestionEditor({ question, onSave, onCancel }) {
+  const [editedQuestion, setEditedQuestion] = useState({ ...question });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-black text-gray-900">Edit Question</h3>
+        <button onClick={onCancel} className="px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200">
+          ← Back to Preview
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">Question</label>
+          <textarea
+            value={editedQuestion.question}
+            onChange={(e) => setEditedQuestion({ ...editedQuestion, question: e.target.value })}
+            rows="3"
+            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="block text-sm font-bold text-gray-700">Options</label>
+          {editedQuestion.options.map((opt, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <input
+                type="text"
+                value={opt}
+                onChange={(e) => {
+                  const newOptions = [...editedQuestion.options];
+                  newOptions[i] = e.target.value;
+                  setEditedQuestion({ ...editedQuestion, options: newOptions });
+                }}
+                className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                placeholder={`Option ${String.fromCharCode(65 + i)}`}
+              />
+              <label className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 hover:border-green-300">
+                <input
+                  type="radio"
+                  name="correct"
+                  checked={editedQuestion.correctAnswer === i}
+                  onChange={() => setEditedQuestion({ ...editedQuestion, correctAnswer: i })}
+                  className="w-5 h-5"
+                />
+                <span className="text-sm font-semibold">Correct</span>
+              </label>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={() => onSave(editedQuestion)}
+          className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
+        >
+          💾 Save Changes
+        </button>
+      </div>
     </div>
   );
 }
