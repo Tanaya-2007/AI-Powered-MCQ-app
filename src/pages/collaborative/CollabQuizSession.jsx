@@ -9,11 +9,12 @@ function CollabQuizSession() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const { quizCode, difficulty, numQuestions, timePerQuestion, participants } = location.state || {};
-  // Mock quiz data
+  const { quizCode, difficulty, numQuestions, timePerQuestion, participants, questions } = location.state || {};
+  
+  // Use the questions passed from CreateQuiz, or fallback to mock data
   const quizData = {
-    title: "Java Basics",
-    questions: [
+    title: "Generated Quiz",
+    questions: questions || [
       {
         id: 1,
         question: "Which keyword is used to create a class in Java?",
@@ -30,18 +31,6 @@ function CollabQuizSession() {
         id: 3,
         question: "Which method is the entry point of a Java application?",
         options: ["start()", "main()", "run()", "init()"],
-        correctAnswer: 1,
-      },
-      {
-        id: 4,
-        question: "What does JVM stand for?",
-        options: ["Java Virtual Machine", "Java Visual Manager", "Java Variable Method", "Java Version Manager"],
-        correctAnswer: 0,
-      },
-      {
-        id: 5,
-        question: "Which data type is used to store a single character in Java?",
-        options: ["String", "char", "Character", "text"],
         correctAnswer: 1,
       },
     ]
@@ -62,7 +51,7 @@ function CollabQuizSession() {
   const totalQuestions = quizData.questions.length;
   const isLastQuestion = currentQuestion === totalQuestions - 1;
 
-  // 🔥 Safety check - if no participants, show error
+
   if (!currentParticipants || currentParticipants.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">

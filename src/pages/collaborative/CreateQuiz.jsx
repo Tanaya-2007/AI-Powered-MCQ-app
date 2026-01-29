@@ -709,48 +709,69 @@ function SoloMode() {
   );
 }
 
-// Question Preview Component
+// Question Preview Component - RESPONSIVE VERSION
 function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-black text-gray-900">Review Questions ({questions.length})</h3>
-        <button onClick={onBack} className="px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200">
-          ← Back
+    <div className="h-full flex flex-col">
+      {/* Header - Sticky */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
+        <h3 className="text-xl sm:text-2xl font-black text-gray-900">
+          Review Questions ({questions.length})
+        </h3>
+        <button 
+          onClick={onBack} 
+          className="w-full sm:w-auto px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back
         </button>
       </div>
 
-      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+      {/* Questions List - Scrollable */}
+      <div className="flex-1 overflow-y-auto pr-2 space-y-3 sm:space-y-4">
         {questions.map((q, index) => (
-          <div key={q.id} className="bg-white border-2 border-gray-200 rounded-2xl p-5 hover:border-indigo-300 transition-all">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-black">Q{index + 1}</span>
+          <div key={q.id} className="bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 hover:border-indigo-300 transition-all">
+            
+            {/* Question Header */}
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+              <div className="flex items-start gap-2 sm:gap-3 flex-1">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-black text-sm sm:text-base">Q{index + 1}</span>
                 </div>
-                <h4 className="text-base font-bold text-gray-900">{q.question}</h4>
+                <h4 className="text-sm sm:text-base font-bold text-gray-900 leading-snug">{q.question}</h4>
               </div>
-              <div className="flex gap-2">
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2 sm:flex-shrink-0">
                 <button
                   onClick={() => onEdit(index)}
-                  className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-200"
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-200 transition-all flex items-center justify-center gap-1"
                 >
-                  ✏️ Edit
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span className="hidden sm:inline">Edit</span>
                 </button>
                 <button
                   onClick={() => onDelete(index)}
-                  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200"
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-red-200 transition-all flex items-center justify-center gap-1"
                 >
-                  🗑️
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span className="hidden sm:inline">Delete</span>
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Options Grid - Responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {q.options.map((opt, i) => (
                 <div
                   key={i}
-                  className={`p-3 rounded-lg border-2 text-sm font-medium ${
+                  className={`p-2.5 sm:p-3 rounded-lg border-2 text-xs sm:text-sm font-medium ${
                     i === q.correctAnswer
                       ? 'bg-green-50 border-green-400 text-green-900'
                       : 'bg-gray-50 border-gray-200 text-gray-700'
@@ -768,34 +789,47 @@ function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
   );
 }
 
-// Question Editor Component
+// Question Editor Component - RESPONSIVE VERSION
 function QuestionEditor({ question, onSave, onCancel }) {
   const [editedQuestion, setEditedQuestion] = useState({ ...question });
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-black text-gray-900">Edit Question</h3>
-        <button onClick={onCancel} className="px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200">
-          ← Back to Preview
+    <div className="h-full flex flex-col">
+      {/* Header - Sticky */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
+        <h3 className="text-xl sm:text-2xl font-black text-gray-900">Edit Question</h3>
+        <button 
+          onClick={onCancel} 
+          className="w-full sm:w-auto px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Preview
         </button>
       </div>
 
-      <div className="space-y-6">
+      {/* Editor Form - Scrollable */}
+      <div className="flex-1 overflow-y-auto pr-2 space-y-4 sm:space-y-6">
+        
+        {/* Question Text */}
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">Question</label>
           <textarea
             value={editedQuestion.question}
             onChange={(e) => setEditedQuestion({ ...editedQuestion, question: e.target.value })}
             rows="3"
-            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base resize-none"
+            placeholder="Enter your question here..."
           />
         </div>
 
+        {/* Options */}
         <div className="space-y-3">
           <label className="block text-sm font-bold text-gray-700">Options</label>
           {editedQuestion.options.map((opt, i) => (
-            <div key={i} className="flex items-center gap-3">
+            <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {/* Option Input */}
               <input
                 type="text"
                 value={opt}
@@ -804,28 +838,34 @@ function QuestionEditor({ question, onSave, onCancel }) {
                   newOptions[i] = e.target.value;
                   setEditedQuestion({ ...editedQuestion, options: newOptions });
                 }}
-                className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
                 placeholder={`Option ${String.fromCharCode(65 + i)}`}
               />
-              <label className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 hover:border-green-300">
+              
+              {/* Correct Answer Radio */}
+              <label className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all">
                 <input
                   type="radio"
                   name="correct"
                   checked={editedQuestion.correctAnswer === i}
                   onChange={() => setEditedQuestion({ ...editedQuestion, correctAnswer: i })}
-                  className="w-5 h-5"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
                 />
-                <span className="text-sm font-semibold">Correct</span>
+                <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">Correct</span>
               </label>
             </div>
           ))}
         </div>
 
+        {/* Save Button */}
         <button
           onClick={() => onSave(editedQuestion)}
-          className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
+          className="w-full py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2"
         >
-          💾 Save Changes
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          Save Changes
         </button>
       </div>
     </div>
