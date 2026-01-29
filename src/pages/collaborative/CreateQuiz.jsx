@@ -139,13 +139,27 @@ function SoloMode() {
   };
 
   const handleSaveEdit = (updatedQuestion) => {
+    const original = generatedQuestions[editingQuestionIndex];
+    
+      const hasChanges = 
+      original.question !== updatedQuestion.question ||
+      original.correctAnswer !== updatedQuestion.correctAnswer ||
+      original.options.some((opt, i) => opt !== updatedQuestion.options[i]);
+    
+    if (!hasChanges) {
+        setShowEdit(false);
+      setEditingQuestionIndex(null);
+      setShowPreview(true);
+      return;
+    }
+    
     const updated = [...generatedQuestions];
     updated[editingQuestionIndex] = updatedQuestion;
     setGeneratedQuestions(updated);
     setShowEdit(false);
     setEditingQuestionIndex(null);
     setShowPreview(true);
-    showToastMessage('✅ Question updated successfully!');
+    showToastMessage(' Question updated successfully!');
   };
 
   const handleDeleteQuestion = (index) => {
@@ -153,7 +167,7 @@ function SoloMode() {
       const updated = generatedQuestions.filter((_, i) => i !== index);
       setGeneratedQuestions(updated);
       setNumQuestions(updated.length.toString());
-      showToastMessage('🗑️ Question deleted!');
+      showToastMessage(' Question deleted!');
     }
   };
 
@@ -178,114 +192,131 @@ function SoloMode() {
       </button>
 
       {!showPreview && !showEdit ? (
-        <>
-          <div className="text-center mb-6">
-            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-3xl font-black text-gray-900 mb-2">Quiz Created Successfully! 🎉</h3>
-            <p className="text-gray-600">{generatedQuestions.length} questions generated and ready</p>
+  <>
+    {/* Success Header - Compact */}
+    <div className="text-center mb-6">
+      <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
+        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <h3 className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">Quiz Created Successfully! 🎉</h3>
+      <p className="text-sm text-gray-600">{generatedQuestions.length} questions generated and ready</p>
+    </div>
+
+    {/* Improved Layout - More Compact */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      
+      {/* LEFT COLUMN - Quiz Code & Settings */}
+      <div className="space-y-4">
+        {/* Quiz Code Card */}
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-5 text-center">
+          <p className="text-white/80 text-xs font-semibold mb-1">Quiz Code</p>
+          <div className="text-4xl font-black text-white tracking-wider mb-2">
+            {quizCode}
           </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(quizCode);
+              showToastMessage('✅ Code copied to clipboard!');
+            }}
+            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg backdrop-blur-sm transition-all"
+          >
+            📋 Copy Code
+          </button>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-center">
-                <p className="text-white/80 text-sm font-semibold mb-2">Quiz Code</p>
-                <div className="text-5xl font-black text-white tracking-wider mb-3">
-                  {quizCode}
-                </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(quizCode);
-                    showToastMessage('✅ Code copied to clipboard!');
-                  }}
-                  className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg backdrop-blur-sm transition-all"
-                >
-                  📋 Copy Code
-                </button>
-              </div>
-
-              <div className="bg-white border-2 border-gray-200 rounded-2xl p-6">
-                <h4 className="text-lg font-black text-gray-900 mb-4">Quiz Settings</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 font-medium">Questions Generated</span>
-                    <span className="text-sm text-gray-900 font-bold">{generatedQuestions.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 font-medium">Time/Question</span>
-                    <span className="text-sm text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 font-medium">Difficulty</span>
-                    <span className="text-sm text-gray-900 font-bold capitalize">{difficulty}</span>
-                  </div>
-                </div>
-              </div>
+        {/* Quiz Settings Card */}
+        <div className="bg-white border-2 border-gray-200 rounded-2xl p-4">
+          <h4 className="text-base font-black text-gray-900 mb-3 flex items-center gap-2">
+            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Quiz Settings
+          </h4>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600 font-medium">Questions</span>
+              <span className="text-sm text-gray-900 font-bold">{generatedQuestions.length}</span>
             </div>
-
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-6">
-                <h4 className="text-lg font-black text-gray-900 mb-4">📝 Review & Customize Questions</h4>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setShowPreview(true)}
-                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    Preview & Edit All Questions
-                  </button>
-                  <p className="text-xs text-center text-gray-600">
-                    Review, edit, or delete questions before starting the quiz
-                  </p>
-                </div>
-              </div>
-
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600 font-medium">Time/Question</span>
+              <span className="text-sm text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600 font-medium">Difficulty</span>
+              <span className="text-sm text-gray-900 font-bold capitalize">{difficulty}</span>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              onClick={() => navigate('/collab/quiz-lobby', { 
-                state: { 
-                  quizCode, 
-                  difficulty, 
-                  numQuestions: generatedQuestions.length, 
-                  timePerQuestion: customTime || timePerQuestion,
-                  questions: generatedQuestions 
-                } 
-              })}
-              className="py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
-            >
-              🚀 Go to Lobby
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </button>
-            
-            <button
-              onClick={() => {
-                const shareText = `Join my quiz! Code: ${quizCode}`;
-                const shareUrl = `${window.location.origin}/collab/join?code=${quizCode}`;
-                if (navigator.share) {
-                  navigator.share({ title: 'Join Quiz', text: shareText, url: shareUrl });
-                } else {
-                  navigator.clipboard.writeText(shareUrl);
-                  showToastMessage('🔗 Share link copied!');
-                }
-              }}
-              className="py-4 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              📤 Share Link
-            </button>
+
+      <div className="space-y-4">
+        {/* Preview Card */}
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h4 className="text-base font-black text-gray-900"> Review & Customize Questions</h4>
           </div>
-        </>
+          
+          <button
+            onClick={() => setShowPreview(true)}
+            className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 mb-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            Preview & Edit All Questions
+          </button>
+          <p className="text-xs text-center text-gray-600">
+            Review, edit, or delete questions before starting
+          </p>
+        </div>
+
+        {/* Action Buttons - Combined in One Card */}
+        <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 space-y-2">
+          <button
+            onClick={() => navigate('/collab/quiz-lobby', { 
+              state: { 
+                quizCode, 
+                difficulty, 
+                numQuestions: generatedQuestions.length, 
+                timePerQuestion: customTime || timePerQuestion,
+                questions: generatedQuestions 
+              } 
+            })}
+            className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-base font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            🚀 Go to Lobby
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+          
+          <button
+            onClick={() => {
+              const shareText = `Join my quiz! Code: ${quizCode}`;
+              const shareUrl = `${window.location.origin}/collab/join?code=${quizCode}`;
+              if (navigator.share) {
+                navigator.share({ title: 'Join Quiz', text: shareText, url: shareUrl });
+              } else {
+                navigator.clipboard.writeText(shareUrl);
+                showToastMessage('🔗 Share link copied!');
+              }
+            }}
+            className="w-full py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+          >
+            📤 Share Link
+          </button>
+        </div>
+      </div>
+    </div>
+  </>
       ) : showPreview ? (
         <QuestionPreview
           questions={generatedQuestions}
@@ -709,7 +740,7 @@ function SoloMode() {
   );
 }
 
-// Question Preview Component - RESPONSIVE VERSION
+
 function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
   return (
     <div className="h-full flex flex-col">
