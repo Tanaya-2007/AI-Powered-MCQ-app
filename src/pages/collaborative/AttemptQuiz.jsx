@@ -14,8 +14,15 @@ function AttemptQuiz() {
   const [joinedLobby, setJoinedLobby] = useState(false);
   const [lobbyInfo, setLobbyInfo] = useState(null);
 
-  // Avatar options
-  const avatars = ['😊', '🚀', '⭐', '🎯', '🔥', '💎', '🌟', '👑', '🎨', '🎭', '🎪', '🎸', '🎮', '🏆', '💡', '🌈'];
+  // Avatar options - More variety!
+  const avatars = [
+    '😊', '😎', '🤩', '😇', '🥳', '🤓', '🧐', '😺', '🦊', '🐯', 
+    '🦁', '🐻', '🐼', '🐨', '🐸', '🦄', '🦋', '🐝', '🦖', '🦕',
+    '🚀', '⭐', '🌟', '💫', '✨', '🔥', '💎', '👑', '🏆', '🎯',
+    '🎨', '🎭', '🎪', '🎸', '🎮', '🎲', '🎳', '⚽', '🏀', '🎾',
+    '💡', '🌈', '🌺', '🌸', '🌼', '🌻', '🍀', '🍕', '🍔', '🍦',
+    '🎂', '🍩', '🧁', '🍿', '☕', '🧃', '🎈', '🎁', '🎊', '🎉'
+  ];
 
   // Auto-fill code from URL
   useEffect(() => {
@@ -347,22 +354,27 @@ function AttemptQuiz() {
                 </button>
               </div>
               
-              {/* Avatar Grid */}
-              <div className="mt-3 grid grid-cols-8 gap-2">
-                {avatars.map((avatar, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedAvatar(avatar)}
-                    className={`w-full aspect-square rounded-lg flex items-center justify-center text-2xl transition-all ${
-                      selectedAvatar === avatar
-                        ? 'bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg scale-110'
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                  >
-                    {avatar}
-                  </button>
-                ))}
+              {/* Avatar Grid - Scrollable */}
+              <div className="mt-3 max-h-32 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-8 gap-2 pr-2">
+                  {avatars.map((avatar, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedAvatar(avatar)}
+                      className={`w-full aspect-square rounded-lg flex items-center justify-center text-2xl transition-all ${
+                        selectedAvatar === avatar
+                          ? 'bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg scale-110 ring-2 ring-indigo-300'
+                          : 'bg-gray-100 hover:bg-gray-200 hover:scale-105'
+                      }`}
+                    >
+                      {avatar}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Scroll to see more avatars • {avatars.length} total
+              </p>
             </div>
 
             {/* Error Message */}
@@ -436,6 +448,24 @@ function AttemptQuiz() {
 
         .animate-shake {
           animation: shake 0.5s ease-in-out;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(to bottom, #6366f1, #8b5cf6);
+          border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(to bottom, #4f46e5, #7c3aed);
         }
       `}</style>
     </div>
