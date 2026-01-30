@@ -8,6 +8,7 @@ import CollabLanding from './pages/collaborative/CollabLanding';
 import CreateQuiz from './pages/collaborative/CreateQuiz';
 import QuizLobby from './pages/collaborative/QuizLobby';
 import CollabQuizSession from './pages/collaborative/CollabQuizSession';
+import AttemptQuiz from './pages/collaborative/AttemptQuiz';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       <Route path="/collab/create-quiz" element={<CreateQuiz />} />
       <Route path="/collab/quiz-lobby" element={<QuizLobby />} />
       <Route path="/collab/quiz-session" element={<CollabQuizSession />} />
+      <Route path="/collab/attempt-quiz" element={<AttemptQuiz />} />
     </Routes>
     </BrowserRouter>
   );

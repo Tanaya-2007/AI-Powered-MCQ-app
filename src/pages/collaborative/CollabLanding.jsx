@@ -7,7 +7,7 @@ function CollabLanding() {
 
   return (
     <div className="relative min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 overflow-hidden animate-page-enter">
-      {/* ANIMATED DOT PATTERN BACKGROUND */}
+      
       <div 
         className="absolute inset-0 opacity-50"
         style={{
