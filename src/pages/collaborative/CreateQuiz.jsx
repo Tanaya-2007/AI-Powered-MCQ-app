@@ -139,20 +139,7 @@ function SoloMode() {
   };
 
   const handleSaveEdit = (updatedQuestion) => {
-    const original = generatedQuestions[editingQuestionIndex];
-    
-      const hasChanges = 
-      original.question !== updatedQuestion.question ||
-      original.correctAnswer !== updatedQuestion.correctAnswer ||
-      original.options.some((opt, i) => opt !== updatedQuestion.options[i]);
-    
-    if (!hasChanges) {
-        setShowEdit(false);
-      setEditingQuestionIndex(null);
-      setShowPreview(true);
-      return;
-    }
-    
+    // Save the changes (button is already disabled if no changes)
     const updated = [...generatedQuestions];
     updated[editingQuestionIndex] = updatedQuestion;
     setGeneratedQuestions(updated);
@@ -820,9 +807,16 @@ function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
   );
 }
 
-// Question Editor Component - RESPONSIVE VERSION
+
+// Question Editor Component - RESPONSIVE VERSION with Smart Save Button
 function QuestionEditor({ question, onSave, onCancel }) {
   const [editedQuestion, setEditedQuestion] = useState({ ...question });
+  
+  // Check if there are any changes
+  const hasChanges = 
+    question.question !== editedQuestion.question ||
+    question.correctAnswer !== editedQuestion.correctAnswer ||
+    question.options.some((opt, i) => opt !== editedQuestion.options[i]);
 
   return (
     <div className="h-full flex flex-col">
@@ -888,16 +882,28 @@ function QuestionEditor({ question, onSave, onCancel }) {
           ))}
         </div>
 
-        {/* Save Button */}
+        {/* Save Button - DISABLED when no changes */}
         <button
           onClick={() => onSave(editedQuestion)}
-          className="w-full py-3 sm:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2"
+          disabled={!hasChanges}
+          className={`w-full py-3 sm:py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
+            hasChanges
+              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl cursor-pointer'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+          }`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          Save Changes
+          {hasChanges ? 'Save Changes' : 'No Changes to Save'}
         </button>
+        
+        {/* Helper Text */}
+        {!hasChanges && (
+          <p className="text-center text-sm text-gray-500 -mt-2">
+            Make changes to enable the save button
+          </p>
+        )}
       </div>
     </div>
   );

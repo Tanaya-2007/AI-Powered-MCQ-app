@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'
 
 function FinalLeaderboardPage({ participants, onExit }) {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter out host and sort participants by score
@@ -234,11 +236,16 @@ function FinalLeaderboardPage({ participants, onExit }) {
         {/* Back Button */}
         <div className="text-center mt-8">
         <button
-          onClick={onExit}
-          className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
-        >
-          Back to Home
-        </button>
+        onClick={() => {
+          if (onExit) {
+            onExit();
+          }
+          navigate('/'); 
+        }}
+        className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
+      >
+        Back to Home
+      </button>
         </div>
 
       </div>
@@ -262,18 +269,5 @@ function FinalLeaderboardPage({ participants, onExit }) {
   );
 }
 
-// Demo
-export default function App() {
-  const demoParticipants = [
-    { id: '1', name: 'Alice', avatar: '😊', score: 950, isHost: false },
-    { id: '2', name: 'Bob', avatar: '😎', score: 820, isHost: false },
-    { id: '3', name: 'Charlie', avatar: '🚀', score: 750, isHost: false },
-    { id: '4', name: 'Diana', avatar: '⭐', score: 680, isHost: false },
-    { id: '5', name: 'Eve', avatar: '🎯', score: 590, isHost: false },
-    { id: '6', name: 'Frank', avatar: '🔥', score: 520, isHost: false },
-    { id: '7', name: 'Grace', avatar: '💎', score: 450, isHost: false },
-    { id: '8', name: 'Henry', avatar: '🌟', score: 380, isHost: false },
-  ];
 
-  return <FinalLeaderboardPage participants={demoParticipants} onExit={() => alert('Exit')} />;
-}
+export default FinalLeaderboardPage;
