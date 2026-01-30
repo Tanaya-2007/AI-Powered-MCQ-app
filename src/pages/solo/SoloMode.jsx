@@ -77,8 +77,7 @@ function SoloMode() {
     }
   
     setIsGenerating(true);
-    
-    // Simulate quiz generation
+   
     setTimeout(() => {
       setIsGenerating(false);
       setQuizReady(true);
@@ -86,7 +85,7 @@ function SoloMode() {
   };
 
   const handleBeginQuiz = () => {
-    // Navigate to quiz taking page
+
     navigate('/quiz-session');
   };
 
@@ -203,7 +202,7 @@ function SoloMode() {
     </div>
   </div>
 )}
-      {/* Animated Background */}
+      
       <div 
         className="absolute inset-0 opacity-40"
         style={{
@@ -213,7 +212,7 @@ function SoloMode() {
         }}
       ></div>
 
-      {/* Floating Orbs */}
+      
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 -left-20 w-64 h-64 bg-gradient-to-br from-indigo-200/30 to-purple-200/30 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 -right-20 w-64 h-64 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -272,10 +271,10 @@ function SoloMode() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* LEFT SECTION - Input Area (2/3 width) */}
+        
           <div className="lg:col-span-2 space-y-6">
             
-            {/* INPUT SECTION */}
+            {/* Input Section */}
             <div className="bg-white rounded-3xl shadow-xl border-2 border-gray-100 overflow-hidden">
               {/* Tab Header */}
               <div className="border-b-2 border-gray-100 bg-gray-50/50 px-6 py-4">
@@ -304,10 +303,9 @@ function SoloMode() {
                   <svg className="w-6 h-6 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
                   </svg>
-                  {/* Show label on desktop, hide on mobile */}
+                  
                   <span className="hidden sm:inline">{tab.label}</span>
                   
-                  {/* Tooltip on mobile - shows on hover/touch */}
                   <span className="sm:hidden absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
                     {tab.label}
                   </span>
@@ -438,10 +436,10 @@ function SoloMode() {
 
           </div>
 
-          {/* RIGHT SECTION - Configuration Panel (1/3 width) */}
+          
           <div className="lg:col-span-1 space-y-6">
             
-            {/* QUIZ CONFIGURATION */}
+            
             <div className="bg-white rounded-3xl shadow-xl border-2 border-gray-100 p-6 sticky top-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6">
                 <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>

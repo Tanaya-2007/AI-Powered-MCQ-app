@@ -165,10 +165,10 @@ function QuestionResultPage({
           )}
         </div>
 
-        {/* Voting Results & Leaderboard - Side by Side */}
+        {/* Voting Results & Leaderboard */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 animate-slide-up">
           
-          {/* Left: Voting Distribution - 2/3 width */}
+          {/*  Voting Distribution */}
           <div className="lg:col-span-2">
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200 p-6 shadow-lg h-full">
               <h2 className="text-lg font-black text-gray-900 mb-5 flex items-center gap-2">
@@ -259,7 +259,7 @@ function QuestionResultPage({
             </div>
           </div>
 
-          {/* Right: Live Leaderboard - 1/3 width */}
+          
           <div className="lg:col-span-1">
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200 p-4 shadow-lg mb-4">
               <p className="text-xs text-gray-600 text-center">

@@ -18,7 +18,7 @@ function QuestionCard({
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-3 border-indigo-300 p-4 sm:p-6 md:p-10 relative overflow-hidden">
-      {/* Gradient Accent */}
+      
       <div className="absolute top-0 left-0 right-0 h-1.5 sm:h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
       
       <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-gray-200/50 p-6 sm:p-8 relative">

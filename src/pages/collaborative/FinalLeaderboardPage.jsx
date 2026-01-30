@@ -5,7 +5,6 @@ function FinalLeaderboardPage({ participants, onExit }) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter out host and sort participants by score
   const playersOnly = participants.filter(p => !p.isHost);
   
   const sortedParticipants = [...playersOnly]
@@ -14,7 +13,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
   // Top 3
   const top3 = sortedParticipants.slice(0, 3);
 
-  // FIXED: Filter search on players AFTER top 3
+
   const restOfPlayers = useMemo(() => {
     const afterTop3 = sortedParticipants.slice(3);
     if (!searchQuery.trim()) return afterTop3;
@@ -26,7 +25,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
 
   const maxScore = Math.max(...playersOnly.map(p => p.score || 0), 1);
 
-  // Confetti matching Question Result Page
+  
   const confettiDots = useMemo(() => {
     return Array.from({ length: 50 }, (_, i) => ({
       id: i,
@@ -48,7 +47,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 px-4 py-8 relative overflow-hidden">
       
-      {/* Confetti - Matching Question Result Page */}
+    
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
         {confettiDots.map((dot) => (
           <div
@@ -89,7 +88,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
           </p>
         </div>
 
-        {/* PODIUM - Top 3 */}
+        {/* Top 3 */}
         {top3.length > 0 && (
           <div className="mb-8">
             <div className="flex items-end justify-center gap-3">
@@ -111,7 +110,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
                 </div>
               )}
 
-              {/* 1st Place - Center (WINNER) */}
+              {/* 1st Place - Center  */}
               {top3[0] && (
                 <div className="flex flex-col items-center w-32 -mt-6">
                   <div className="mb-1">
@@ -158,7 +157,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
           </div>
         )}
 
-        {/* REST OF PLAYERS - MATCHING MINI LEADERBOARD STYLE */}
+        {/* Rest Players */}
         {sortedParticipants.length > 3 && (
           <div>
             {/* Search Bar */}
@@ -180,7 +179,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
               </p>
             </div>
 
-            {/* Players List - MATCHING MINI LEADERBOARD */}
+          
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-5">
               <div className="space-y-2.5">
                 {restOfPlayers.map((participant) => {

@@ -43,7 +43,7 @@ function QuizLobby() {
         setShowActivityToast({ type: 'join', participant });
         setTimeout(() => setShowActivityToast(null), 3000);
         
-        // Add to recent activity feed (show only 4)
+        // Add to recent activity feed 
         setRecentActivity(prev => [
           { type: 'join', participant, timestamp: Date.now() },
           ...prev
@@ -54,7 +54,7 @@ function QuizLobby() {
     // Simulate someone leaving occasionally
     const leaveInterval = setInterval(() => {
       if (participants.length > 3) {
-        const randomIndex = Math.floor(Math.random() * (participants.length - 1)) + 1; // Don't remove host
+        const randomIndex = Math.floor(Math.random() * (participants.length - 1)) + 1; 
         const leavingParticipant = participants[randomIndex];
         
         setParticipants(prev => prev.filter((_, i) => i !== randomIndex));
@@ -129,7 +129,7 @@ function QuizLobby() {
         <div className="absolute bottom-20 -right-20 w-64 h-64 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
       </div>
 
-      {/* Activity Toast Notification - JOIN or LEAVE */}
+      {/* Activity Toast Notification - Join or Leave */}
       {showActivityToast && (
         <div className="fixed top-24 right-6 z-50 animate-slide-in-right">
           {showActivityToast.type === 'join' ? (
@@ -185,7 +185,7 @@ function QuizLobby() {
       {/* Main Content */}
       <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Header with Energy Text */}
+     
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-md rounded-full border border-indigo-300/30 shadow-lg mb-6">
             <div className="relative flex">
@@ -207,7 +207,7 @@ function QuizLobby() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* LEFT SECTION - Quiz Code & Settings */}
+          {/* Quiz Code & Settings */}
           <div className="lg:col-span-1 space-y-6">
             
             {/* Quiz Code Card */}
@@ -281,10 +281,10 @@ function QuizLobby() {
             </div>
           </div>
 
-          {/* RIGHT SECTION - Participants */}
+          {/* Participants */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-3xl shadow-xl border-2 border-gray-100 overflow-hidden">
-              {/* Header with Avatar Stack */}
+             
               <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -296,7 +296,7 @@ function QuizLobby() {
                     <div>
                       <h3 className="text-2xl font-black text-white">Participants</h3>
                       
-                      {/* Avatar Stack with Crown Tooltip */}
+                      
                       <div className="flex items-center gap-2 mt-2">
                         <div className="flex -space-x-3">
                           {participants.slice(0, 5).map((p, i) => (
@@ -306,7 +306,7 @@ function QuizLobby() {
                               style={{ zIndex: 5 - i }}
                             >
                               {p.avatar}
-                              {/* Tooltip for host crown */}
+                             
                               {p.isHost && (
                                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
                                   Host
@@ -354,7 +354,6 @@ function QuizLobby() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Recent Activity Live Feed - ONLY 4-5 items */}
                     <div>
                       <h4 className="text-sm font-bold text-gray-500 mb-3 flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -396,7 +395,7 @@ function QuizLobby() {
                       </div>
                     </div>
 
-                    {/* All Participants Count */}
+                   
                     {participants.length > 2 && (
                       <div className="bg-gray-50 rounded-xl p-4 text-center border-2 border-gray-200">
                         <p className="text-sm text-gray-600">
@@ -408,7 +407,7 @@ function QuizLobby() {
                 )}
               </div>
 
-              {/* Start Quiz Button */}
+           
               {participants.length > 1 && (
                 <div className="px-6 pb-6">
                   <button

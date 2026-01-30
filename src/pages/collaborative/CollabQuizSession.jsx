@@ -9,9 +9,9 @@ function CollabQuizSession() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const { quizCode, difficulty, numQuestions, timePerQuestion, participants, questions } = location.state || {};
+  const {timePerQuestion, participants, questions } = location.state || {};
   
-  // Use the questions passed from CreateQuiz, or fallback to mock data
+  
   const quizData = {
     title: "Generated Quiz",
     questions: questions || [

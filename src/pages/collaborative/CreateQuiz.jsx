@@ -23,6 +23,8 @@ function SoloMode() {
   const [showPreview, setShowPreview] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState(null);
 
   // Generate mock questions based on study material
   const generateMockQuestions = (count, material) => {
@@ -139,7 +141,7 @@ function SoloMode() {
   };
 
   const handleSaveEdit = (updatedQuestion) => {
-    // Save the changes (button is already disabled if no changes)
+    // Save the changes 
     const updated = [...generatedQuestions];
     updated[editingQuestionIndex] = updatedQuestion;
     setGeneratedQuestions(updated);
@@ -150,18 +152,30 @@ function SoloMode() {
   };
 
   const handleDeleteQuestion = (index) => {
-    if (confirm('Are you sure you want to delete this question?')) {
-      const updated = generatedQuestions.filter((_, i) => i !== index);
+    setQuestionToDelete(index);
+    setShowDeleteConfirm(true);
+  };
+  
+  const confirmDeleteQuestion = () => {
+    if (questionToDelete !== null) {
+      const updated = generatedQuestions.filter((_, i) => i !== questionToDelete);
       setGeneratedQuestions(updated);
       setNumQuestions(updated.length.toString());
-      showToastMessage(' Question deleted!');
+      showToastMessage(' Question deleted successfully!');
     }
+    setShowDeleteConfirm(false);
+    setQuestionToDelete(null);
+  };
+  
+  const cancelDeleteQuestion = () => {
+    setShowDeleteConfirm(false);
+    setQuestionToDelete(null);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
 
-{/* Quiz Ready POPUP with Preview & Edit */}
+{/* Quiz Ready pop */}
 {quizReady && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in overflow-y-auto py-8">
     <div className="relative bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
@@ -180,7 +194,7 @@ function SoloMode() {
 
       {!showPreview && !showEdit ? (
   <>
-    {/* Success Header - Compact */}
+    {/* Success header */}
     <div className="text-center mb-6">
       <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,10 +205,9 @@ function SoloMode() {
       <p className="text-sm text-gray-600">{generatedQuestions.length} questions generated and ready</p>
     </div>
 
-    {/* Improved Layout - More Compact */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       
-      {/* LEFT COLUMN - Quiz Code & Settings */}
+      {/* Quiz Code & Settings */}
       <div className="space-y-4">
         {/* Quiz Code Card */}
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-5 text-center">
@@ -205,7 +218,7 @@ function SoloMode() {
           <button
             onClick={() => {
               navigator.clipboard.writeText(quizCode);
-              showToastMessage('✅ Code copied to clipboard!');
+              showToastMessage(' Code copied to clipboard!');
             }}
             className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-lg backdrop-blur-sm transition-all"
           >
@@ -265,7 +278,7 @@ function SoloMode() {
           </p>
         </div>
 
-        {/* Action Buttons - Combined in One Card */}
+        {/* Action Buttons*/}
         <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 space-y-2">
           <button
             onClick={() => navigate('/collab/quiz-lobby', { 
@@ -301,6 +314,7 @@ function SoloMode() {
             📤 Share Link
           </button>
         </div>
+        
       </div>
     </div>
   </>
@@ -547,7 +561,7 @@ function SoloMode() {
 
           </div>
 
-          {/* RIGHT SECTION - Configuration Panel (1/3 width) */}
+          {/* Configuration Panel */}
           <div className="lg:col-span-1 space-y-6">
             
             {/* QUIZ CONFIGURATION */}
@@ -665,6 +679,59 @@ function SoloMode() {
           </div>
         </div>
       </div>
+       {/* Delete Confirmation Popup  */}
+       {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform scale-100 animate-scale-in">
+         
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center shadow-xl">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">Delete Question?</h3>
+              <p className="text-gray-600 text-sm">
+                Are you sure you want to delete this question? This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Question Preview */}
+            {questionToDelete !== null && generatedQuestions[questionToDelete] && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 border-2 border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-black text-sm">Q{questionToDelete + 1}</span>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900 line-clamp-2">
+                    {generatedQuestions[questionToDelete].question}
+                  </p>
+                </div>
+              </div>
+            )}
+
+        
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={cancelDeleteQuestion}
+                className="py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteQuestion}
+                className="py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {showToast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
@@ -747,7 +814,7 @@ function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
         </button>
       </div>
 
-      {/* Questions List - Scrollable */}
+      {/* Questions List */}
       <div className="flex-1 overflow-y-auto pr-2 space-y-3 sm:space-y-4">
         {questions.map((q, index) => (
           <div key={q.id} className="bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 hover:border-indigo-300 transition-all">
@@ -761,7 +828,7 @@ function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
                 <h4 className="text-sm sm:text-base font-bold text-gray-900 leading-snug">{q.question}</h4>
               </div>
               
-              {/* Action Buttons */}
+             
               <div className="flex gap-2 sm:flex-shrink-0">
                 <button
                   onClick={() => onEdit(index)}
@@ -784,7 +851,7 @@ function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
               </div>
             </div>
 
-            {/* Options Grid - Responsive */}
+            {/* Options Grid  */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {q.options.map((opt, i) => (
                 <div
@@ -808,7 +875,7 @@ function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
 }
 
 
-// Question Editor Component - RESPONSIVE VERSION with Smart Save Button
+// Question Editor 
 function QuestionEditor({ question, onSave, onCancel }) {
   const [editedQuestion, setEditedQuestion] = useState({ ...question });
   
@@ -820,7 +887,7 @@ function QuestionEditor({ question, onSave, onCancel }) {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header - Sticky */}
+      {/* Header  */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
         <h3 className="text-xl sm:text-2xl font-black text-gray-900">Edit Question</h3>
         <button 
@@ -834,7 +901,7 @@ function QuestionEditor({ question, onSave, onCancel }) {
         </button>
       </div>
 
-      {/* Editor Form - Scrollable */}
+
       <div className="flex-1 overflow-y-auto pr-2 space-y-4 sm:space-y-6">
         
         {/* Question Text */}
@@ -867,7 +934,7 @@ function QuestionEditor({ question, onSave, onCancel }) {
                 placeholder={`Option ${String.fromCharCode(65 + i)}`}
               />
               
-              {/* Correct Answer Radio */}
+              {/* Correct Answer  */}
               <label className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all">
                 <input
                   type="radio"
@@ -882,7 +949,7 @@ function QuestionEditor({ question, onSave, onCancel }) {
           ))}
         </div>
 
-        {/* Save Button - DISABLED when no changes */}
+        {/* Save Button */}
         <button
           onClick={() => onSave(editedQuestion)}
           disabled={!hasChanges}
