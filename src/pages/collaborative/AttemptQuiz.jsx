@@ -14,15 +14,19 @@ function AttemptQuiz() {
   const [joinedLobby, setJoinedLobby] = useState(false);
   const [lobbyInfo, setLobbyInfo] = useState(null);
 
-  // Avatar options - More variety!
+  // Simple, fun avatar collection
   const avatars = [
-    '😊', '😎', '🤩', '😇', '🥳', '🤓', '🧐', '😺', '🦊', '🐯', 
-    '🦁', '🐻', '🐼', '🐨', '🐸', '🦄', '🦋', '🐝', '🦖', '🦕',
-    '🚀', '⭐', '🌟', '💫', '✨', '🔥', '💎', '👑', '🏆', '🎯',
-    '🎨', '🎭', '🎪', '🎸', '🎮', '🎲', '🎳', '⚽', '🏀', '🎾',
-    '💡', '🌈', '🌺', '🌸', '🌼', '🌻', '🍀', '🍕', '🍔', '🍦',
-    '🎂', '🍩', '🧁', '🍿', '☕', '🧃', '🎈', '🎁', '🎊', '🎉'
+    
+    '😊','😎','🤩','😇','🥳','🤓','🧐','🤗','🥰','😍',  
+    '🧑‍💻','🧑‍🎓','🧑‍🏫','🧑‍🔬','🧑‍🎨','🧑‍🚀','🧑‍🍳','🧑‍💼','🐶','🐱',
+    '🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮',
+    '🐷','🐸','🐵','🦄','🐔','🐧','🦆','🦉','🐳','🐬',
+    '🦚','🦅','🤖','🖥️','⌨️','💻','🕹️','🎮','👾','🚀',
+    '⭐','🌟','💫','✨','🔥','💎','👑','🏆','🎯','⚡',
+    '🧠','💥','🛡️','🎨','🎭','🎸','⚽','🏀','🎾','🍕',
+    '🍔','🍩','🌈','🌺','🌸','🌻','🌹','💐','🍁','🌊','🌷'
   ];
+  
 
   // Auto-fill code from URL
   useEffect(() => {
@@ -45,8 +49,7 @@ function AttemptQuiz() {
   };
 
   const handleShuffleAvatar = () => {
-    const otherAvatars = avatars.filter(a => a !== selectedAvatar);
-    const randomAvatar = otherAvatars[Math.floor(Math.random() * otherAvatars.length)];
+    const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
     setSelectedAvatar(randomAvatar);
   };
 
@@ -67,11 +70,9 @@ function AttemptQuiz() {
 
     // Simulate API call
     setTimeout(() => {
-      // Simulate different scenarios
       const scenario = Math.random();
       
       if (scenario < 0.8) {
-        // Success - Join lobby
         setJoinedLobby(true);
         setLobbyInfo({
           quizTitle: 'JavaScript Fundamentals',
@@ -92,23 +93,10 @@ function AttemptQuiz() {
     }, 1500);
   };
 
-  const handleStartQuiz = () => {
-    // Navigate to quiz session (will be created later)
-    navigate('/collab/quiz-session', {
-      state: {
-        quizCode,
-        playerName,
-        avatar: selectedAvatar,
-        isHost: false
-      }
-    });
-  };
-
   // Waiting for Host Screen
   if (joinedLobby) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden">
-        {/* Animated Background */}
         <div 
           className="absolute inset-0 opacity-40"
           style={{
@@ -118,7 +106,6 @@ function AttemptQuiz() {
           }}
         ></div>
 
-        {/* Floating Orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 -left-20 w-64 h-64 bg-gradient-to-br from-indigo-200/30 to-purple-200/30 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-20 -right-20 w-64 h-64 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -127,10 +114,8 @@ function AttemptQuiz() {
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
           <div className="max-w-md w-full">
             
-            {/* Waiting Card */}
             <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-gray-100 p-8 text-center">
               
-              {/* Animated Icon */}
               <div className="relative mb-6">
                 <div className="w-24 h-24 mx-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-xl animate-pulse">
                   <div className="text-5xl">{selectedAvatar}</div>
@@ -144,13 +129,11 @@ function AttemptQuiz() {
                 </div>
               </div>
 
-              {/* Welcome Message */}
               <h1 className="text-3xl font-black text-gray-900 mb-2">
                 Welcome, {playerName}! 👋
               </h1>
               <p className="text-gray-600 mb-6">You've successfully joined the quiz</p>
 
-              {/* Quiz Info */}
               <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 mb-6">
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
@@ -173,7 +156,6 @@ function AttemptQuiz() {
                 </div>
               </div>
 
-              {/* Status */}
               <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-2xl p-5 mb-6">
                 <div className="flex items-center justify-center gap-3 mb-2">
                   <div className="relative flex">
@@ -185,7 +167,6 @@ function AttemptQuiz() {
                 <p className="text-sm text-yellow-700">The quiz will begin shortly</p>
               </div>
 
-              {/* Leave Button */}
               <button
                 onClick={() => {
                   setJoinedLobby(false);
@@ -213,7 +194,6 @@ function AttemptQuiz() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       
-      {/* Animated Background */}
       <div 
         className="absolute inset-0 opacity-40"
         style={{
@@ -223,7 +203,6 @@ function AttemptQuiz() {
         }}
       ></div>
 
-      {/* Floating Orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 -left-20 w-64 h-64 bg-gradient-to-br from-indigo-200/30 to-purple-200/30 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 -right-20 w-64 h-64 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -330,7 +309,7 @@ function AttemptQuiz() {
               </p>
             </div>
 
-            {/* Avatar Selection */}
+            {/* Avatar Selection - SUPER SIMPLE! */}
             <div className="mb-6">
               <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
@@ -339,41 +318,27 @@ function AttemptQuiz() {
                 Choose Your Avatar
               </label>
               
-              <div className="flex items-center gap-4">
-                <div className="flex-1 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 flex items-center justify-center">
-                  <div className="text-6xl">{selectedAvatar}</div>
+              {/* Big Avatar Display with Shuffle Button */}
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-8">
+                <div className="text-center mb-4">
+                  <div className="inline-block text-8xl sm:text-9xl mb-4 animate-bounce-slow">
+                    {selectedAvatar}
+                  </div>
                 </div>
+                
                 <button
                   onClick={handleShuffleAvatar}
-                  className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all flex items-center gap-2"
+                  className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-3 group"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <svg className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  <span className="hidden sm:inline">Shuffle</span>
+                  Shuffle Avatar
                 </button>
               </div>
               
-              {/* Avatar Grid - Scrollable */}
-              <div className="mt-3 max-h-32 overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-8 gap-2 pr-2">
-                  {avatars.map((avatar, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedAvatar(avatar)}
-                      className={`w-full aspect-square rounded-lg flex items-center justify-center text-2xl transition-all ${
-                        selectedAvatar === avatar
-                          ? 'bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg scale-110 ring-2 ring-indigo-300'
-                          : 'bg-gray-100 hover:bg-gray-200 hover:scale-105'
-                      }`}
-                    >
-                      {avatar}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Scroll to see more avatars • {avatars.length} total
+              <p className="text-xs text-gray-500 mt-3 text-center">
+                Don't like it? Just shuffle for a new one! 🎲
               </p>
             </div>
 
@@ -393,7 +358,7 @@ function AttemptQuiz() {
             <button
               onClick={handleJoinQuiz}
               disabled={isJoining || quizCode.length < 6 || !playerName.trim()}
-              className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 flex items-center justify-center gap-2"
             >
               {isJoining ? (
                 <>
@@ -424,8 +389,8 @@ function AttemptQuiz() {
                   <ul className="text-xs text-blue-700 space-y-1">
                     <li>• Get the quiz code from your host</li>
                     <li>• Enter your name (shown on leaderboard)</li>
-                    <li>• Pick a fun avatar</li>
-                    <li>• Click "Join Quiz" and wait for the game to start!</li>
+                    <li>• Shuffle until you find an avatar you like</li>
+                    <li>• Click "Join Quiz" and get ready to compete!</li>
                   </ul>
                 </div>
               </div>
@@ -446,26 +411,21 @@ function AttemptQuiz() {
           75% { transform: translateX(10px); }
         }
 
+        @keyframes bounce-slow {
+          0%, 100% { 
+            transform: translateY(0) scale(1); 
+          }
+          50% { 
+            transform: translateY(-10px) scale(1.05); 
+          }
+        }
+
         .animate-shake {
           animation: shake 0.5s ease-in-out;
         }
 
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 10px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #6366f1, #8b5cf6);
-          border-radius: 10px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(to bottom, #4f46e5, #7c3aed);
+        .animate-bounce-slow {
+          animation: bounce-slow 2s ease-in-out infinite;
         }
       `}</style>
     </div>
