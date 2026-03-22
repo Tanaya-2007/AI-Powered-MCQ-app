@@ -32,7 +32,7 @@ function AttemptQuiz() {
   useEffect(() => {
     const codeFromUrl = searchParams.get('code');
     if (codeFromUrl) {
-      setQuizCode(codeFromUrl.toUpperCase());
+      // setQuizCode(codeFromUrl.toUpperCase());
     }
   }, [searchParams]);
 
