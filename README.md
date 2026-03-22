@@ -212,13 +212,6 @@ The project includes mock data for demonstration:
 - **Success Popup** - Quiz code display with copy and share options
 - **Beautiful Animations** - Fade-in and scale effects
 
-### 🎭 Animations
-- **Page Transitions** - Smooth fade-in effects on route changes
-- **Confetti Effects** - Celebratory animations on result pages
-- **Hover Effects** - Interactive button and card highlights
-- **Scale Animations** - Button press feedback with transform
-- **Progress Bars** - Animated score transitions
-- **Loading Spinners** - Quiz generation feedback with rotation
 
 ### 📱 Responsive Design
 - **Mobile First** - Optimized for screens 375px and up
