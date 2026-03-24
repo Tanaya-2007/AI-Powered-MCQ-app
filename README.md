@@ -178,7 +178,7 @@ The project includes mock data for demonstration:
 
 ### CollabQuizSession.jsx
 - **Question Display** - Clean card design with question number
-- **Countdown Timer** - Visual timer with color changes (green → orange → red)
+- **Countdown Timer** - Visual timer with color changes 
 - **Answer Selection** - Touch-friendly multiple choice buttons
 - **Answer Locking** - Visual confirmation after selection
 - **Live Mini Leaderboard** - Top 5 players sidebar
@@ -190,7 +190,7 @@ The project includes mock data for demonstration:
 - **Updated Leaderboard** - Score changes highlighted
 - **Confetti Animation** - Celebration effect
 - **Auto-redirect** - Countdown to next question (5 seconds)
-- **Host Controls** - Manual next question button
+
 
 ### FinalLeaderboardPage.jsx
 - **Top 3 Podium** - Medal display (🥇🥈🥉) with elevated winner
@@ -198,7 +198,6 @@ The project includes mock data for demonstration:
 - **Score Progress Bars** - Visual representation of scores
 - **Responsive Grid** - Adapts to screen size
 - **Confetti Celebration** - Continuous animation
-- **Back to Home** - Navigation button
 
 ---
 ---
