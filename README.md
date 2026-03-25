@@ -220,6 +220,7 @@ The project includes mock data for demonstration:
 - **Adaptive Text** - Font sizes adjust by breakpoint (sm, md, lg, xl)
 - **Flexible Grids** - CSS Grid and Flexbox for layouts
 
+
 ### ⌨️ Keyboard Shortcuts
 - **A, B, C, D Keys** - Quick answer selection during quiz
 - **Visual Feedback** - Keys highlighted on screen when pressed
@@ -230,7 +231,5 @@ The project includes mock data for demonstration:
 ---
 
 <div align="center">
-
 **Made with ❤️ by Tanaya**
-
 </div>
