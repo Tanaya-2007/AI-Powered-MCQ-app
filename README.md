@@ -217,7 +217,7 @@ The project includes mock data for demonstration:
 - **Tablet Layouts** - Adjusted spacing and columns for medium screens
 - **Desktop View** - Multi-column layouts for large screens
 - **Touch Friendly** - Large tap targets (44px minimum) for mobile
-- **Adaptive Text** - Font sizes adjust by breakpoint (sm, md, lg, xl)
+- **Adaptive Text** - Font sizes adjust by breakpoint 
 - **Flexible Grids** - CSS Grid and Flexbox for layouts
 
 
