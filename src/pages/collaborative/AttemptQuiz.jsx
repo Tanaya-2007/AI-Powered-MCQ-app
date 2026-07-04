@@ -42,6 +42,49 @@ function AttemptQuiz() {
     setSelectedAvatar(randomAvatar);
   }, []);
 
+  // Simulate host starting the quiz after player joins lobby (automatic lobby bypass for testing)
+  useEffect(() => {
+    if (joinedLobby) {
+      const timer = setTimeout(() => {
+        navigate('/collab/quiz-session', {
+          state: {
+            quizCode: quizCode,
+            difficulty: 'medium',
+            numQuestions: 3,
+            timePerQuestion: 60,
+            participants: [
+              { id: 1, name: 'Host', avatar: '👑', isHost: true, joinedAt: Date.now() },
+              { id: 2, name: playerName || 'Guest', avatar: selectedAvatar || '🦊', isHost: false, joinedAt: Date.now() },
+              { id: 3, name: 'Alice', avatar: '👩', isHost: false, joinedAt: Date.now() },
+              { id: 4, name: 'Bob', avatar: '👨', isHost: false, joinedAt: Date.now() }
+            ],
+            questions: [
+              {
+                id: 1,
+                question: "Which keyword is used to create a class in Java?",
+                options: ["class", "Class", "new", "create"],
+                correctAnswer: 0,
+              },
+              {
+                id: 2,
+                question: "What is the default value of a boolean variable in Java?",
+                options: ["true", "false", "null", "0"],
+                correctAnswer: 1,
+              },
+              {
+                id: 3,
+                question: "Which method is the entry point of a Java application?",
+                options: ["start()", "main()", "run()", "init()"],
+                correctAnswer: 1,
+              }
+            ]
+          }
+        });
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [joinedLobby, navigate, quizCode, playerName, selectedAvatar]);
+
   const handleCodeChange = (e) => {
     const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
     setQuizCode(value);
@@ -164,7 +207,7 @@ function AttemptQuiz() {
                   </div>
                   <p className="text-base font-black text-yellow-900">Waiting for host to start...</p>
                 </div>
-                <p className="text-sm text-yellow-700">The quiz will begin shortly</p>
+                <p className="text-sm text-yellow-700 font-medium">The quiz will begin shortly (starts automatically in 6s for testing)</p>
               </div>
 
               <button

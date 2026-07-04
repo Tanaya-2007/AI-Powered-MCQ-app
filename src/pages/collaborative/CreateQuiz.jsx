@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom';
 
-function SoloMode() {
+function CreateQuiz() {
   const navigate = useNavigate();
   
   // States
@@ -976,4 +976,4 @@ function QuestionEditor({ question, onSave, onCancel }) {
   );
 }
 
-export default SoloMode;
+export default CreateQuiz;

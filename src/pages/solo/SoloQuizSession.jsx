@@ -132,6 +132,12 @@ function SoloQuizSession() {
     const handleKeyPress = (e) => {
       if (quizComplete || showReview || isAnswered) return;
       
+      // Prevent shortcut trigger if user is focused on an input/textarea
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+        return;
+      }
+      
       const key = e.key.toUpperCase();
       
       if (['A', 'B', 'C', 'D'].includes(key)) {

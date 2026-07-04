@@ -87,7 +87,7 @@ function Home() {
         {/* Navigation */}
         <nav className="absolute top-0 left-0 right-0 z-30 px-4 sm:px-6 py-4 sm:py-6">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
+            <div onClick={() => navigate('/')} className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
               <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-xl group-hover:shadow-indigo-500/50 transition-all duration-300 group-hover:rotate-3">
                 <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -98,7 +98,7 @@ function Home() {
               </span>
             </div>
 
-            <button className="group px-4 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
+            <button onClick={() => navigate('/mode-selection')} className="group px-4 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
               <span className="flex items-center gap-1 sm:gap-2">
                 <span className="hidden sm:inline">Get Started</span>
                 <span className="sm:hidden">Start</span>
