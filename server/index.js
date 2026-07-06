@@ -6,6 +6,7 @@ import oracledb from 'oracledb';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { initDbPool, closeDbPool } from './db/db.js';
 
 // Load environment variables
 dotenv.config();
@@ -134,8 +135,25 @@ app.post('/api/test-upload', upload.single('file'), (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 QuizMaster server listening on port ${PORT}`);
   console.log(`🔗 Status endpoint: http://localhost:${PORT}/api/status`);
   console.log(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-check`);
+  
+  // Initialize Oracle DB Connection Pool on boot
+  try {
+    await initDbPool();
+  } catch (error) {
+    console.error('⚠️ Could not initialize DB Pool on startup. Ensure configurations are set in .env.');
+  }
 });
+
+// Graceful shutdown
+const gracefulShutdown = async () => {
+  console.log('\nStopping server gracefully...');
+  await closeDbPool();
+  process.exit(0);
+};
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
