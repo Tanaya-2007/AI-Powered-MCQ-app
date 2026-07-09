@@ -7,6 +7,10 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initDbPool, closeDbPool } from './db/db.js';
+import { extractTextFromFile } from './utils/parser.js';
+import { splitText } from './utils/textSplitter.js';
+import { generateEmbedding } from './utils/gemini.js';
+import { saveMaterial, saveChunk } from './db/vectorStore.js';
 
 // Load environment variables
 dotenv.config();
@@ -116,22 +120,92 @@ app.get('/api/db-check', async (req, res) => {
   }
 });
 
-// 3. Test File Upload Endpoint
-app.post('/api/test-upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'No file uploaded.' });
-  }
+// 3. Document Ingestion Endpoint (Extract -> Chunk -> Embed -> Oracle Vector DB)
+app.post('/api/ingest', upload.single('file'), async (req, res) => {
+  let filePath = null;
+  try {
+    let filename;
+    let mimeType;
+    let rawText;
 
-  res.json({
-    success: true,
-    message: 'File uploaded successfully!',
-    file: {
-      originalName: req.file.originalname,
-      filename: req.file.filename,
-      size: req.file.size,
-      path: req.file.path
+    // Check if user uploaded a file OR sent plain text in request body
+    if (req.file) {
+      filePath = req.file.path;
+      filename = req.file.originalname;
+      mimeType = req.file.mimetype;
+
+      console.log(`📥 Ingesting file: ${filename} (${mimeType})`);
+      
+      // Step A: Extract text from file (Handles plain text, PDF, and Image OCR)
+      rawText = await extractTextFromFile(filePath, mimeType);
+    } else if (req.body.text && req.body.filename) {
+      filename = req.body.filename;
+      mimeType = 'text/plain';
+      rawText = req.body.text;
+
+      console.log(`📥 Ingesting copy-pasted text: ${filename}`);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'No study material provided. Please upload a file (PDF/Image) or send plain text.'
+      });
     }
-  });
+
+    if (!rawText || rawText.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Text extraction returned empty content. Ensure the file has readable text.'
+      });
+    }
+
+    // Step B: Partition extracted text into semantic overlapping chunks
+    const chunks = splitText(rawText);
+    console.log(`✂️ Text partitioned into ${chunks.length} chunks.`);
+
+    // Step C: Save parent material metadata and retrieve generated ID
+    const materialId = await saveMaterial(filename, mimeType);
+    console.log(`💾 Material record saved under ID: ${materialId}`);
+
+    // Step D: Calculate embedding vector for each chunk and save to Vector DB
+    let processedChunksCount = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkText = chunks[i];
+      
+      // Calculate 768-dimension semantic vector via Gemini API
+      const embedding = await generateEmbedding(chunkText);
+
+      // Save chunk text and float array vector to Oracle
+      await saveChunk(materialId, i, chunkText, embedding, null);
+      processedChunksCount++;
+    }
+
+    console.log(`✅ Ingestion pipeline complete. Processed ${processedChunksCount} chunks.`);
+    res.json({
+      success: true,
+      message: 'Study material successfully ingested and embedded!',
+      materialId,
+      filename,
+      chunksCount: processedChunksCount
+    });
+
+  } catch (error) {
+    console.error('❌ Ingestion pipeline failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ingestion pipeline failed.',
+      error: error.message
+    });
+  } finally {
+    // Step E: Clean up temporary file from disk uploads folder
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+        console.log(`🗑️ Deleted temporary file: ${filePath}`);
+      } catch (err) {
+        console.error('Failed to delete temporary file:', err);
+      }
+    }
+  }
 });
 
 // Start Server

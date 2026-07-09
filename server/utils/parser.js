@@ -1,5 +1,6 @@
 import fs from 'fs';
-import pdf from 'pdf-parse';
+import * as pdfImport from 'pdf-parse';
+const pdf = pdfImport.default || pdfImport;
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 
