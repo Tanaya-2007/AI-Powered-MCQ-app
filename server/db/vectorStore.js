@@ -105,7 +105,7 @@ export async function saveChunk(materialId, chunkIndex, content, embedding, page
  * @param {number} [limit=5] - Number of top relevant matches to retrieve.
  * @returns {Promise<Object[]>} Array of matching document chunks with similarity scores.
  */
-export async function searchSimilarChunks(queryEmbedding, limit = 5) {
+export async function searchSimilarChunks(queryEmbedding, limit = 5, materialId = null) {
   let connection;
   try {
     connection = await getConnection();
@@ -115,21 +115,27 @@ export async function searchSimilarChunks(queryEmbedding, limit = 5) {
     }
     const vectorStr = `[${queryEmbedding.join(',')}]`;
 
-    // VECTOR_DISTANCE(column, query_vector, metric) calculates distance.
-    // Lower COSINE distance = higher semantic similarity.
-    const query = `
-      SELECT c.id, c.content, c.page_number, c.chunk_index, m.filename,
-             VECTOR_DISTANCE(c.embedding, :queryEmbedding, COSINE) AS distance
-      FROM document_chunks c
-      JOIN study_materials m ON c.material_id = m.id
-      ORDER BY distance ASC
-      FETCH FIRST :limitRows ROWS ONLY
-    `;
-
     const binds = {
       queryEmbedding: vectorStr,
       limitRows: limit
     };
+
+    let query = `
+      SELECT c.id, c.content, c.page_number, c.chunk_index, m.filename,
+             VECTOR_DISTANCE(c.embedding, :queryEmbedding, COSINE) AS distance
+      FROM document_chunks c
+      JOIN study_materials m ON c.material_id = m.id
+    `;
+
+    if (materialId) {
+      query += ` WHERE c.material_id = :materialId `;
+      binds.materialId = Number(materialId);
+    }
+
+    query += `
+      ORDER BY distance ASC
+      FETCH FIRST :limitRows ROWS ONLY
+    `;
 
     const result = await connection.execute(query, binds);
     return result.rows;

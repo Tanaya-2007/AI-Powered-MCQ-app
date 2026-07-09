@@ -10,13 +10,17 @@ import { initDbPool, closeDbPool } from './db/db.js';
 import { extractTextFromFile } from './utils/parser.js';
 import { splitText } from './utils/textSplitter.js';
 import { generateEmbedding } from './utils/gemini.js';
-import { saveMaterial, saveChunk } from './db/vectorStore.js';
+import { saveMaterial, saveChunk, searchSimilarChunks } from './db/vectorStore.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Initialize Gemini Client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
 
 // Resolve __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -205,6 +209,137 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
         console.error('Failed to delete temporary file:', err);
       }
     }
+  }
+});
+
+// 4. AI Quiz Generation Endpoint (Semantic Search + Gemini MCQ Creator)
+app.post('/api/generate-quiz', async (req, res) => {
+  const { topic, materialId, count = 5, difficulty = 'medium' } = req.body;
+
+  if (!topic || topic.trim() === '') {
+    return res.status(400).json({ success: false, message: 'Topic name is required.' });
+  }
+
+  let contextText = '';
+  let fallback = false;
+
+  console.log(`🔍 Received quiz generation request for topic: "${topic}" (Difficulty: ${difficulty}, Count: ${count})`);
+
+  try {
+    // A. Generate embedding for query topic
+    const queryEmbedding = await generateEmbedding(topic);
+
+    // B. Query vector store for matching textbook segments
+    const chunks = await searchSimilarChunks(queryEmbedding, 5, materialId);
+
+    if (chunks && chunks.length > 0) {
+      console.log(`✅ Found ${chunks.length} semantically relevant chunks in vector DB.`);
+      contextText = chunks
+        .map(c => `[From textbook: ${c.FILENAME}, page ${c.PAGE_NUMBER || 'unknown'}]:\n${c.CONTENT}`)
+        .join('\n\n---\n\n');
+    } else {
+      console.log('⚠️ No matching segments found in Vector store. Falling back to general knowledge.');
+      fallback = true;
+    }
+  } catch (error) {
+    console.warn('⚠️ Vector store retrieval skipped/failed. Falling back to general knowledge. Detail:', error.message);
+    fallback = true;
+  }
+
+  // C. Build the prompt for Gemini
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    let prompt = '';
+    if (fallback) {
+      prompt = `
+        You are an expert educator. Your task is to generate a multiple-choice quiz based on your general knowledge.
+        
+        Topic to focus on: "${topic}"
+        Difficulty level: "${difficulty}"
+        Number of questions required: ${count}
+        
+        INSTRUCTIONS:
+        1. Generate exactly ${count} multiple-choice questions focusing on the topic "${topic}".
+        2. Align the questions to the "${difficulty}" difficulty level.
+        3. Every question must have:
+           - "question": string text
+           - "options": an array of exactly 4 strings
+           - "correctAnswer": number index (0, 1, 2, or 3) representing the correct option in the options array
+           - "explanation": a detailed explanation of why that option is correct.
+        4. Respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting, no introductory text, and no conversational text.
+        
+        JSON Array Schema:
+        [
+          {
+            "question": "question text",
+            "options": ["option A", "option B", "option C", "option D"],
+            "correctAnswer": 0,
+            "explanation": "explanation details"
+          }
+        ]
+      `;
+    } else {
+      prompt = `
+        You are an expert educator. Your task is to generate a multiple-choice quiz based on the textbook segments provided below.
+        
+        Topic to focus on: "${topic}"
+        Difficulty level: "${difficulty}"
+        Number of questions required: ${count}
+        
+        CONTEXT SEGMENTS FROM TEXTBOOK:
+        ===
+        ${contextText}
+        ===
+        
+        INSTRUCTIONS:
+        1. Generate exactly ${count} multiple-choice questions focusing on the topic "${topic}".
+        2. Use the provided context segments to source the questions and explanations. If the context does not contain enough information, you may supplement it with your general knowledge, but prioritize the context.
+        3. Align the questions to the "${difficulty}" difficulty level.
+        4. Every question must have:
+           - "question": string text
+           - "options": an array of exactly 4 strings
+           - "correctAnswer": number index (0, 1, 2, or 3) representing the correct option in the options array
+           - "explanation": a detailed explanation of why that option is correct, referencing concepts from the context.
+        5. Respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting, no introductory text, and no conversational text.
+        
+        JSON Array Schema:
+        [
+          {
+            "question": "question text",
+            "options": ["option A", "option B", "option C", "option D"],
+            "correctAnswer": 0,
+            "explanation": "explanation details"
+          }
+        ]
+      `;
+    }
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    
+    // Parse response
+    const questions = JSON.parse(responseText);
+
+    console.log(`🎉 Successfully generated ${questions.length} questions.`);
+    res.json({
+      success: true,
+      fallback,
+      questions
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to generate quiz with Gemini:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate quiz.',
+      error: error.message
+    });
   }
 });
 
