@@ -5,53 +5,63 @@ function SoloQuizSession() {
   const location = useLocation();
   const quizConfig = location.state || {};
   
+  const defaultQuestions = [
+    {
+      id: 1,
+      question: "Which protocol is used for secure web communication?",
+      options: ["HTTP", "HTTPS", "FTP", "SMTP"],
+      correctAnswer: 1,
+      explanation: "HTTPS (Hypertext Transfer Protocol Secure) uses SSL/TLS encryption to secure data transmission between client and server."
+    },
+    {
+      id: 2,
+      question: "What does CPU stand for?",
+      options: ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Computer Processing User"],
+      correctAnswer: 0,
+      explanation: "CPU stands for Central Processing Unit, which is the primary component of a computer that performs most of the processing."
+    },
+    {
+      id: 3,
+      question: "What is the purpose of RAM in a computer?",
+      options: ["Long-term storage", "Temporary data storage", "Processing calculations", "Display graphics"],
+      correctAnswer: 1,
+      explanation: "RAM (Random Access Memory) is used for temporary storage of data that the CPU needs quick access to while running programs."
+    },
+    {
+      id: 4,
+      question: "Which programming language is known as the 'language of the web'?",
+      options: ["Python", "JavaScript", "Java", "C++"],
+      correctAnswer: 1,
+      explanation: "JavaScript is primarily used for web development and runs in web browsers, making it the language of the web."
+    },
+    {
+      id: 5,
+      question: "What does HTML stand for?",
+      options: ["Hyper Text Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language"],
+      correctAnswer: 0,
+      explanation: "HTML stands for Hyper Text Markup Language, which is the standard markup language for creating web pages."
+    }
+  ];
+
+  const questionsSource = quizConfig.questions && quizConfig.questions.length > 0
+    ? quizConfig.questions
+    : defaultQuestions;
+
   const quizData = {
-    title: "AI Generated Quiz",
+    title: quizConfig.title || "AI Generated Quiz",
     difficulty: quizConfig.difficulty || "medium",
-    totalQuestions: quizConfig.numQuestions || 5,
+    totalQuestions: questionsSource.length,
     timePerQuestion: quizConfig.timePerQuestion || 60,
     timerEnabled: true,
     backNavigationEnabled: true,
-    questions: [
-      {
-        id: 1,
-        question: "Which protocol is used for secure web communication?",
-        options: ["HTTP", "HTTPS", "FTP", "SMTP"],
-        correctAnswer: 1,
-        explanation: "HTTPS (Hypertext Transfer Protocol Secure) uses SSL/TLS encryption to secure data transmission between client and server."
-      },
-      {
-        id: 2,
-        question: "What does CPU stand for?",
-        options: ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Computer Processing User"],
-        correctAnswer: 0,
-        explanation: "CPU stands for Central Processing Unit, which is the primary component of a computer that performs most of the processing."
-      },
-      {
-        id: 3,
-        question: "What is the purpose of RAM in a computer?",
-        options: ["Long-term storage", "Temporary data storage", "Processing calculations", "Display graphics"],
-        correctAnswer: 1,
-        explanation: "RAM (Random Access Memory) is used for temporary storage of data that the CPU needs quick access to while running programs."
-      },
-      {
-        id: 4,
-        question: "Which programming language is known as the 'language of the web'?",
-        options: ["Python", "JavaScript", "Java", "C++"],
-        correctAnswer: 1,
-        explanation: "JavaScript is primarily used for web development and runs in web browsers, making it the language of the web."
-      },
-      {
-        id: 5,
-        question: "What does HTML stand for?",
-        options: ["Hyper Text Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language"],
-        correctAnswer: 0,
-        explanation: "HTML stands for Hyper Text Markup Language, which is the standard markup language for creating web pages."
-      }
-    ]
+    questions: questionsSource.map((q, idx) => ({
+      id: q.id || (idx + 1),
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation
+    }))
   };
-
-  quizData.totalQuestions = quizData.questions.length;
   
   // States
   const [currentQuestion, setCurrentQuestion] = useState(0);

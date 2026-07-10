@@ -8,6 +8,7 @@ function SoloMode() {
   const [activeTab, setActiveTab] = useState('text');
   const [textInput, setTextInput] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const [numQuestions, setNumQuestions] = useState(10);
   const [timePerQuestion, setTimePerQuestion] = useState(60);
@@ -15,6 +16,7 @@ function SoloMode() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [quizReady, setQuizReady] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [generatedQuestions, setGeneratedQuestions] = useState([]);
 
   const handleFileUpload = (file) => {
     if (file) {
@@ -47,14 +49,20 @@ function SoloMode() {
     setUploadedFile(null);
   };
 
-  const handleGenerateQuiz = () => {
+  const handleGenerateQuiz = async () => {
+    // Validate topic focus
+    if (!topic || topic.trim() === '') {
+      alert('❌ Please enter a topic focus (e.g. Photosynthesis, databases)');
+      return;
+    }
+
     // Validate number of questions FIRST
-    const questions = parseInt(numQuestions) || 0;
-    if (questions === 0) {
+    const questionsCount = parseInt(numQuestions) || 0;
+    if (questionsCount === 0) {
       alert('❌ Please enter number of questions');
       return;
     }
-    if (questions > 100) {
+    if (questionsCount > 100) {
       alert('⚠️ Maximum 100 questions allowed! Please reduce the number.');
       return;
     }
@@ -69,24 +77,86 @@ function SoloMode() {
       alert('⚠️ Time cannot exceed 5 minutes (300 seconds)! Please reduce the time.');
       return;
     }
-  
-    // Validate content input
-    if (!textInput && !uploadedFile) {
-      alert('❌ Please provide study material (text, image, or PDF)');
-      return;
-    }
-  
+
     setIsGenerating(true);
-   
-    setTimeout(() => {
+    let materialId = null;
+
+    try {
+      // 1. Ingest text or file if provided
+      if (activeTab === 'text' && textInput.trim() !== '') {
+        const response = await fetch('http://localhost:5000/api/ingest', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: textInput,
+            filename: `${topic}_notes.txt`
+          })
+        });
+        const data = await response.json();
+        if (data.success) {
+          materialId = data.materialId;
+        } else {
+          console.warn('Ingestion failed, falling back to general quiz:', data.message);
+        }
+      } else if (activeTab === 'file' && uploadedFile) {
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+
+        const response = await fetch('http://localhost:5000/api/ingest', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+        if (data.success) {
+          materialId = data.materialId;
+        } else {
+          console.warn('Ingestion failed, falling back to general quiz:', data.message);
+        }
+      }
+
+      // 2. Generate the Quiz questions from backend
+      const genResponse = await fetch('http://localhost:5000/api/generate-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          topic,
+          materialId,
+          count: questionsCount,
+          difficulty
+        })
+      });
+
+      const genData = await genResponse.json();
+      if (genData.success && genData.questions) {
+        setGeneratedQuestions(genData.questions);
+        setQuizReady(true);
+      } else {
+        alert('❌ Failed to generate quiz: ' + (genData.message || 'Unknown error'));
+      }
+
+    } catch (error) {
+      console.error('Failed to communicate with backend API:', error);
+      alert('❌ Failed to connect to quiz generator server. Please make sure the backend is running on http://localhost:5000.');
+    } finally {
       setIsGenerating(false);
-      setQuizReady(true);
-    }, 3000);
+    }
   };
 
   const handleBeginQuiz = () => {
-
-    navigate('/quiz-session');
+    const time = customTime ? parseInt(customTime) : timePerQuestion;
+    navigate('/quiz-session', {
+      state: {
+        questions: generatedQuestions,
+        difficulty: difficulty,
+        numQuestions: generatedQuestions.length,
+        timePerQuestion: time,
+        title: topic
+      }
+    });
   };
 
   return (
@@ -445,6 +515,18 @@ function SoloMode() {
                 <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>
                 Quiz Settings
               </h3>
+
+              {/* Topic Focus */}
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Topic Focus</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Photosynthesis, databases..."
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm text-gray-900"
+                />
+              </div>
 
               {/* Difficulty Level */}
               <div className="mb-6">
