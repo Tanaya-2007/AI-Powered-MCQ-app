@@ -12,6 +12,7 @@ import { splitText } from './utils/textSplitter.js';
 import { generateEmbedding } from './utils/gemini.js';
 import { saveMaterial, saveChunk, searchSimilarChunks } from './db/vectorStore.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
 
 // Load environment variables
 dotenv.config();
@@ -338,6 +339,55 @@ app.post('/api/generate-quiz', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to generate quiz.',
+      error: error.message
+    });
+  }
+});
+
+// 5. Google Forms Export Endpoint (Creates a graded Quiz in Google Forms)
+app.post('/api/export-quiz', async (req, res) => {
+  const { title, questions } = req.body;
+
+  if (!title || title.trim() === '') {
+    return res.status(400).json({ success: false, message: 'Quiz title is required.' });
+  }
+
+  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ success: false, message: 'Questions list is required and cannot be empty.' });
+  }
+
+  // Check if user has configured service account credentials
+  if (!hasGoogleCredentials()) {
+    console.log('⚠️ Google Forms Credentials missing. Returning interactive setup guide.');
+    return res.json({
+      success: false,
+      setupRequired: true,
+      message: 'Google Cloud credentials are not configured yet on the backend.',
+      setupSteps: [
+        '1. Go to Google Cloud Console (https://console.cloud.google.com).',
+        '2. Create a new Google Cloud Project.',
+        '3. Go to APIs & Services Library and enable "Google Forms API" and "Google Drive API".',
+        '4. Go to APIs & Services -> Credentials and click "Create Credentials" -> "Service Account".',
+        '5. Create a key for this Service Account in JSON format and download it.',
+        '6. Rename the downloaded file to "google-credentials.json" and place it in the "/server" folder.',
+        '7. Share your Google Drive folder or allow access to the service account email (usually looks like user@project.iam.gserviceaccount.com) if you want to organize it, or just use the generated forms directly.'
+      ]
+    });
+  }
+
+  try {
+    const result = await createGoogleForm(title, questions);
+    res.json({
+      success: true,
+      message: 'Form successfully created and exported to Google Forms!',
+      formId: result.formId,
+      formUrl: result.formUrl
+    });
+  } catch (error) {
+    console.error('❌ Failed to export to Google Forms:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export to Google Forms.',
       error: error.message
     });
   }
