@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
@@ -19,6 +21,18 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Wrap Express app inside HTTP server to support WebSockets (Socket.io)
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    credentials: true
+  }
+});
+
+// In-memory state for tracking active multiplayer quiz rooms
+const rooms = new Map();
 
 // Initialize Gemini Client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
@@ -393,9 +407,95 @@ app.post('/api/export-quiz', async (req, res) => {
   }
 });
 
+// 6. Socket.io Real-Time Quiz Rooms Connection Handlers (Lobby Phase)
+io.on('connection', (socket) => {
+  console.log(`🔌 Client connected to WebSocket: ${socket.id}`);
+
+  // A. Host Creates a Room
+  socket.on('create-room', ({ quizTitle, questions }) => {
+    // Generate a unique 6-character room code
+    let roomCode;
+    do {
+      roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    } while (rooms.has(roomCode));
+
+    rooms.set(roomCode, {
+      hostId: socket.id,
+      quizTitle,
+      questions: questions || [],
+      players: [],
+      status: 'LOBBY'
+    });
+
+    socket.join(roomCode);
+    socket.emit('room-created', { roomCode, quizTitle });
+    console.log(`🏠 Room ${roomCode} created by host socket: ${socket.id}`);
+  });
+
+  // B. Player Joins a Room
+  socket.on('join-room', ({ roomCode, playerName }) => {
+    const room = rooms.get(roomCode);
+
+    if (!room) {
+      return socket.emit('join-error', { message: 'Room not found. Please verify the code.' });
+    }
+
+    if (room.status !== 'LOBBY') {
+      return socket.emit('join-error', { message: 'The quiz has already started in this room.' });
+    }
+
+    // Add player to the room object
+    const newPlayer = {
+      id: socket.id,
+      name: playerName,
+      score: 0
+    };
+    room.players.push(newPlayer);
+
+    socket.join(roomCode);
+    
+    // Notify player of successful join
+    socket.emit('join-success', {
+      roomCode,
+      quizTitle: room.quizTitle,
+      players: room.players
+    });
+
+    // Broadcast updated player list to everyone in the room (including the host)
+    io.to(roomCode).emit('player-joined', { players: room.players });
+    console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode}`);
+  });
+
+  // C. Disconnect Handler
+  socket.on('disconnect', () => {
+    console.log(`🔌 Client disconnected from WebSocket: ${socket.id}`);
+
+    // Check if the disconnected client belongs to any room
+    for (const [roomCode, room] of rooms.entries()) {
+      // If Host disconnects -> close the room completely
+      if (room.hostId === socket.id) {
+        io.to(roomCode).emit('room-closed', { message: 'Host disconnected. Room closed.' });
+        rooms.delete(roomCode);
+        console.log(`🗑️ Room ${roomCode} deleted because host disconnected.`);
+        break;
+      }
+
+      // If Player disconnects -> remove from list and update other clients
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex !== -1) {
+        const player = room.players[playerIndex];
+        room.players.splice(playerIndex, 1);
+        io.to(roomCode).emit('player-left', { players: room.players });
+        console.log(`👤 Player "${player.name}" left room ${roomCode} (disconnected).`);
+        break;
+      }
+    }
+  });
+});
+
 // Start Server
-app.listen(PORT, async () => {
-  console.log(`🚀 QuizMaster server listening on port ${PORT}`);
+httpServer.listen(PORT, async () => {
+  console.log(`🚀 QuizMaster server (with Socket.io) listening on port ${PORT}`);
   console.log(`🔗 Status endpoint: http://localhost:${PORT}/api/status`);
   console.log(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-check`);
   
