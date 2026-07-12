@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import socket from '../../services/socket';
 import QuestionCard from '../../components/collab/QuestionCard';
 import LiveLeaderboardMini from '../../components/collab/LiveLeaderboardMini';
 import QuestionResultPage from './QuestionResultPage';
@@ -9,31 +10,12 @@ function CollabQuizSession() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const {timePerQuestion, participants, questions } = location.state || {};
-  
-  
+  const { quizCode, timePerQuestion, participants, questions, isHost: stateIsHost } = location.state || {};
+  const isHost = stateIsHost || false;
+
   const quizData = {
-    title: "Generated Quiz",
-    questions: questions || [
-      {
-        id: 1,
-        question: "Which keyword is used to create a class in Java?",
-        options: ["class", "Class", "new", "create"],
-        correctAnswer: 0,
-      },
-      {
-        id: 2,
-        question: "What is the default value of a boolean variable in Java?",
-        options: ["true", "false", "null", "0"],
-        correctAnswer: 1,
-      },
-      {
-        id: 3,
-        question: "Which method is the entry point of a Java application?",
-        options: ["start()", "main()", "run()", "init()"],
-        correctAnswer: 1,
-      },
-    ]
+    title: "AI Generated Multiplayer Quiz",
+    questions: questions || []
   };
 
   // States
@@ -45,30 +27,10 @@ function CollabQuizSession() {
   const [currentParticipants, setCurrentParticipants] = useState(participants || []);
   const [showQuestionResult, setShowQuestionResult] = useState(false);
   const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(false);
-  const isHost = participants?.[0]?.isHost || false;
 
   const question = quizData.questions[currentQuestion];
   const totalQuestions = quizData.questions.length;
   const isLastQuestion = currentQuestion === totalQuestions - 1;
-
-
-  if (!currentParticipants || currentParticipants.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
-        <div className="text-center p-8 bg-white rounded-3xl shadow-2xl border-2 border-red-300">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h1 className="text-3xl font-black text-red-600 mb-2">No Participants Found!</h1>
-          <p className="text-gray-600 mb-6">Please start the quiz from the lobby.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition"
-          >
-            Go Back Home
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Timer countdown 
   useEffect(() => {
@@ -82,30 +44,61 @@ function CollabQuizSession() {
     }
   }, [timeLeft, showQuestionResult]);
 
-  // Simulate participants answering
+  // Bind WebSocket listeners for real-time multiplayer gameplay
   useEffect(() => {
-    if (!showQuestionResult && currentParticipants.length > 0) {
-      const interval = setInterval(() => {
-        if (participantAnswers.length < currentParticipants.length - 1) {
-          const unansweredParticipants = currentParticipants.filter(p => 
-            !participantAnswers.find(pa => pa.participantId === p.id) && !p.isHost
-          );
-          
-          if (unansweredParticipants.length > 0) {
-            const randomParticipant = unansweredParticipants[Math.floor(Math.random() * unansweredParticipants.length)];
-            const randomAnswer = Math.floor(Math.random() * question.options.length);
-            
-            setParticipantAnswers(prev => [...prev, {
-              participantId: randomParticipant.id,
-              participant: randomParticipant,
-              answer: randomAnswer
-            }]);
-          }
-        }
-      }, 1500);
-      return () => clearInterval(interval);
+    // Make sure socket is connected
+    if (!socket.connected) {
+      socket.connect();
     }
-  }, [participantAnswers, showQuestionResult, currentParticipants, question.options.length]);
+
+    // A. Listen for scoreboard updates from server
+    socket.on('scores-updated', ({ players }) => {
+      setCurrentParticipants(prev => {
+        const updated = prev.map(p => {
+          const matchingServerPlayer = players.find(sp => sp.name === p.name);
+          return matchingServerPlayer ? { ...p, score: matchingServerPlayer.score } : p;
+        });
+        return updated.sort((a, b) => b.score - a.score);
+      });
+    });
+
+    // B. Player Listens: Host progressed to next question
+    if (!isHost) {
+      socket.on('show-question', ({ questionIndex }) => {
+        setCurrentQuestion(questionIndex);
+        setSelectedAnswer(null);
+        setIsAnswered(false);
+        setTimeLeft(timePerQuestion || 60);
+        setShowQuestionResult(false);
+        setParticipantAnswers([]);
+      });
+
+      // C. Player Listens: Host ended quiz
+      socket.on('quiz-finished', ({ leaderboard }) => {
+        setCurrentParticipants(prev => {
+          const updated = prev.map(p => {
+            const matchingServerPlayer = leaderboard.find(sp => sp.name === p.name);
+            return matchingServerPlayer ? { ...p, score: matchingServerPlayer.score } : p;
+          });
+          return updated.sort((a, b) => b.score - a.score);
+        });
+        setShowFinalLeaderboard(true);
+      });
+    }
+
+    // D. Room Closed (Host disconnected)
+    socket.on('room-closed', ({ message }) => {
+      alert(message || 'Host disconnected. Room closed.');
+      navigate('/');
+    });
+
+    return () => {
+      socket.off('scores-updated');
+      socket.off('show-question');
+      socket.off('quiz-finished');
+      socket.off('room-closed');
+    };
+  }, [isHost, timePerQuestion, navigate]);
 
   const handleSelectAnswer = (index) => {
     if (isAnswered) return;
@@ -113,14 +106,13 @@ function CollabQuizSession() {
     setIsAnswered(true);
     
     if (!isHost) {
-      const currentUser = currentParticipants.find(p => !p.isHost);
-      if (currentUser) {
-        setParticipantAnswers(prev => [...prev, {
-          participantId: currentUser.id,
-          participant: currentUser,
-          answer: index
-        }]);
-      }
+      const isCorrect = index === question.correctAnswer;
+      // Emit selection to websocket server to update score
+      socket.emit('submit-answer', {
+        roomCode: quizCode,
+        questionIndex: currentQuestion,
+        isCorrect
+      });
     }
   };
 
@@ -133,9 +125,14 @@ function CollabQuizSession() {
     if (!isHost) return;
     
     if (isLastQuestion) {
+      socket.emit('end-quiz', { roomCode: quizCode });
       setShowFinalLeaderboard(true); 
     } else {
-      setCurrentQuestion(currentQuestion + 1);
+      const nextIndex = currentQuestion + 1;
+      // Tell other players to move to the next index
+      socket.emit('next-question', { roomCode: quizCode, nextIndex });
+
+      setCurrentQuestion(nextIndex);
       setSelectedAnswer(null);
       setIsAnswered(false);
       setTimeLeft(timePerQuestion || 60);
@@ -146,6 +143,7 @@ function CollabQuizSession() {
 
   const handleEndQuiz = () => {
     if (!isHost) return;
+    socket.emit('end-quiz', { roomCode: quizCode });
     setShowFinalLeaderboard(true); 
   };
 

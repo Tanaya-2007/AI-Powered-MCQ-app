@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import socket from '../../services/socket';
 
 function AttemptQuiz() {
   const navigate = useNavigate();
@@ -42,47 +43,58 @@ function AttemptQuiz() {
     setSelectedAvatar(randomAvatar);
   }, []);
 
-  // Simulate host starting the quiz after player joins lobby (automatic lobby bypass for testing)
+  // Listen for socket events when player joins the lobby
   useEffect(() => {
-    if (joinedLobby) {
-      const timer = setTimeout(() => {
-        navigate('/collab/quiz-session', {
-          state: {
-            quizCode: quizCode,
-            difficulty: 'medium',
-            numQuestions: 3,
-            timePerQuestion: 60,
-            participants: [
-              { id: 1, name: 'Host', avatar: '👑', isHost: true, joinedAt: Date.now() },
-              { id: 2, name: playerName || 'Guest', avatar: selectedAvatar || '🦊', isHost: false, joinedAt: Date.now() },
-              { id: 3, name: 'Alice', avatar: '👩', isHost: false, joinedAt: Date.now() },
-              { id: 4, name: 'Bob', avatar: '👨', isHost: false, joinedAt: Date.now() }
-            ],
-            questions: [
-              {
-                id: 1,
-                question: "Which keyword is used to create a class in Java?",
-                options: ["class", "Class", "new", "create"],
-                correctAnswer: 0,
-              },
-              {
-                id: 2,
-                question: "What is the default value of a boolean variable in Java?",
-                options: ["true", "false", "null", "0"],
-                correctAnswer: 1,
-              },
-              {
-                id: 3,
-                question: "Which method is the entry point of a Java application?",
-                options: ["start()", "main()", "run()", "init()"],
-                correctAnswer: 1,
-              }
-            ]
-          }
-        });
-      }, 6000);
-      return () => clearTimeout(timer);
-    }
+    if (!joinedLobby) return;
+
+    // A. Listen for lobby player count updates
+    socket.on('player-joined', ({ players }) => {
+      setLobbyInfo(prev => ({
+        ...prev,
+        playersCount: players.length
+      }));
+    });
+
+    socket.on('player-left', ({ players }) => {
+      setLobbyInfo(prev => ({
+        ...prev,
+        playersCount: players.length
+      }));
+    });
+
+    // B. Listen for the host to trigger quiz start
+    socket.on('quiz-started', ({ questionsCount }) => {
+      console.log(`🎮 Host started the quiz! Total questions: ${questionsCount}`);
+      
+      navigate('/collab/quiz-session', {
+        state: {
+          quizCode: quizCode,
+          difficulty: 'medium',
+          numQuestions: questionsCount,
+          timePerQuestion: 60,
+          // We pass the local user and mock placeholder participants for visual alignment
+          participants: [
+            { id: 'host', name: 'Host', avatar: '👑', isHost: true, joinedAt: Date.now() },
+            { id: socket.id, name: playerName || 'Guest', avatar: selectedAvatar || '🦊', isHost: false, joinedAt: Date.now() }
+          ],
+          isHost: false // this client is player, not host
+        }
+      });
+    });
+
+    // C. Listen for room closure (Host disconnected)
+    socket.on('room-closed', ({ message }) => {
+      setError(message || 'Host disconnected. Lobby closed.');
+      setJoinedLobby(false);
+      socket.disconnect();
+    });
+
+    return () => {
+      socket.off('player-joined');
+      socket.off('player-left');
+      socket.off('quiz-started');
+      socket.off('room-closed');
+    };
   }, [joinedLobby, navigate, quizCode, playerName, selectedAvatar]);
 
   const handleCodeChange = (e) => {
@@ -96,7 +108,7 @@ function AttemptQuiz() {
     setSelectedAvatar(randomAvatar);
   };
 
-  const handleJoinQuiz = async () => {
+  const handleJoinQuiz = () => {
     // Validation
     if (!quizCode || quizCode.length < 6) {
       setError('Please enter a valid quiz code');
@@ -111,29 +123,29 @@ function AttemptQuiz() {
     setIsJoining(true);
     setError('');
 
-    // Simulate API call
-    setTimeout(() => {
-      const scenario = Math.random();
-      
-      if (scenario < 0.8) {
-        setJoinedLobby(true);
-        setLobbyInfo({
-          quizTitle: 'JavaScript Fundamentals',
-          playersCount: 5,
-          status: 'waiting'
-        });
-      } else if (scenario < 0.85) {
-        setError('❌ Invalid quiz code. Please check and try again.');
-      } else if (scenario < 0.9) {
-        setError('⏳ Quiz has not started yet. Please wait for the host.');
-      } else if (scenario < 0.95) {
-        setError('🔒 This quiz has already ended.');
-      } else {
-        setError('🧑‍🤝‍🧑 This quiz lobby is full. Cannot join.');
-      }
-      
+    // Connect socket
+    socket.connect();
+
+    // Join room code
+    socket.emit('join-room', { roomCode: quizCode, playerName });
+
+    // Listen for successful join
+    socket.once('join-success', ({ roomCode, quizTitle, players }) => {
       setIsJoining(false);
-    }, 1500);
+      setJoinedLobby(true);
+      setLobbyInfo({
+        quizTitle: quizTitle || 'AI Generated Quiz',
+        playersCount: players.length,
+        status: 'waiting'
+      });
+    });
+
+    // Listen for join errors
+    socket.once('join-error', ({ message }) => {
+      setIsJoining(false);
+      setError(message || 'Failed to join lobby.');
+      socket.disconnect();
+    });
   };
 
   // Waiting for Host Screen

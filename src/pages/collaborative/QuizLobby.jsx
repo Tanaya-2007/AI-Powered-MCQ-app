@@ -1,81 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import socket from '../../services/socket';
 
 function QuizLobby() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { quizCode, difficulty, numQuestions, timePerQuestion } = location.state || {};
+  const { quizCode, difficulty, numQuestions, timePerQuestion, questions } = location.state || {};
 
   // States
   const [participants, setParticipants] = useState([
-    { id: 1, name: 'You', avatar: '👑', isHost: true, joinedAt: Date.now() }
+    { id: 'host', name: 'You (Host)', avatar: '👑', isHost: true, joinedAt: Date.now() }
   ]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [copied, setCopied] = useState(false);
   const [showActivityToast, setShowActivityToast] = useState(null);
 
-  const demoParticipants = [
-    { name: 'Alice', avatar: '👩' },
-    { name: 'Bob', avatar: '👨' },
-    { name: 'Charlie', avatar: '🧑' },
-    { name: 'Diana', avatar: '👧' },
-    { name: 'Eve', avatar: '👩‍💼' },
-    { name: 'Frank', avatar: '👨‍💼' },
-    { name: 'Grace', avatar: '👩‍🎓' },
-  ];
-
-  // Simulate participants joining AND leaving
+  // Connect and set up WebSocket lobby rooms
   useEffect(() => {
-    const joinInterval = setInterval(() => {
-      if (participants.length < 8) {
-        const newParticipant = demoParticipants[participants.length - 1];
-        const participant = {
-          id: participants.length + 1,
-          name: newParticipant.name,
-          avatar: newParticipant.avatar,
-          isHost: false,
-          joinedAt: Date.now()
-        };
-        
-        setParticipants(prev => [...prev, participant]);
-        
-        // Show join toast
-        setShowActivityToast({ type: 'join', participant });
-        setTimeout(() => setShowActivityToast(null), 3000);
-        
-        // Add to recent activity feed 
-        setRecentActivity(prev => [
-          { type: 'join', participant, timestamp: Date.now() },
-          ...prev
-        ].slice(0, 4));
-      }
-    }, 3000);
+    socket.connect();
 
-    // Simulate someone leaving occasionally
-    const leaveInterval = setInterval(() => {
-      if (participants.length > 3) {
-        const randomIndex = Math.floor(Math.random() * (participants.length - 1)) + 1; 
-        const leavingParticipant = participants[randomIndex];
-        
-        setParticipants(prev => prev.filter((_, i) => i !== randomIndex));
-        
-        // Show leave toast
-        setShowActivityToast({ type: 'leave', participant: leavingParticipant });
+    // Host registers the room code with the socket server
+    socket.emit('create-room', {
+      quizTitle: "AI Generated Multiplayer Quiz",
+      questions: questions || []
+    });
+
+    // Listen for players joining the room code
+    socket.on('player-joined', ({ players }) => {
+      const hostItem = { id: socket.id || 'host', name: 'You (Host)', avatar: '👑', isHost: true, joinedAt: Date.now() };
+      
+      const mappedPlayers = players.map(p => ({
+        id: p.id,
+        name: p.name,
+        avatar: '🧑', // default avatar
+        isHost: false,
+        joinedAt: Date.now()
+      }));
+
+      setParticipants([hostItem, ...mappedPlayers]);
+
+      // Show join activity toast
+      if (mappedPlayers.length > 0) {
+        const latestPlayer = mappedPlayers[mappedPlayers.length - 1];
+        setShowActivityToast({ type: 'join', participant: latestPlayer });
         setTimeout(() => setShowActivityToast(null), 3000);
         
-        // Add to recent activity feed
         setRecentActivity(prev => [
-          { type: 'leave', participant: leavingParticipant, timestamp: Date.now() },
+          { type: 'join', participant: latestPlayer, timestamp: Date.now() },
           ...prev
         ].slice(0, 4));
       }
-    }, 8000);
+    });
+
+    // Listen for players leaving/disconnecting
+    socket.on('player-left', ({ players }) => {
+      const hostItem = { id: socket.id || 'host', name: 'You (Host)', avatar: '👑', isHost: true, joinedAt: Date.now() };
+      
+      const mappedPlayers = players.map(p => ({
+        id: p.id,
+        name: p.name,
+        avatar: '🧑',
+        isHost: false,
+        joinedAt: Date.now()
+      }));
+
+      setParticipants([hostItem, ...mappedPlayers]);
+    });
 
     return () => {
-      clearInterval(joinInterval);
-      clearInterval(leaveInterval);
+      socket.off('player-joined');
+      socket.off('player-left');
+      socket.disconnect();
     };
-  }, [participants.length]);
+  }, [questions]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(quizCode);
@@ -95,11 +92,19 @@ function QuizLobby() {
   };
 
   const handleStartQuiz = () => {
-       
-     navigate('/collab/quiz-session', { 
-      state: { quizCode, difficulty, numQuestions, timePerQuestion, participants } 
-    });
-    
+    // Notify all players in the room to navigate to the gameplay page
+    socket.emit('start-quiz', { roomCode: quizCode });
+
+    navigate('/collab/quiz-session', { 
+      state: { 
+        quizCode, 
+        difficulty, 
+        numQuestions, 
+        timePerQuestion, 
+        participants,
+        questions,
+        isHost: true // flag this client as host
+      } 
   };
 
   const getDifficultyColor = () => {
