@@ -466,7 +466,57 @@ io.on('connection', (socket) => {
     console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode}`);
   });
 
-  // C. Disconnect Handler
+  // C. Start Quiz (Triggered by Host)
+  socket.on('start-quiz', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (room && room.hostId === socket.id) {
+      room.status = 'PLAYING';
+      io.to(roomCode).emit('quiz-started', { questionsCount: room.questions.length });
+      console.log(`🎮 Quiz started in room ${roomCode} by host.`);
+    }
+  });
+
+  // D. Submit Answer (Triggered by Player)
+  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect, timeRemaining }) => {
+    const room = rooms.get(roomCode);
+    if (room) {
+      const player = room.players.find(p => p.id === socket.id);
+      if (player) {
+        if (isCorrect) {
+          const basePoints = 10;
+          const speedBonus = Math.min(5, Math.floor((timeRemaining || 0) / 10)); // Reward fast answers
+          player.score += (basePoints + speedBonus);
+        }
+
+        // Broadcast updated scores to everyone in the room (so the leaderboard updates)
+        io.to(roomCode).emit('scores-updated', { players: room.players });
+        console.log(`📝 Player "${player.name}" submitted answer for Q${questionIndex} (Correct: ${isCorrect}). Score: ${player.score}`);
+      }
+    }
+  });
+
+  // E. Next Question (Triggered by Host)
+  socket.on('next-question', ({ roomCode, nextIndex }) => {
+    const room = rooms.get(roomCode);
+    if (room && room.hostId === socket.id) {
+      io.to(roomCode).emit('show-question', { questionIndex: nextIndex });
+      console.log(`➡️ Host progressed room ${roomCode} to question index ${nextIndex}`);
+    }
+  });
+
+  // F. End Quiz (Triggered by Host)
+  socket.on('end-quiz', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (room && room.hostId === socket.id) {
+      room.status = 'FINISHED';
+      io.to(roomCode).emit('quiz-finished', {
+        leaderboard: room.players.sort((a, b) => b.score - a.score)
+      });
+      console.log(`🏁 Quiz ended in room ${roomCode} by host.`);
+    }
+  });
+
+  // G. Disconnect Handler
   socket.on('disconnect', () => {
     console.log(`🔌 Client disconnected from WebSocket: ${socket.id}`);
 
