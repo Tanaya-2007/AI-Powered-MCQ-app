@@ -424,7 +424,8 @@ io.on('connection', (socket) => {
       quizTitle,
       questions: questions || [],
       players: [],
-      status: 'LOBBY'
+      status: 'LOBBY',
+      currentQuestionIndex: 0
     });
 
     socket.join(roomCode);
@@ -432,7 +433,7 @@ io.on('connection', (socket) => {
     console.log(`🏠 Room ${roomCode} created by host socket: ${socket.id}`);
   });
 
-  // B. Player Joins a Room
+  // B. Player Joins a Room (Handles new joins, late joins, and reconnects)
   socket.on('join-room', ({ roomCode, playerName }) => {
     const room = rooms.get(roomCode);
 
@@ -440,17 +441,26 @@ io.on('connection', (socket) => {
       return socket.emit('join-error', { message: 'Room not found. Please verify the code.' });
     }
 
-    if (room.status !== 'LOBBY') {
-      return socket.emit('join-error', { message: 'The quiz has already started in this room.' });
+    if (room.status === 'FINISHED') {
+      return socket.emit('join-error', { message: 'This quiz has already finished.' });
     }
 
-    // Add player to the room object
-    const newPlayer = {
-      id: socket.id,
-      name: playerName,
-      score: 0
-    };
-    room.players.push(newPlayer);
+    // Check if player is rejoining (reconnecting after a network error)
+    let player = room.players.find(p => p.name === playerName);
+    if (player) {
+      // Update socket ID to the new connection
+      player.id = socket.id;
+      console.log(`👤 Player "${playerName}" reconnected. Updated socket ID.`);
+    } else {
+      // New player joining
+      player = {
+        id: socket.id,
+        name: playerName,
+        score: 0
+      };
+      room.players.push(player);
+      console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode}`);
+    }
 
     socket.join(roomCode);
     
@@ -458,12 +468,13 @@ io.on('connection', (socket) => {
     socket.emit('join-success', {
       roomCode,
       quizTitle: room.quizTitle,
-      players: room.players
+      players: room.players,
+      status: room.status,
+      currentQuestionIndex: room.currentQuestionIndex || 0
     });
 
-    // Broadcast updated player list to everyone in the room (including the host)
+    // Broadcast updated player list to everyone in the room (so leaderboard updates)
     io.to(roomCode).emit('player-joined', { players: room.players });
-    console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode}`);
   });
 
   // C. Start Quiz (Triggered by Host)
@@ -477,18 +488,16 @@ io.on('connection', (socket) => {
   });
 
   // D. Submit Answer (Triggered by Player)
-  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect, timeRemaining }) => {
+  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect }) => {
     const room = rooms.get(roomCode);
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
       if (player) {
         if (isCorrect) {
-          const basePoints = 10;
-          const speedBonus = Math.min(5, Math.floor((timeRemaining || 0) / 10)); // Reward fast answers
-          player.score += (basePoints + speedBonus);
+          player.score += 10; // Simple, clean 10 points per correct answer
         }
 
-        // Broadcast updated scores to everyone in the room (so the leaderboard updates)
+        // Broadcast updated scores to everyone in the room (displays on real-time Leaderboard)
         io.to(roomCode).emit('scores-updated', { players: room.players });
         console.log(`📝 Player "${player.name}" submitted answer for Q${questionIndex} (Correct: ${isCorrect}). Score: ${player.score}`);
       }
@@ -499,6 +508,7 @@ io.on('connection', (socket) => {
   socket.on('next-question', ({ roomCode, nextIndex }) => {
     const room = rooms.get(roomCode);
     if (room && room.hostId === socket.id) {
+      room.currentQuestionIndex = nextIndex; // Track current index in room state for late joiners
       io.to(roomCode).emit('show-question', { questionIndex: nextIndex });
       console.log(`➡️ Host progressed room ${roomCode} to question index ${nextIndex}`);
     }
