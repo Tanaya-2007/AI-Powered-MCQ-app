@@ -51,14 +51,26 @@ function CollabQuizSession() {
       socket.connect();
     }
 
-    // A. Listen for scoreboard updates from server
+    // A. Listen for scoreboard updates from server (updates leaderboard and merges missing players)
     socket.on('scores-updated', ({ players }) => {
       setCurrentParticipants(prev => {
-        const updated = prev.map(p => {
-          const matchingServerPlayer = players.find(sp => sp.name === p.name);
-          return matchingServerPlayer ? { ...p, score: matchingServerPlayer.score } : p;
+        const mergedList = [...prev];
+        players.forEach(sp => {
+          const existing = mergedList.find(p => p.name === sp.name);
+          if (existing) {
+            existing.score = sp.score;
+            existing.avatar = sp.avatar || existing.avatar || '🧑';
+          } else {
+            mergedList.push({
+              id: sp.id,
+              name: sp.name,
+              avatar: sp.avatar || '🧑', // preserve custom avatar sent by the player
+              isHost: false,
+              score: sp.score
+            });
+          }
         });
-        return updated.sort((a, b) => b.score - a.score);
+        return mergedList.sort((a, b) => b.score - a.score);
       });
     });
 

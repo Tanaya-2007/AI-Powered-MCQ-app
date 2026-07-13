@@ -19,10 +19,12 @@ function QuizLobby() {
   useEffect(() => {
     socket.connect();
 
-    // Host registers the room code with the socket server
+    // Host registers the room code with the socket server along with configurations
     socket.emit('create-room', {
       quizTitle: "AI Generated Multiplayer Quiz",
-      questions: questions || []
+      questions: questions || [],
+      difficulty: difficulty || 'medium',
+      timePerQuestion: timePerQuestion || 60
     });
 
     // Listen for players joining the room code
@@ -32,7 +34,7 @@ function QuizLobby() {
       const mappedPlayers = players.map(p => ({
         id: p.id,
         name: p.name,
-        avatar: '🧑', // default avatar
+        avatar: p.avatar || '🧑', // Dynamic custom avatar emoji from the player
         isHost: false,
         joinedAt: Date.now()
       }));
@@ -59,12 +61,25 @@ function QuizLobby() {
       const mappedPlayers = players.map(p => ({
         id: p.id,
         name: p.name,
-        avatar: '🧑',
+        avatar: p.avatar || '🧑',
         isHost: false,
         joinedAt: Date.now()
       }));
 
-      setParticipants([hostItem, ...mappedPlayers]);
+      // Compare new list with old participants list to find who left
+      setParticipants(prev => {
+        const departedPlayer = prev.find(p => !p.isHost && !mappedPlayers.some(mp => mp.name === p.name));
+        if (departedPlayer) {
+          setShowActivityToast({ type: 'leave', participant: departedPlayer });
+          setTimeout(() => setShowActivityToast(null), 3000);
+
+          setRecentActivity(act => [
+            { type: 'leave', participant: departedPlayer, timestamp: Date.now() },
+            ...act
+          ].slice(0, 4));
+        }
+        return [hostItem, ...mappedPlayers];
+      });
     });
 
     return () => {
@@ -72,7 +87,7 @@ function QuizLobby() {
       socket.off('player-left');
       socket.disconnect();
     };
-  }, [questions]);
+  }, [questions, difficulty, timePerQuestion]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(quizCode);

@@ -63,16 +63,16 @@ function AttemptQuiz() {
     });
 
     // B. Listen for the host to trigger quiz start
-    socket.on('quiz-started', ({ questionsCount }) => {
-      console.log(`🎮 Host started the quiz! Total questions: ${questionsCount}`);
+    socket.on('quiz-started', ({ questionsCount, difficulty, timePerQuestion }) => {
+      console.log(`🎮 Host started the quiz! Total questions: ${questionsCount} (Difficulty: ${difficulty}, Timer: ${timePerQuestion}s)`);
       
       navigate('/collab/quiz-session', {
         state: {
           quizCode: quizCode,
-          difficulty: 'medium',
+          difficulty: difficulty || 'medium',
           numQuestions: questionsCount,
-          timePerQuestion: 60,
-          // We pass the local user and mock placeholder participants for visual alignment
+          timePerQuestion: timePerQuestion || 60,
+          // We pass the local user and host details for visual alignment
           participants: [
             { id: 'host', name: 'Host', avatar: '👑', isHost: true, joinedAt: Date.now() },
             { id: socket.id, name: playerName || 'Guest', avatar: selectedAvatar || '🦊', isHost: false, joinedAt: Date.now() }
@@ -127,7 +127,7 @@ function AttemptQuiz() {
     socket.connect();
 
     // Join room code
-    socket.emit('join-room', { roomCode: quizCode, playerName });
+    socket.emit('join-room', { roomCode: quizCode, playerName, avatar: selectedAvatar });
 
     // Listen for successful join
     socket.once('join-success', ({ roomCode, quizTitle, players }) => {

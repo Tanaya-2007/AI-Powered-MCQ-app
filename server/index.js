@@ -412,7 +412,7 @@ io.on('connection', (socket) => {
   console.log(`🔌 Client connected to WebSocket: ${socket.id}`);
 
   // A. Host Creates a Room
-  socket.on('create-room', ({ quizTitle, questions }) => {
+  socket.on('create-room', ({ quizTitle, questions, difficulty, timePerQuestion }) => {
     // Generate a unique 6-character room code
     let roomCode;
     do {
@@ -425,16 +425,18 @@ io.on('connection', (socket) => {
       questions: questions || [],
       players: [],
       status: 'LOBBY',
-      currentQuestionIndex: 0
+      currentQuestionIndex: 0,
+      difficulty: difficulty || 'medium',
+      timePerQuestion: timePerQuestion || 60
     });
 
     socket.join(roomCode);
     socket.emit('room-created', { roomCode, quizTitle });
-    console.log(`🏠 Room ${roomCode} created by host socket: ${socket.id}`);
+    console.log(`🏠 Room ${roomCode} created by host socket: ${socket.id} (Difficulty: ${difficulty}, Time: ${timePerQuestion}s)`);
   });
 
   // B. Player Joins a Room (Handles new joins, late joins, and reconnects)
-  socket.on('join-room', ({ roomCode, playerName }) => {
+  socket.on('join-room', ({ roomCode, playerName, avatar }) => {
     const room = rooms.get(roomCode);
 
     if (!room) {
@@ -448,18 +450,20 @@ io.on('connection', (socket) => {
     // Check if player is rejoining (reconnecting after a network error)
     let player = room.players.find(p => p.name === playerName);
     if (player) {
-      // Update socket ID to the new connection
+      // Update socket ID and avatar to the new connection
       player.id = socket.id;
+      player.avatar = avatar || player.avatar || '🧑';
       console.log(`👤 Player "${playerName}" reconnected. Updated socket ID.`);
     } else {
       // New player joining
       player = {
         id: socket.id,
         name: playerName,
+        avatar: avatar || '🧑', // Save the player's chosen emoji avatar
         score: 0
       };
       room.players.push(player);
-      console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode}`);
+      console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode} with avatar: ${avatar}`);
     }
 
     socket.join(roomCode);
@@ -470,7 +474,9 @@ io.on('connection', (socket) => {
       quizTitle: room.quizTitle,
       players: room.players,
       status: room.status,
-      currentQuestionIndex: room.currentQuestionIndex || 0
+      currentQuestionIndex: room.currentQuestionIndex || 0,
+      difficulty: room.difficulty,
+      timePerQuestion: room.timePerQuestion
     });
 
     // Broadcast updated player list to everyone in the room (so leaderboard updates)
@@ -482,7 +488,11 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (room && room.hostId === socket.id) {
       room.status = 'PLAYING';
-      io.to(roomCode).emit('quiz-started', { questionsCount: room.questions.length });
+      io.to(roomCode).emit('quiz-started', {
+        questionsCount: room.questions.length,
+        difficulty: room.difficulty,
+        timePerQuestion: room.timePerQuestion
+      });
       console.log(`🎮 Quiz started in room ${roomCode} by host.`);
     }
   });
