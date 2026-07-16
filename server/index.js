@@ -4,7 +4,6 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
-import oracledb from 'oracledb';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -12,7 +11,7 @@ import { initDbPool, closeDbPool } from './db/db.js';
 import { extractTextFromFile } from './utils/parser.js';
 import { splitText } from './utils/textSplitter.js';
 import { generateEmbedding } from './utils/gemini.js';
-import { saveMaterial, saveChunk, searchSimilarChunks } from './db/vectorStore.js';
+import { saveMaterial, saveChunk, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
 
@@ -71,9 +70,6 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB Limit
 });
-
-// Configure OracleDB Thin connection mode (default in v6+)
-oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 
 // --- API ROUTES ---
 
@@ -569,11 +565,14 @@ httpServer.listen(PORT, async () => {
   console.log(`🔗 Status endpoint: http://localhost:${PORT}/api/status`);
   console.log(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-check`);
   
-  // Initialize Oracle DB Connection Pool on boot
+  // Initialize PostgreSQL DB Connection Pool & Schema on boot
   try {
-    await initDbPool();
+    const pool = await initDbPool();
+    if (pool) {
+      await initializeSchema();
+    }
   } catch (error) {
-    console.error('⚠️ Could not initialize DB Pool on startup. Ensure configurations are set in .env.');
+    console.error('⚠️ Could not initialize PostgreSQL DB Pool on startup. Ensure connection URL is set in .env.');
   }
 });
 

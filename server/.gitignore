@@ -6,3 +6,7 @@ node_modules/
 
 # Uploaded Textbook/Image files
 uploads/
+
+# Google API Credentials Key File
+google-credentials.json
+

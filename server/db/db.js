@@ -1,54 +1,55 @@
-import oracledb from 'oracledb';
+import pg from 'pg';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-// Enable OracleDB Thin Mode (this is default in v6+, does not require Oracle Instant Client binaries)
-oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+const { Pool } = pg;
 
-const poolConfig = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  connectString: process.env.DB_CONNECTION_STRING,
-  poolMin: 1,
-  poolMax: 10,
-  poolIncrement: 1,
-  poolTimeout: 60 // Close idle connections after 60 seconds
-};
+// We support either a unified connection string (DATABASE_URL) or a DB_CONNECTION_STRING from .env
+const connectionString = process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING;
 
 let pool;
 
 /**
- * Initializes the Oracle Database Connection Pool.
+ * Initializes the PostgreSQL Connection Pool.
  */
 export async function initDbPool() {
   if (pool) return pool;
 
-  const { user, password, connectString } = poolConfig;
-  if (!user || !password || !connectString) {
+  if (!connectionString) {
     console.warn(
-      '⚠️ Oracle Database credentials are missing in server/.env. Database connection pool initialization skipped.'
+      '⚠️ PostgreSQL connection credentials are missing in server/.env. Database connection pool initialization skipped.'
     );
     return null;
   }
 
   try {
-    pool = await oracledb.createPool(poolConfig);
-    console.log('🚀 Oracle Database connection pool initialized successfully.');
+    // Instantiate Postgres connection pool.
+    // We add SSL settings, which are mandatory for cloud hosting providers like Supabase and Neon.
+    pool = new Pool({
+      connectionString,
+      ssl: {
+        rejectUnauthorized: false // allows connection to hosted databases without installing local SSL certificates
+      }
+    });
+
+    // Test checkout a connection to verify credentials
+    const client = await pool.connect();
+    console.log('🚀 PostgreSQL connection pool initialized successfully.');
+    client.release();
     return pool;
   } catch (error) {
-    console.error('❌ Failed to initialize Oracle Database connection pool:', error.message);
+    console.error('❌ Failed to initialize PostgreSQL connection pool:', error.message);
     throw error;
   }
 }
 
 /**
- * Checks out a connection from the pool.
- * @returns {Promise<oracledb.Connection>}
+ * Checks out a client connection from the pool.
+ * @returns {Promise<pg.PoolClient>}
  */
 export async function getConnection() {
-  // If the pool hasn't been initialized yet, try to initialize it
   if (!pool) {
     await initDbPool();
   }
@@ -58,7 +59,7 @@ export async function getConnection() {
   }
 
   try {
-    return await pool.getConnection();
+    return await pool.connect();
   } catch (error) {
     console.error('❌ Failed to checkout database connection from pool:', error.message);
     throw error;
@@ -71,11 +72,11 @@ export async function getConnection() {
 export async function closeDbPool() {
   if (pool) {
     try {
-      await pool.close(10); // Wait up to 10 seconds for checked-out connections to release
-      console.log('💤 Oracle Database connection pool closed.');
+      await pool.end();
+      console.log('💤 PostgreSQL connection pool closed.');
       pool = null;
     } catch (error) {
-      console.error('Error closing Oracle Database connection pool:', error.message);
+      console.error('Error closing PostgreSQL connection pool:', error.message);
     }
   }
 }
