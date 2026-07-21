@@ -8,10 +8,18 @@ function Footer() {
   const handleContactSubmit = (e) => {
     e.preventDefault();
     if (!email || !message) return;
+
+    // Direct mail client trigger sending message straight to tanayapawar02@gmail.com
+    const subject = encodeURIComponent(`QuizMaster Contact Message from ${email}`);
+    const body = encodeURIComponent(`Sender Email: ${email}\n\nMessage:\n${message}`);
+    const mailtoUrl = `mailto:tanayapawar02@gmail.com?subject=${subject}&body=${body}`;
+    
+    window.location.href = mailtoUrl;
+
     setSubmitted(true);
     setEmail("");
     setMessage("");
-    setTimeout(() => setSubmitted(false), 4000);
+    setTimeout(() => setSubmitted(false), 5000);
   };
 
   return (
@@ -104,7 +112,7 @@ function Footer() {
                 </a>
                 {/* Instagram */}
                 <a
-                  href="https://instagram.com"
+                  href="https://www.instagram.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center text-gray-600 hover:text-white hover:bg-gradient-to-br hover:from-pink-500 hover:to-purple-600 shadow-md hover:shadow-lg hover:shadow-pink-500/30 transform hover:scale-110 transition-all duration-300"
@@ -132,7 +140,7 @@ function Footer() {
             
             {submitted ? (
               <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center text-emerald-700 font-semibold shadow-md animate-fade-in">
-                ✅ Thank you! Your message has been sent. We will respond shortly.
+                ✅ Opening mail app to send your message directly to tanayapawar02@gmail.com!
               </div>
             ) : (
               <form onSubmit={handleContactSubmit} className="space-y-4">
@@ -161,7 +169,7 @@ function Footer() {
                   className="group w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300"
                 >
                   <span className="flex items-center justify-center gap-2">
-                    Send Message
+                    Send Message to tanayapawar02@gmail.com
                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
