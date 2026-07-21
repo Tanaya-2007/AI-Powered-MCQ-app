@@ -1,10 +1,29 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import FeatureCard from "../components/FeatureCard";
 import Footer from "../components/Footer";
+import AuthModal from "../components/AuthModal";
 
 function Home() {
   const navigate = useNavigate();
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('quizmaster_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('quizmaster_user');
+    setUser(null);
+  };
   
   const features = [
     {
@@ -65,6 +84,12 @@ function Home() {
 
   return (
     <>
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onLoginSuccess={(userData) => setUser(userData)}
+      />
+
       {/* HERO SECTION */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 px-4 py-20 sm:px-6 lg:px-8 animate-page-enter">
         {/* ANIMATED DOT PATTERN BACKGROUND */}
@@ -98,15 +123,39 @@ function Home() {
               </span>
             </div>
 
-            <button onClick={() => navigate('/mode-selection')} className="group px-4 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
-              <span className="flex items-center gap-1 sm:gap-2">
-                <span className="hidden sm:inline">Get Started</span>
-                <span className="sm:hidden">Start</span>
-                <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
-            </button>
+            <div className="flex items-center gap-3 sm:gap-4">
+              {user ? (
+                <div className="flex items-center gap-3 bg-white/80 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-200 shadow-md">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800 hidden sm:inline">{user.name}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-xs font-semibold text-rose-500 hover:text-rose-600 ml-1 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsAuthOpen(true)}
+                  className="px-4 sm:px-5 py-2 sm:py-2.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700 bg-white/80 backdrop-blur-md border border-indigo-200 rounded-lg sm:rounded-xl shadow-sm hover:shadow-md transition-all"
+                >
+                  Log In
+                </button>
+              )}
+
+              <button onClick={() => navigate('/mode-selection')} className="group px-4 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
+                <span className="flex items-center gap-1 sm:gap-2">
+                  <span className="hidden sm:inline">Get Started</span>
+                  <span className="sm:hidden">Start</span>
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </span>
+              </button>
+            </div>
           </div>
         </nav>
 
@@ -141,7 +190,7 @@ function Home() {
               <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-bold"> collaborate with peers</span>, and achieve mastery through intelligent assessments.
             </p>
 
-            {/* CTA Buttons */}
+            {/* Single Action Button (Watch Demo Removed) */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4 animate-fade-in px-4" style={{animationDelay: '0.3s'}}>
               <button 
                 onClick={() => navigate('/mode-selection')}
@@ -154,21 +203,12 @@ function Home() {
                   </svg>
                 </span>
               </button>
-
-              <button className="group w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-white/80 backdrop-blur-md text-gray-900 text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl border-2 border-gray-200 shadow-lg hover:shadow-xl hover:bg-white transform hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                Watch Demo
-              </button>
             </div>
           </div>
         </div>
       </section>
 
-      <style jsx>{`
+      <style>{`
         @keyframes moveDots {
           0% {
             transform: translate(0, 0);
@@ -229,7 +269,7 @@ function Home() {
         </div>
       </section>
 
-     <Footer />
+      <Footer />
     </>
   );
 }
