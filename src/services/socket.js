@@ -1,8 +1,9 @@
 import io from 'socket.io-client';
 
-// Connects to our backend Node.js server.
-// autoConnect is set to false so we explicitly control when the socket connects and disconnects.
-const socket = io('http://localhost:5000', {
+// Use production Render backend URL when deployed, or localhost during dev override
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
+
+const socket = io(BACKEND_URL, {
   autoConnect: false
 });
 

@@ -80,11 +80,12 @@ function SoloMode() {
 
     setIsGenerating(true);
     let materialId = null;
+    const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
 
     try {
       // 1. Ingest text or file if provided
       if (activeTab === 'text' && textInput.trim() !== '') {
-        const response = await fetch('http://localhost:5000/api/ingest', {
+        const response = await fetch(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -104,7 +105,7 @@ function SoloMode() {
         const formData = new FormData();
         formData.append('file', uploadedFile);
 
-        const response = await fetch('http://localhost:5000/api/ingest', {
+        const response = await fetch(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
           body: formData
         });
@@ -117,7 +118,7 @@ function SoloMode() {
       }
 
       // 2. Generate the Quiz questions from backend
-      const genResponse = await fetch('http://localhost:5000/api/generate-quiz', {
+      const genResponse = await fetch(`${API_BASE_URL}/api/generate-quiz`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -140,7 +141,7 @@ function SoloMode() {
 
     } catch (error) {
       console.error('Failed to communicate with backend API:', error);
-      alert('❌ Failed to connect to quiz generator server. Please make sure the backend is running on http://localhost:5000.');
+      alert('❌ Failed to connect to quiz generator server.');
     } finally {
       setIsGenerating(false);
     }
