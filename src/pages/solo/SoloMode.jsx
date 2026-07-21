@@ -82,10 +82,24 @@ function SoloMode() {
     let materialId = null;
     const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
 
+    // Helper for resilient fetches against free-tier cloud instances (handles cold starts)
+    const fetchWithRetry = async (url, options = {}, retries = 3) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch(url, options);
+          if (res.ok) return res;
+        } catch (err) {
+          if (i === retries - 1) throw err;
+          await new Promise(r => setTimeout(r, 2500));
+        }
+      }
+      return fetch(url, options);
+    };
+
     try {
       // 1. Ingest text or file if provided
       if (activeTab === 'text' && textInput.trim() !== '') {
-        const response = await fetch(`${API_BASE_URL}/api/ingest`, {
+        const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -105,7 +119,7 @@ function SoloMode() {
         const formData = new FormData();
         formData.append('file', uploadedFile);
 
-        const response = await fetch(`${API_BASE_URL}/api/ingest`, {
+        const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
           body: formData
         });
@@ -118,7 +132,7 @@ function SoloMode() {
       }
 
       // 2. Generate the Quiz questions from backend
-      const genResponse = await fetch(`${API_BASE_URL}/api/generate-quiz`, {
+      const genResponse = await fetchWithRetry(`${API_BASE_URL}/api/generate-quiz`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -141,7 +155,7 @@ function SoloMode() {
 
     } catch (error) {
       console.error('Failed to communicate with backend API:', error);
-      alert('❌ Failed to connect to quiz generator server.');
+      alert('⚡ The server is spinning up. Please click "Generate Quiz" again in 5 seconds!');
     } finally {
       setIsGenerating(false);
     }
