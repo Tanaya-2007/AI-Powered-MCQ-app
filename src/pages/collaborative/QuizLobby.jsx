@@ -120,6 +120,7 @@ function QuizLobby() {
         questions,
         isHost: true // flag this client as host
       } 
+    });
   };
 
   const getDifficultyColor = () => {
