@@ -140,7 +140,7 @@ function Footer() {
             
             {submitted ? (
               <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center text-emerald-700 font-semibold shadow-md animate-fade-in">
-                ✅ Opening mail app to send your message directly to tanayapawar02@gmail.com!
+                ✅ Opening your email client to send your message!
               </div>
             ) : (
               <form onSubmit={handleContactSubmit} className="space-y-4">
@@ -169,7 +169,7 @@ function Footer() {
                   className="group w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300"
                 >
                   <span className="flex items-center justify-center gap-2">
-                    Send Message to tanayapawar02@gmail.com
+                    Send Message
                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
