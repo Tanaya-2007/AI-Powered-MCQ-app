@@ -67,6 +67,12 @@ function SoloMode() {
       return;
     }
   
+    // Validate topic focus
+    if (!topic || topic.trim().length < 2) {
+      alert('⚠️ Topic focus must be at least 2 characters long!');
+      return;
+    }
+
     // Validate time per question
     const time = customTime ? parseInt(customTime) : timePerQuestion;
     if (time === 0) {
@@ -87,7 +93,7 @@ function SoloMode() {
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(url, options);
-          if (res.ok) return res;
+          if (res.ok || res.status === 400) return res; // return immediately if success or validation error (400)
         } catch (err) {
           if (i === retries - 1) throw err;
           await new Promise(r => setTimeout(r, 2500));
@@ -106,18 +112,22 @@ function SoloMode() {
           },
           body: JSON.stringify({
             text: textInput,
-            filename: `${topic}_notes.txt`
+            filename: `${topic}_notes.txt`,
+            topic: topic // pass topic for relevance validation check
           })
         });
         const data = await response.json();
         if (data.success) {
           materialId = data.materialId;
         } else {
-          console.warn('Ingestion failed, falling back to general quiz:', data.message);
+          alert(`❌ Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`);
+          setIsGenerating(false);
+          return;
         }
       } else if (activeTab === 'file' && uploadedFile) {
         const formData = new FormData();
         formData.append('file', uploadedFile);
+        formData.append('topic', topic); // pass topic for relevance validation check
 
         const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
@@ -127,7 +137,9 @@ function SoloMode() {
         if (data.success) {
           materialId = data.materialId;
         } else {
-          console.warn('Ingestion failed, falling back to general quiz:', data.message);
+          alert(`❌ Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`);
+          setIsGenerating(false);
+          return;
         }
       }
 
@@ -626,7 +638,7 @@ function SoloMode() {
               {!quizReady && (
                 <button
                   onClick={handleGenerateQuiz}
-                  disabled={isGenerating || (!textInput && !uploadedFile)}
+                  disabled={isGenerating || !topic || topic.trim().length < 2 || (activeTab === 'text' && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
                   className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
                   {isGenerating ? (

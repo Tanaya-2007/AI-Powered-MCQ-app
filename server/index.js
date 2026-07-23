@@ -174,6 +174,46 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
       });
     }
 
+    // Optional: Validate content relevance to topic if topic is provided
+    const topic = req.body.topic;
+    if (topic && topic.trim().length >= 2) {
+      console.log(`🔍 Validating relevance of uploaded content to topic focus: "${topic}"`);
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: { responseMimeType: 'application/json' }
+      });
+      const checkPrompt = `
+        You are a content validation assistant.
+        Analyze if the following text is relevant to the topic focus: "${topic}".
+        Return ONLY a valid JSON object matching this schema:
+        {
+          "relevant": true or false,
+          "reason": "a short sentence explaining why it is or is not relevant to the topic"
+        }
+        
+        Text to analyze (first 3000 chars):
+        """
+        ${rawText.substring(0, 3000)}
+        """
+      `;
+      
+      try {
+        const checkResult = await model.generateContent(checkPrompt);
+        const checkData = JSON.parse(checkResult.response.text());
+        if (checkData.relevant === false) {
+          console.warn(`❌ Ingestion rejected: Content is not relevant to topic "${topic}". Reason: ${checkData.reason}`);
+          return res.status(400).json({
+            success: false,
+            message: `The uploaded content does not appear to be relevant to your topic "${topic}".`,
+            reason: checkData.reason
+          });
+        }
+        console.log(`✅ Relevance check passed! Content matches topic: "${topic}"`);
+      } catch (checkErr) {
+        console.warn('⚠️ Relevance check validation error (bypassing):', checkErr.message);
+      }
+    }
+
     // Step B: Partition extracted text into semantic overlapping chunks
     const chunks = splitText(rawText);
     console.log(`✂️ Text partitioned into ${chunks.length} chunks.`);
