@@ -249,7 +249,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
 
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes confettiFall {
           0% {
             transform: translateY(-20px) rotate(0deg);

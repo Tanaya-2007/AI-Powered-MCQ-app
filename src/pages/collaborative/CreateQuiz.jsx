@@ -752,7 +752,7 @@ function CreateQuiz() {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
   @keyframes moveDots {
     0% {
       transform: translate(0, 0);
