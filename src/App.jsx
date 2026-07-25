@@ -9,22 +9,26 @@ import CreateQuiz from './pages/collaborative/CreateQuiz';
 import QuizLobby from './pages/collaborative/QuizLobby';
 import CollabQuizSession from './pages/collaborative/CollabQuizSession';
 import AttemptQuiz from './pages/collaborative/AttemptQuiz';
+import AuthGuard from './components/AuthGuard';
 
 function App() {
   return (
     <BrowserRouter>
-     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/mode-selection" element={<ModeSelection />} />
-      <Route path="/solo-mode" element={<SoloMode />} />
-      <Route path="/quiz-session" element={<SoloQuizSession />} />
-      <Route path="/solo-results" element={<SoloResults />} />
-      <Route path="/collaborative" element={<CollabLanding />} />
-      <Route path="/collab/create-quiz" element={<CreateQuiz />} />
-      <Route path="/collab/quiz-lobby" element={<QuizLobby />} />
-      <Route path="/collab/quiz-session" element={<CollabQuizSession />} />
-      <Route path="/collab/attempt-quiz" element={<AttemptQuiz />} />
-    </Routes>
+      <Routes>
+        {/* Public Route */}
+        <Route path="/" element={<Home />} />
+
+        {/* Protected Private Routes wrapped in AuthGuard */}
+        <Route path="/mode-selection" element={<AuthGuard><ModeSelection /></AuthGuard>} />
+        <Route path="/solo-mode" element={<AuthGuard><SoloMode /></AuthGuard>} />
+        <Route path="/quiz-session" element={<AuthGuard><SoloQuizSession /></AuthGuard>} />
+        <Route path="/solo-results" element={<AuthGuard><SoloResults /></AuthGuard>} />
+        <Route path="/collaborative" element={<AuthGuard><CollabLanding /></AuthGuard>} />
+        <Route path="/collab/create-quiz" element={<AuthGuard><CreateQuiz /></AuthGuard>} />
+        <Route path="/collab/quiz-lobby" element={<AuthGuard><QuizLobby /></AuthGuard>} />
+        <Route path="/collab/quiz-session" element={<AuthGuard><CollabQuizSession /></AuthGuard>} />
+        <Route path="/collab/attempt-quiz" element={<AuthGuard><AttemptQuiz /></AuthGuard>} />
+      </Routes>
     </BrowserRouter>
   );
 }

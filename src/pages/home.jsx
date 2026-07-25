@@ -18,13 +18,27 @@ function Home() {
         console.error(e);
       }
     }
+
+    // Trigger auth prompt if directed by route guard redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('requireAuth') === 'true') {
+      setIsAuthOpen(true);
+    }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('quizmaster_user');
     setUser(null);
   };
-  
+
+  const handleGetStarted = () => {
+    if (user && user.isLoggedIn) {
+      navigate('/mode-selection');
+    } else {
+      setIsAuthOpen(true);
+    }
+  };
+
   const features = [
     {
       icon: (
@@ -34,15 +48,6 @@ function Home() {
       ),
       title: "Multiple Choice",
       description: "Engaging question formats designed to test your knowledge effectively with clear options and instant feedback.",
-    },
-    {
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      ),
-      title: "Instant Feedback",
-      description: "Get immediate results and detailed explanations for each question to enhance your learning experience.",
     },
     {
       icon: (
@@ -109,8 +114,8 @@ function Home() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-96 sm:h-96 bg-gradient-to-br from-blue-300/30 to-indigo-300/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
         </div>
 
-        {/* Navigation */}
-        <nav className="absolute top-0 left-0 right-0 z-30 px-4 sm:px-6 py-4 sm:py-6">
+        {/* Navigation Navbar */}
+        <nav className="absolute top-0 left-0 right-0 z-30 px-4 sm:px-6 py-5 border-b border-slate-200/30 backdrop-blur-md">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div onClick={() => navigate('/')} className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
               <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-xl group-hover:shadow-indigo-500/50 transition-all duration-300 group-hover:rotate-3">
@@ -118,14 +123,14 @@ function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 QuizMaster
               </span>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-4">
               {user ? (
-                <div className="flex items-center gap-3 bg-white/80 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-200 shadow-md">
+                <div className="flex items-center gap-3 bg-white/60 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-250/50 shadow-md">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
                     {user.name.charAt(0).toUpperCase()}
                   </div>
@@ -140,13 +145,16 @@ function Home() {
               ) : (
                 <button
                   onClick={() => setIsAuthOpen(true)}
-                  className="px-4 sm:px-5 py-2 sm:py-2.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700 bg-white/80 backdrop-blur-md border border-indigo-200 rounded-lg sm:rounded-xl shadow-sm hover:shadow-md transition-all"
+                  className="px-4 sm:px-5 py-2 sm:py-2.5 text-sm font-semibold text-slate-700 bg-slate-50/50 backdrop-blur-md border border-slate-200 rounded-lg sm:rounded-xl shadow-sm hover:shadow-md hover:scale-[1.02] transition-all"
                 >
                   Log In
                 </button>
               )}
 
-              <button onClick={() => navigate('/mode-selection')} className="group px-4 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300">
+              <button 
+                onClick={handleGetStarted}
+                className="group px-4 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/50 transform hover:scale-105 transition-all duration-300"
+              >
                 <span className="flex items-center gap-1 sm:gap-2">
                   <span className="hidden sm:inline">Get Started</span>
                   <span className="sm:hidden">Start</span>
@@ -193,7 +201,7 @@ function Home() {
             {/* Single Action Button (Watch Demo Removed) */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4 animate-fade-in px-4" style={{animationDelay: '0.3s'}}>
               <button 
-                onClick={() => navigate('/mode-selection')}
+                onClick={handleGetStarted}
                 className="group relative w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-base sm:text-lg font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
               >
                 <span className="flex items-center justify-center gap-2 sm:gap-3">

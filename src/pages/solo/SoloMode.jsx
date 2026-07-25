@@ -329,15 +329,17 @@ function SoloMode() {
             </span>
           </div>
 
-          <button 
-            onClick={() => navigate('/mode-selection')}
-            className="group flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 bg-white/80 hover:bg-white border-2 border-gray-200 rounded-lg transition-all duration-300"
-          >
-            <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span className="text-sm font-semibold">Back</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/mode-selection')}
+              className="group flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 bg-white/80 hover:bg-white border-2 border-gray-200 rounded-lg transition-all duration-300"
+            >
+              <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="text-sm font-semibold">Back</span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -355,13 +357,13 @@ function SoloMode() {
             </span>
           </div>
           
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 mb-4">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 dark:text-white mb-4">
             Create Your
             <span className="block mt-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
               Perfect Quiz
             </span>
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 dark:text-slate-350 max-w-2xl mx-auto">
             Upload your study material and let AI generate personalized quizzes for you
           </p>
         </div>
@@ -372,10 +374,10 @@ function SoloMode() {
           <div className="lg:col-span-2 space-y-6">
             
             {/* Input Section */}
-            <div className="bg-white rounded-3xl shadow-xl border-2 border-gray-100 overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border-2 border-gray-100 dark:border-slate-800 overflow-hidden">
               {/* Tab Header */}
-              <div className="border-b-2 border-gray-100 bg-gray-50/50 px-6 py-4">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <div className="border-b-2 border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 px-6 py-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>
                   Upload Study Material
                 </h3>
@@ -394,7 +396,7 @@ function SoloMode() {
                   className={`group relative flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
-                      : 'bg-white text-gray-600 hover:bg-gray-100'
+                      : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-350 hover:bg-gray-100 dark:hover:bg-slate-700 border dark:border-slate-700'
                   }`}
                 >
                   <svg className="w-6 h-6 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -421,10 +423,10 @@ function SoloMode() {
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Paste your text content here... (lecture notes, book chapters, articles, etc.)"
                       rows="12"
-                      className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none transition-all duration-300"
+                      className="w-full px-5 py-4 bg-gray-50 dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-450 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none transition-all duration-300"
                     />
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{textInput.length} characters</span>
+                      <span className="text-gray-500 dark:text-slate-400">{textInput.length} characters</span>
                       {textInput && (
                         <button
                           onClick={() => setTextInput('')}
@@ -448,7 +450,7 @@ function SoloMode() {
                         className={`border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
                           isDragging
                             ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-gray-300 bg-gray-50 hover:border-indigo-400 hover:bg-indigo-50/50'
+                            : 'border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/40 hover:border-indigo-400 hover:bg-indigo-50/50'
                         }`}
                       >
                         <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
@@ -537,21 +539,21 @@ function SoloMode() {
           <div className="lg:col-span-1 space-y-6">
             
             
-            <div className="bg-white rounded-3xl shadow-xl border-2 border-gray-100 p-6 sticky top-6">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border-2 border-gray-100 dark:border-slate-800 p-6 sticky top-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
                 <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>
                 Quiz Settings
               </h3>
 
               {/* Topic Focus */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 mb-2">Topic Focus</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-slate-350 mb-2">Topic Focus</label>
                 <input
                   type="text"
                   placeholder="e.g. Photosynthesis, databases..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm text-gray-900"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm text-gray-900 dark:text-white"
                 />
               </div>
 

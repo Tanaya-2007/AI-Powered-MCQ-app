@@ -38,16 +38,19 @@ function ModeSelection() {
             </span>
           </div>
 
-          <button 
-          onClick={() => navigate('/')}
-          className="group px-4 sm:px-6 py-2 sm:py-3 bg-white/80 backdrop-blur-md text-gray-900 text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl border-2 border-gray-200 shadow-lg hover:shadow-xl hover:bg-white transform hover:scale-105 transition-all duration-300">
-            <span className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back
-            </span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/')}
+              className="group px-4 sm:px-6 py-2 sm:py-3 bg-white/80 backdrop-blur-md text-gray-900 text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl border-2 border-gray-200 shadow-lg hover:shadow-xl hover:bg-white transform hover:scale-105 transition-all duration-300"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back
+              </span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -94,11 +97,11 @@ function ModeSelection() {
               onMouseEnter={() => setHoveredMode('solo')}
               onMouseLeave={() => setHoveredMode(null)}
             >
-              <div className="relative h-full bg-white rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 transition-all duration-500 hover:-translate-y-2 overflow-hidden"
+              <div className="relative h-full bg-white rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 transition-all duration-500 hover:-translate-y-2 overflow-hidden border border-slate-200/50"
                 style={{
                   boxShadow: hoveredMode === 'solo' 
                     ? '0 25px 50px -12px rgba(99, 102, 241, 0.25), 0 0 0 3px rgba(99, 102, 241, 0.1)'
-                    : '0 10px 30px -5px rgba(0, 0, 0, 0.1)'
+                    : '0 10px 30px -5px rgba(0, 0, 0, 0.05)'
                 }}
               >
                 {/* Gradient Corner Accent */}
@@ -169,11 +172,11 @@ function ModeSelection() {
               onMouseEnter={() => setHoveredMode('collab')}
               onMouseLeave={() => setHoveredMode(null)}
             >
-              <div className="relative h-full bg-white rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 transition-all duration-500 hover:-translate-y-2 overflow-hidden"
+              <div className="relative h-full bg-white rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 transition-all duration-500 hover:-translate-y-2 overflow-hidden border border-slate-200/50"
                 style={{
                   boxShadow: hoveredMode === 'collab' 
                     ? '0 25px 50px -12px rgba(168, 85, 247, 0.25), 0 0 0 3px rgba(168, 85, 247, 0.1)'
-                    : '0 10px 30px -5px rgba(0, 0, 0, 0.1)'
+                    : '0 10px 30px -5px rgba(0, 0, 0, 0.05)'
                 }}
               >
                 {/* Gradient Corner Accent */}
