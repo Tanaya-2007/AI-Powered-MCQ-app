@@ -22,37 +22,114 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
     try {
       if (isSignUp) {
-        // Real Supabase User Sign Up
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { name }
-          }
-        });
+        // 1. Try real Supabase signup first if available
+        let signUpError = null;
+        let data = null;
 
-        if (signUpError) throw signUpError;
+        try {
+          const res = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { name }
+            }
+          });
+          data = res.data;
+          signUpError = res.error;
+
+          if (!signUpError && data?.user) {
+            const userSession = {
+              name: name || email.split('@')[0],
+              email: data.user.email || email,
+              isLoggedIn: true
+            };
+            localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
+            onLoginSuccess(userSession);
+            onClose();
+            return;
+          }
+        } catch (err) {
+          // Fall through to local auth if anon key is invalid/unconfigured
+          if (!err.message?.includes('Invalid API key') && !err.message?.includes('dummy')) {
+            throw err;
+          }
+        }
+
+        if (signUpError && !signUpError.message?.includes('Invalid API key') && !signUpError.message?.includes('dummy')) {
+          throw signUpError;
+        }
+
+        // 2. Local Database Signup Fallback
+        const localUsers = JSON.parse(localStorage.getItem('quizmaster_local_users') || '[]');
+        const userExists = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+        if (userExists) {
+          throw new Error('An account with this email address already exists. Please log in instead.');
+        }
+
+        // Save new user locally
+        const newLocalUser = { name, email: email.toLowerCase(), password };
+        localUsers.push(newLocalUser);
+        localStorage.setItem('quizmaster_local_users', JSON.stringify(localUsers));
 
         const userSession = {
-          name: name || email.split('@')[0],
-          email: data.user?.email || email,
+          name,
+          email: email.toLowerCase(),
           isLoggedIn: true
         };
         localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
         onLoginSuccess(userSession);
         onClose();
       } else {
-        // Real Supabase User Log In with Password verification
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+        // Log In flow
+        let signInError = null;
+        let data = null;
 
-        if (signInError) throw signInError;
+        try {
+          const res = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          data = res.data;
+          signInError = res.error;
+
+          if (!signInError && data?.user) {
+            const userSession = {
+              name: data.user.user_metadata?.name || email.split('@')[0],
+              email: data.user.email || email,
+              isLoggedIn: true
+            };
+            localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
+            onLoginSuccess(userSession);
+            onClose();
+            return;
+          }
+        } catch (err) {
+          // Fall through to local auth if anon key is invalid/unconfigured
+          if (!err.message?.includes('Invalid API key') && !err.message?.includes('dummy')) {
+            throw err;
+          }
+        }
+
+        if (signInError && !signInError.message?.includes('Invalid API key') && !signInError.message?.includes('dummy')) {
+          throw signInError;
+        }
+
+        // Local Database Login Fallback
+        const localUsers = JSON.parse(localStorage.getItem('quizmaster_local_users') || '[]');
+        const user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+        if (!user) {
+          throw new Error('No account found with this email address. Please sign up first.');
+        }
+
+        if (user.password !== password) {
+          throw new Error('Incorrect password. Please verify your credentials.');
+        }
 
         const userSession = {
-          name: data.user?.user_metadata?.name || email.split('@')[0],
-          email: data.user?.email || email,
+          name: user.name || email.split('@')[0],
+          email: user.email,
           isLoggedIn: true
         };
         localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
@@ -60,20 +137,8 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         onClose();
       }
     } catch (err) {
-      console.error('Supabase Auth error:', err);
-      // Fallback local verification mode if anon key is unconfigured
-      if (err.message.includes('Invalid API key') || err.message.includes('dummy')) {
-        const userSession = {
-          name: isSignUp ? name : email.split('@')[0],
-          email,
-          isLoggedIn: true
-        };
-        localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
-        onLoginSuccess(userSession);
-        onClose();
-      } else {
-        setError(err.message || 'Authentication failed. Please check your credentials.');
-      }
+      console.error('Authentication error:', err);
+      setError(err.message || 'Authentication failed. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
@@ -155,13 +220,16 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         </div>
 
         {/* Divider */}
-        <div className="relative flex items-center justify-center my-4">
-          <div className="border-t border-slate-200 w-full"></div>
-          <span className="bg-white px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">or with email</span>
+        <div className="relative flex items-center my-6">
+          <div className="flex-grow border-t border-slate-200"></div>
+          <span className="flex-shrink mx-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            or with email
+          </span>
+          <div className="flex-grow border-t border-slate-200"></div>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-xl font-medium text-center border border-red-100">
+          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-xl font-medium text-center border border-red-100 animate-pulse">
             {error}
           </div>
         )}

@@ -10,6 +10,10 @@ function Home() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    // Completely remove dark mode and restore previous premium light design
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('theme');
+
     const savedUser = localStorage.getItem('quizmaster_user');
     if (savedUser) {
       try {
