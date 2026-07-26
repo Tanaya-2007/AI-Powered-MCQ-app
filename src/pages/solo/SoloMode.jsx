@@ -86,7 +86,9 @@ function SoloMode() {
 
     setIsGenerating(true);
     let materialId = null;
-    const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:5000'
+      : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
 
     // Helper for resilient fetches against free-tier cloud instances (handles cold starts)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {

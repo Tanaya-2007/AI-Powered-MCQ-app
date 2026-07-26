@@ -3,23 +3,83 @@ import React, { useState } from "react";
 function Footer() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [honeypot, setHoneypot] = useState(""); // Honeypot field to trap spam bots
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Custom styled inline alert state (prevents ugly browser alert popup)
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
-  const handleContactSubmit = (e) => {
+  const showToast = (msg, type = "success") => {
+    setToast({ show: true, message: msg, type });
+    // Keep warning visible longer if it is an error/cooldown warning
+    const duration = type === "error" ? 8000 : 5000;
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, duration);
+  };
+
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
     if (!email || !message) return;
 
-    // Direct mail client trigger sending message straight to tanayapawar02@gmail.com
-    const subject = encodeURIComponent(`QuizMaster Contact Message from ${email}`);
-    const body = encodeURIComponent(`Sender Email: ${email}\n\nMessage:\n${message}`);
-    const mailtoUrl = `mailto:tanayapawar02@gmail.com?subject=${subject}&body=${body}`;
-    
-    window.location.href = mailtoUrl;
+    // 1. Honeypot Anti-Spam Check: If field is filled, silently discard (reject bot)
+    if (honeypot) {
+      console.warn("Spam bot submission blocked.");
+      setSubmitted(true);
+      setEmail("");
+      setMessage("");
+      return;
+    }
 
-    setSubmitted(true);
-    setEmail("");
-    setMessage("");
-    setTimeout(() => setSubmitted(false), 5000);
+    // 2. Rate-Limiting Protection (Avoid mail bombing attacks)
+    const cooldown = 60 * 1000; // 60-second delay between submissions
+    const lastSubmission = localStorage.getItem("quizmaster_last_contact_submit");
+    if (lastSubmission) {
+      const timePassed = Date.now() - parseInt(lastSubmission);
+      if (timePassed < cooldown) {
+        const secondsLeft = Math.ceil((cooldown - timePassed) / 1000);
+        showToast(`⚠️ Cooldown active. Please wait ${secondsLeft} seconds before sending another message.`, "error");
+        return;
+      }
+    }
+
+    setLoading(true);
+
+    try {
+      // Direct clientless background email submission to FormSubmit.co
+      const response = await fetch("https://formsubmit.co/ajax/pawartanaya02@gmail.com", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          email: email,
+          message: message,
+          _subject: `QuizMaster Contact Message from ${email}`
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success || response.ok) {
+        // Record timestamp of successful submission
+        localStorage.setItem("quizmaster_last_contact_submit", Date.now().toString());
+        
+        showToast("✅ Message sent successfully! We will get back to you shortly.", "success");
+        setSubmitted(true);
+        setEmail("");
+        setMessage("");
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        showToast("❌ Failed to send message. Please try again later.", "error");
+      }
+    } catch (err) {
+      console.error('Contact submission error:', err);
+      showToast("❌ Failed to send message. Please verify your internet connection.", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,7 +133,7 @@ function Footer() {
                 <a href="/collab" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200 text-sm font-medium">
                   Collaborative Room
                 </a>
-                <a href="mailto:tanayapawar02@gmail.com" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200 text-sm font-medium">
+                <a href="mailto:pawartanaya02@gmail.com" className="text-gray-600 hover:text-indigo-600 transition-colors duration-200 text-sm font-medium">
                   Contact Support
                 </a>
               </div>
@@ -100,7 +160,7 @@ function Footer() {
                 </a>
                 {/* LinkedIn */}
                 <a
-                  href="https://www.linkedin.com/in/tanaya-pawar-2b04892b8?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app"
+                  href="https://www.linkedin.com/in/tanaya-pawar-2b04892b8"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center text-gray-600 hover:text-white hover:bg-gradient-to-br hover:from-indigo-600 hover:to-purple-600 shadow-md hover:shadow-lg hover:shadow-indigo-500/30 transform hover:scale-110 transition-all duration-300"
@@ -112,7 +172,7 @@ function Footer() {
                 </a>
                 {/* Instagram */}
                 <a
-                  href="https://www.instagram.com"
+                  href="https://www.instagram.com/tanayapawar02/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center text-gray-600 hover:text-white hover:bg-gradient-to-br hover:from-pink-500 hover:to-purple-600 shadow-md hover:shadow-lg hover:shadow-pink-500/30 transform hover:scale-110 transition-all duration-300"
@@ -137,13 +197,34 @@ function Footer() {
                 Have a question or feedback? Send us a message and we'll respond as soon as possible.
               </p>
             </div>
+
+            {/* Custom Premium Toast Message Render */}
+            {toast.show && (
+              <div className={`p-4 rounded-2xl border font-bold text-sm transition-all duration-300 animate-fade-in shadow-md ${
+                toast.type === "success" 
+                  ? "bg-emerald-50 border-emerald-250 text-emerald-700" 
+                  : "bg-rose-50 border-rose-250 text-rose-700"
+              }`}>
+                {toast.message}
+              </div>
+            )}
             
             {submitted ? (
               <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center text-emerald-700 font-semibold shadow-md animate-fade-in">
-                ✅ Opening your email client to send your message!
+                ✅ Thank you! We received your message.
               </div>
             ) : (
               <form onSubmit={handleContactSubmit} className="space-y-4">
+                {/* Honeypot field (hidden from screen, filled by bots to block spam) */}
+                <input
+                  type="text"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  className="hidden"
+                  tabIndex="-1"
+                  autoComplete="off"
+                />
+
                 <div>
                   <input
                     type="email"
@@ -166,10 +247,11 @@ function Footer() {
                 </div>
                 <button
                   type="submit"
-                  className="group w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300"
+                  disabled={loading}
+                  className="group w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-xl shadow-indigo-500/40 hover:shadow-2xl hover:shadow-indigo-500/60 transform hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 disabled:opacity-55"
                 >
                   <span className="flex items-center justify-center gap-2">
-                    Send Message
+                    {loading ? 'Sending...' : 'Send Message'}
                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>

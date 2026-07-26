@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import path from 'path';
@@ -617,6 +618,49 @@ io.on('connection', (socket) => {
       }
     }
   });
+});
+
+// Contact Form Mail Route
+app.post('/api/contact', async (req, res) => {
+  const { email, message } = req.body;
+
+  if (!email || !message) {
+    return res.status(400).json({ success: false, message: 'Email and message are required.' });
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_USER || 'pawartanaya02@gmail.com',
+        pass: process.env.SMTP_PASS || ''
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.SMTP_USER || 'pawartanaya02@gmail.com',
+      to: 'pawartanaya02@gmail.com',
+      subject: `QuizMaster Contact Message from ${email}`,
+      text: `You received a new contact message:\n\nSender Email: ${email}\n\nMessage:\n${message}`,
+      replyTo: email
+    };
+
+    if (process.env.SMTP_PASS) {
+      await transporter.sendMail(mailOptions);
+      console.log(`✉️ Email successfully sent via SMTP to pawartanaya02@gmail.com from ${email}`);
+      return res.json({ success: true, message: 'Message sent successfully!' });
+    } else {
+      console.warn(`⚠️ SMTP Credentials not configured in server/.env. Message logged to console:`);
+      console.log(`✉️ SENDER: ${email}\n✉️ MESSAGE: ${message}`);
+      return res.json({ 
+        success: true, 
+        message: 'Message captured! (Configure SMTP_PASS in your server/.env file to enable actual email delivery)' 
+      });
+    }
+  } catch (error) {
+    console.error('Error sending contact message email:', error);
+    res.status(500).json({ success: false, message: 'Failed to send message.', error: error.message });
+  }
 });
 
 // Start Server
