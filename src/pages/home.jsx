@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import FeatureCard from "../components/FeatureCard";
 import Footer from "../components/Footer";
 import AuthModal from "../components/AuthModal";
+import { supabase } from '../services/supabaseClient';
 
 function Home() {
   const navigate = useNavigate();
@@ -28,9 +29,36 @@ function Home() {
     if (params.get('requireAuth') === 'true') {
       setIsAuthOpen(true);
     }
+
+    // Listen for Supabase OAuth login redirects and state updates
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const userSession = {
+          name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+          email: session.user.email,
+          isLoggedIn: true
+        };
+        localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
+        setUser(userSession);
+
+        // Clean access token details from address bar to keep URL clean
+        if (window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error(e);
+    }
     localStorage.removeItem('quizmaster_user');
     setUser(null);
   };
