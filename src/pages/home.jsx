@@ -30,6 +30,25 @@ function Home() {
       setIsAuthOpen(true);
     }
 
+    // Check active session immediately on mount (fixes OAuth redirects timing)
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const userSession = {
+          name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+          email: session.user.email,
+          isLoggedIn: true
+        };
+        localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
+        setUser(userSession);
+
+        if (window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      }
+    };
+    checkSession();
+
     // Listen for Supabase OAuth login redirects and state updates
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
