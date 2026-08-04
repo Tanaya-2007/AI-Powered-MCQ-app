@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 
 function SoloMode() {
@@ -18,9 +18,13 @@ function SoloMode() {
   const [isDragging, setIsDragging] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
 
+  // Fix: Force light theme styling on mount (clears dark class from document element)
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+  }, []);
+
   const handleFileUpload = (file) => {
     if (file) {
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         alert('File size must be less than 10MB');
         return;
@@ -50,13 +54,11 @@ function SoloMode() {
   };
 
   const handleGenerateQuiz = async () => {
-    // Validate topic focus
     if (!topic || topic.trim() === '') {
       alert('❌ Please enter a topic focus (e.g. Photosynthesis, databases)');
       return;
     }
 
-    // Validate number of questions FIRST
     const questionsCount = parseInt(numQuestions) || 0;
     if (questionsCount === 0) {
       alert('❌ Please enter number of questions');
@@ -67,13 +69,11 @@ function SoloMode() {
       return;
     }
   
-    // Validate topic focus
-    if (!topic || topic.trim().length < 2) {
+    if (topic.trim().length < 2) {
       alert('⚠️ Topic focus must be at least 2 characters long!');
       return;
     }
 
-    // Validate time per question
     const time = customTime ? parseInt(customTime) : timePerQuestion;
     if (time === 0) {
       alert('❌ Please enter time per question');
@@ -90,12 +90,11 @@ function SoloMode() {
       ? 'http://localhost:5000'
       : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
 
-    // Helper for resilient fetches against free-tier cloud instances (handles cold starts)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(url, options);
-          if (res.ok || res.status === 400) return res; // return immediately if success or validation error (400)
+          if (res.ok || res.status === 400) return res;
         } catch (err) {
           if (i === retries - 1) throw err;
           await new Promise(r => setTimeout(r, 2500));
@@ -105,7 +104,6 @@ function SoloMode() {
     };
 
     try {
-      // 1. Ingest text or file if provided
       if (activeTab === 'text' && textInput.trim() !== '') {
         const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
@@ -115,7 +113,7 @@ function SoloMode() {
           body: JSON.stringify({
             text: textInput,
             filename: `${topic}_notes.txt`,
-            topic: topic // pass topic for relevance validation check
+            topic: topic
           })
         });
         const data = await response.json();
@@ -129,7 +127,7 @@ function SoloMode() {
       } else if (activeTab === 'file' && uploadedFile) {
         const formData = new FormData();
         formData.append('file', uploadedFile);
-        formData.append('topic', topic); // pass topic for relevance validation check
+        formData.append('topic', topic);
 
         const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
@@ -145,7 +143,6 @@ function SoloMode() {
         }
       }
 
-      // 2. Generate the Quiz questions from backend
       const genResponse = await fetchWithRetry(`${API_BASE_URL}/api/generate-quiz`, {
         method: 'POST',
         headers: {
@@ -190,117 +187,91 @@ function SoloMode() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
-       {/* Quiz Ready POPUP */}
-{quizReady && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
-    <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform scale-100 animate-scale-in">
-      {/* Close Button */}
-      <button
-        onClick={() => setQuizReady(false)}
-        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      {/* Quiz Ready POPUP */}
+      {quizReady && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform scale-100 animate-scale-in">
+            {/* Close Button */}
+            <button
+              onClick={() => setQuizReady(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
-      {/* Success Icon */}
-      <div className="text-center mb-6">
-        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
-          <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-3xl font-black text-gray-900 mb-2">Quiz is Ready!</h3>
-        <p className="text-gray-600">Let's test your knowledge</p>
-      </div>
+            {/* Success Icon */}
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-3xl font-black text-gray-900 mb-2">Quiz is Ready!</h3>
+              <p className="text-gray-600">Let's test your knowledge</p>
+            </div>
 
-    {/* Quiz Info */}
-     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-4 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 font-medium">Questions:</span>
-          <span className="text-gray-900 font-bold">{numQuestions}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 font-medium">Time per question:</span>
-          <span className="text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 font-medium">Difficulty:</span>
-          <span className="text-gray-900 font-bold capitalize">{difficulty}</span>
-        </div>
-        <div className="flex justify-between text-sm pt-2 border-t-2 border-indigo-200">
-          <span className="text-indigo-600 font-bold">Total Time:</span>
-          <span className="text-indigo-900 font-black">
-            {Math.floor((parseInt(numQuestions) * (customTime || timePerQuestion)) / 60)} min {((parseInt(numQuestions) * (customTime || timePerQuestion)) % 60)} sec
-          </span>
-        </div>
-      </div>
+            {/* Quiz Info */}
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 font-medium">Questions:</span>
+                <span className="text-gray-900 font-bold">{numQuestions}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 font-medium">Time per question:</span>
+                <span className="text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 font-medium">Difficulty:</span>
+                <span className="text-gray-900 font-bold capitalize">{difficulty}</span>
+              </div>
+              <div className="flex justify-between text-sm pt-2 border-t-2 border-indigo-200">
+                <span className="text-indigo-600 font-bold">Total Time:</span>
+                <span className="text-indigo-900 font-black">
+                  {Math.floor((parseInt(numQuestions) * (customTime || timePerQuestion)) / 60)} min {((parseInt(numQuestions) * (customTime || timePerQuestion)) % 60)} sec
+                </span>
+              </div>
+            </div>
 
-{/* Keyboard Shortcuts Info*/}
-<div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-6 border border-gray-200">
-  
-  <div className="block sm:hidden">
-    <div className="flex items-center gap-2 mb-3">
-      <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
-        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      </div>
-      <span className="text-xs font-bold text-gray-700">Keyboard Shortcuts</span>
-    </div>
-    <div className="grid grid-cols-4 gap-2">
-      {['A', 'B', 'C', 'D'].map((key) => (
-        <div key={key} className="flex flex-col items-center gap-1">
-          <div className="w-full aspect-square bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center shadow-sm">
-            <span className="text-base font-black text-gray-800">{key}</span>
+            {/* Keyboard Shortcuts Info */}
+            <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-4 mb-6 border border-gray-200">
+              <div className="flex items-center gap-2 mb-3 justify-center">
+                <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <span className="text-xs font-bold text-gray-700">Keyboard Shortcuts</span>
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-sm text-gray-600 font-medium">Press</span>
+                <div className="flex items-center gap-2">
+                  {['A', 'B', 'C', 'D'].map((key) => (
+                    <div key={key} className="w-9 h-9 bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center shadow-sm hover:border-purple-400 hover:shadow-md transition-all">
+                      <span className="text-base font-black text-gray-800">{key}</span>
+                    </div>
+                  ))}
+                </div>
+                <span className="text-sm text-gray-600 font-medium">to answer</span>
+              </div>
+            </div>
+
+            {/* Begin Quiz Button */}
+            <button
+              onClick={handleBeginQuiz}
+              className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
+            >
+              <span className="flex items-center justify-center gap-2">
+                🚀 Begin Quiz
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </span>
+            </button>
           </div>
         </div>
-      ))}
-    </div>
-    <p className="text-xs text-center text-gray-500 mt-2">Tap keys to select options</p>
-  </div>
-
-  {/* Desktop Layout (horizontal) */}
-  <div className="hidden sm:block">
-    <div className="text-center mb-3">
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 rounded-full">
-        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-        <span className="text-xs font-bold text-purple-700">Keyboard Shortcuts</span>
-      </div>
-    </div>
-    
-    <div className="flex items-center justify-center gap-3">
-      <span className="text-sm text-gray-600 font-medium">Press</span>
-      <div className="flex items-center gap-2">
-        {['A', 'B', 'C', 'D'].map((key) => (
-          <div key={key} className="w-9 h-9 bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center shadow-sm hover:border-purple-400 hover:shadow-md transition-all">
-            <span className="text-base font-black text-gray-800">{key}</span>
-          </div>
-        ))}
-      </div>
-      <span className="text-sm text-gray-600 font-medium">to answer</span>
-    </div>
-  </div>
-</div>
-
-      {/* Begin Quiz Button */}
-      <button
-        onClick={handleBeginQuiz}
-        className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
-      >
-        <span className="flex items-center justify-center gap-2">
-          🚀 Begin Quiz
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
-        </span>
-      </button>
-    </div>
-  </div>
-)}
+      )}
       
       <div 
         className="absolute inset-0 opacity-40"
@@ -311,7 +282,6 @@ function SoloMode() {
         }}
       ></div>
 
-      
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 -left-20 w-64 h-64 bg-gradient-to-br from-indigo-200/30 to-purple-200/30 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 -right-20 w-64 h-64 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -359,60 +329,59 @@ function SoloMode() {
             </span>
           </div>
           
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 dark:text-white mb-4">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 mb-4">
             Create Your
             <span className="block mt-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
               Perfect Quiz
             </span>
           </h1>
-          <p className="text-lg text-gray-600 dark:text-slate-350 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Upload your study material and let AI generate personalized quizzes for you
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-        
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Input Section */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border-2 border-gray-100 dark:border-slate-800 overflow-hidden">
+            {/* Input Section (Premium Light Theme Card) */}
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200/80 overflow-hidden">
               {/* Tab Header */}
-              <div className="border-b-2 border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 px-6 py-4">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+              <div className="border-b border-slate-200 bg-slate-50/50 px-6 py-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>
                   Upload Study Material
                 </h3>
                 
                 {/* Tabs */}
-            <div className="flex gap-2 justify-center sm:justify-start">
-              {[
-                { id: 'text', label: 'Text', icon: 'M4 6h16M4 12h16M4 18h16' },
-                { id: 'image', label: 'Image', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
-                { id: 'pdf', label: 'PDF', icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
-                { id: 'voice', label: 'Voice', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`group relative flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
-                      : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-350 hover:bg-gray-100 dark:hover:bg-slate-700 border dark:border-slate-700'
-                  }`}
-                >
-                  <svg className="w-6 h-6 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
-                  </svg>
-                  
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  
-                  <span className="sm:hidden absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
-                    {tab.label}
-                  </span>
-                </button>
-              ))}
-            </div>
+                <div className="flex gap-2 justify-center sm:justify-start">
+                  {[
+                    { id: 'text', label: 'Text', icon: 'M4 6h16M4 12h16M4 18h16' },
+                    { id: 'image', label: 'Image', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+                    { id: 'pdf', label: 'PDF', icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
+                    { id: 'voice', label: 'Voice', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`group relative flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                        activeTab === tab.id
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
+                          : 'bg-white text-gray-600 hover:bg-gray-50 border border-slate-200'
+                      }`}
+                    >
+                      <svg className="w-6 h-6 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
+                      </svg>
+                      
+                      <span className="hidden sm:inline">{tab.label}</span>
+                      
+                      <span className="sm:hidden absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+                        {tab.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Tab Content */}
@@ -425,14 +394,14 @@ function SoloMode() {
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Paste your text content here... (lecture notes, book chapters, articles, etc.)"
                       rows="12"
-                      className="w-full px-5 py-4 bg-gray-50 dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-450 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none transition-all duration-300"
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-gray-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none transition-all duration-300"
                     />
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500 dark:text-slate-400">{textInput.length} characters</span>
+                      <span className="text-slate-500">{textInput.length} characters</span>
                       {textInput && (
                         <button
                           onClick={() => setTextInput('')}
-                          className="text-red-600 hover:text-red-700 font-semibold"
+                          className="text-red-650 hover:text-red-750 font-semibold"
                         >
                           Clear
                         </button>
@@ -449,10 +418,10 @@ function SoloMode() {
                         onDrop={handleDrop}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
-                        className={`border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
+                        className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
                           isDragging
-                            ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/40 hover:border-indigo-400 hover:bg-indigo-50/50'
+                            ? 'border-indigo-500 bg-indigo-50/50'
+                            : 'border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30'
                         }`}
                       >
                         <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
@@ -463,7 +432,7 @@ function SoloMode() {
                         <h4 className="text-xl font-bold text-gray-900 mb-2">
                           Drop your {activeTab === 'image' ? 'image' : 'PDF'} here
                         </h4>
-                        <p className="text-gray-600 mb-4">or click to browse</p>
+                        <p className="text-gray-605 mb-4">or click to browse</p>
                         <label className="inline-block px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl cursor-pointer hover:shadow-lg transition-all duration-300">
                           Choose File
                           <input
@@ -476,7 +445,7 @@ function SoloMode() {
                         <p className="text-sm text-gray-500 mt-4">Maximum file size: 10MB</p>
                       </div>
                     ) : (
-                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-indigo-200">
+                      <div className="bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-2xl p-6 border border-indigo-100">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -485,12 +454,12 @@ function SoloMode() {
                               </svg>
                             </div>
                             <div>
-                              <p className="font-bold text-gray-900">{uploadedFile.name}</p>
+                              <p className="font-bold text-gray-905">{uploadedFile.name}</p>
                               <p className="text-sm text-gray-600">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <label className="px-4 py-2 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-lg cursor-pointer hover:bg-gray-50 transition-all">
+                            <label className="px-4 py-2 bg-white border border-slate-200 text-gray-700 font-semibold rounded-lg cursor-pointer hover:bg-slate-50 transition-all shadow-sm">
                               Replace
                               <input
                                 type="file"
@@ -501,7 +470,7 @@ function SoloMode() {
                             </label>
                             <button
                               onClick={removeFile}
-                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-all"
+                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-650 transition-all"
                             >
                               Remove
                             </button>
@@ -537,31 +506,30 @@ function SoloMode() {
 
           </div>
 
-          
+          {/* Configuration Panel */}
           <div className="lg:col-span-1 space-y-6">
             
-            
-            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border-2 border-gray-100 dark:border-slate-800 p-6 sticky top-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200/80 p-6 sticky top-6">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6">
                 <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>
                 Quiz Settings
               </h3>
 
               {/* Topic Focus */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 dark:text-slate-350 mb-2">Topic Focus</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Topic Focus</label>
                 <input
                   type="text"
                   placeholder="e.g. Photosynthesis, databases..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm text-gray-900 dark:text-white"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium text-sm text-slate-900"
                 />
               </div>
 
               {/* Difficulty Level */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 mb-3">Difficulty Level</label>
+                <label className="block text-sm font-bold text-slate-700 mb-3">Difficulty Level</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { value: 'easy', label: 'Easy', color: 'from-green-500 to-emerald-600' },
@@ -574,7 +542,7 @@ function SoloMode() {
                       className={`py-3 rounded-xl font-bold text-sm transition-all duration-300 ${
                         difficulty === level.value
                           ? `bg-gradient-to-r ${level.color} text-white shadow-lg scale-105`
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          : 'bg-slate-100 text-slate-655 hover:bg-slate-200'
                       }`}
                     >
                       {level.label}
@@ -584,27 +552,26 @@ function SoloMode() {
               </div>
 
               {/* Number of Questions */}
-              
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-gray-700 mb-3">Number of Questions</label>
-            <input
-              type="number"
-              value={numQuestions}
-              onChange={(e) => setNumQuestions(e.target.value)}
-              placeholder="Enter number (max 100)"
-              min="1"
-              max="100"
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-semibold text-center text-lg"
-            />
-            <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
-            {(numQuestions && parseInt(numQuestions) > 100) && (
-              <p className="text-xs text-red-600 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
-            )}
-          </div>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-3">Number of Questions</label>
+                <input
+                  type="number"
+                  value={numQuestions}
+                  onChange={(e) => setNumQuestions(e.target.value)}
+                  placeholder="Enter number (max 100)"
+                  min="1"
+                  max="100"
+                  className="w-full px-4 py-3 bg-slate-55 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-center text-lg"
+                />
+                <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
+                {(numQuestions && parseInt(numQuestions) > 100) && (
+                  <p className="text-xs text-red-600 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
+                )}
+              </div>
 
               {/* Time Per Question */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 mb-3">Time Per Question</label>
+                <label className="block text-sm font-bold text-slate-700 mb-3">Time Per Question</label>
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {[30, 60, 120].map((time) => (
                     <button
@@ -616,7 +583,7 @@ function SoloMode() {
                       className={`py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
                         timePerQuestion === time && !customTime
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
                       {time}s
@@ -631,7 +598,7 @@ function SoloMode() {
                     setTimePerQuestion(parseInt(e.target.value) || 60);
                   }}
                   placeholder="Custom time (max 300s)"
-                  className="w-full px-4 py-2 bg-gray-50 border-2 border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 />
                 {(customTime && parseInt(customTime) > 300) && (
                   <p className="text-xs text-red-600 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
@@ -663,52 +630,49 @@ function SoloMode() {
                   )}
                 </button>
               )}
-
              </div>
-
           </div>
-
         </div>
       </div>
 
       <style>{`
-  @keyframes moveDots {
-    0% {
-      transform: translate(0, 0);
-    }
-    100% {
-      transform: translate(50px, 50px);
-    }
-  }
+        @keyframes moveDots {
+          0% {
+            transform: translate(0, 0);
+          }
+          100% {
+            transform: translate(50px, 50px);
+          }
+        }
 
-  @keyframes scale-in {
-    0% {
-      transform: scale(0.9);
-      opacity: 0;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
+        @keyframes scale-in {
+          0% {
+            transform: scale(0.9);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
 
-  @keyframes bounce-once {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
+        @keyframes bounce-once {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
 
-  .animate-scale-in {
-    animation: scale-in 0.3s ease-out;
-  }
+        .animate-scale-in {
+          animation: scale-in 0.3s ease-out;
+        }
 
-  .animate-bounce-once {
-    animation: bounce-once 0.6s ease-in-out;
-  }
-`}</style>
+        .animate-bounce-once {
+          animation: bounce-once 0.6s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }
