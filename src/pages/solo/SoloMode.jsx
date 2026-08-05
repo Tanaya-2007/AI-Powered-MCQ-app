@@ -56,6 +56,7 @@ function SoloMode() {
 
       rec.onend = () => {
         setIsRecording(false);
+        setActiveTab('text'); // Switch tab only when recording stops or finishes
       };
 
       setRecognition(rec);
@@ -71,9 +72,9 @@ function SoloMode() {
     if (isRecording) {
       recognition.stop();
       setIsRecording(false);
+      setActiveTab('text'); // Switch tab only when recording stops
     } else {
-      // Switch active tab to text so they can see the transcription in real time
-      setActiveTab('text');
+      // Do NOT switch to text when starting recording so user stays on Voice tab
       try {
         recognition.start();
         setIsRecording(true);
@@ -226,8 +227,9 @@ function SoloMode() {
       });
 
       const genData = await genResponse.json();
-      if (genData.success && genData.questions) {
-        setGeneratedQuestions(genData.questions);
+      const questionsToParse = genData.questions || genData.quiz?.questions;
+      if (genData.success && questionsToParse) {
+        setGeneratedQuestions(questionsToParse);
         setQuizReady(true);
       } else {
         triggerAlert('Failed to generate quiz: ' + (genData.message || 'Unknown error'), 'error');
@@ -291,13 +293,13 @@ function SoloMode() {
               {customAlert.type === 'success' && 'Success!'}
             </h3>
             
-            <p className="text-gray-600 text-sm mb-6 whitespace-pre-line leading-relaxed">
+            <p className="text-gray-600 text-sm mb-6 whitespace-pre-line leading-relaxed px-2">
               {customAlert.message}
             </p>
 
             <button
               onClick={() => setCustomAlert(null)}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-black rounded-2xl hover:shadow-xl shadow-indigo-550/20 active:scale-98 transition-all duration-200 tracking-wider text-base"
             >
               OK
             </button>
@@ -485,7 +487,7 @@ function SoloMode() {
                       className={`group relative flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
                         activeTab === tab.id
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
-                          : 'bg-white text-gray-600 hover:bg-gray-50 border border-slate-200'
+                          : 'bg-white text-gray-600 hover:bg-gray-55 border border-slate-200'
                       }`}
                     >
                       <svg className="w-6 h-6 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -519,7 +521,7 @@ function SoloMode() {
                       {textInput && (
                         <button
                           onClick={() => setTextInput('')}
-                          className="text-red-650 hover:text-red-750 font-semibold"
+                          className="text-red-655 hover:text-red-750 font-semibold"
                         >
                           Clear
                         </button>
@@ -542,7 +544,7 @@ function SoloMode() {
                             : 'border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30'
                         }`}
                       >
-                        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-655 rounded-2xl flex items-center justify-center">
                           <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
@@ -618,13 +620,13 @@ function SoloMode() {
                       {isRecording ? 'Listening to your voice...' : 'Voice Input'}
                     </h4>
                     <p className="text-gray-600 mb-6">
-                      {isRecording ? 'Speak clearly. Your words will be transcribed in the text area.' : 'Click the button below to start transcribing your speech'}
+                      {isRecording ? 'Speak clearly. Your words will be transcribed when you click stop.' : 'Click the button below to start transcribing your speech'}
                     </p>
                     <button
                       onClick={toggleRecording}
-                      className={`px-8 py-4 text-white font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto ${
+                      className={`px-8 py-4 text-white font-black rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto ${
                         isRecording 
-                          ? 'bg-gradient-to-r from-red-500 to-pink-600 hover:shadow-red-500/30'
+                          ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-700 hover:shadow-red-650/40 border border-red-700'
                           : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-indigo-500/30'
                       }`}
                     >
@@ -703,7 +705,7 @@ function SoloMode() {
                 />
                 <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
                 {(numQuestions && parseInt(numQuestions) > 100) && (
-                  <p className="text-xs text-red-600 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
+                  <p className="text-xs text-red-650 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
                 )}
               </div>
 
@@ -721,7 +723,7 @@ function SoloMode() {
                       className={`py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
                         timePerQuestion === time && !customTime
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-202'
                       }`}
                     >
                       {time}s
@@ -739,7 +741,7 @@ function SoloMode() {
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 />
                 {(customTime && parseInt(customTime) > 300) && (
-                  <p className="text-xs text-red-650 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
+                  <p className="text-xs text-red-655 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
                 )}
               </div>
 
@@ -772,72 +774,6 @@ function SoloMode() {
           </div>
         </div>
       </div>
-      
-      {/* Delete Confirmation Popup  */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform scale-100 animate-scale-in border border-slate-200">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center shadow-xl">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-2">Delete Question?</h3>
-              <p className="text-gray-655 text-sm">
-                Are you sure you want to delete this question? This action cannot be undone.
-              </p>
-            </div>
-
-            {/* Question Preview */}
-            {questionToDelete !== null && generatedQuestions[questionToDelete] && (
-              <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-slate-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-black text-sm">Q{questionToDelete + 1}</span>
-                  </div>
-                  <p className="text-sm font-bold text-gray-905 line-clamp-2">
-                    {generatedQuestions[questionToDelete].question}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={cancelDeleteQuestion}
-                className="py-3 bg-gray-105 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeleteQuestion}
-                className="py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-          <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 px-6 py-4 flex items-center gap-3 min-w-[320px]">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-l-2xl"></div>
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <span className="text-sm font-bold text-gray-900 flex-1">{toastMessage}</span>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes moveDots {
@@ -877,171 +813,6 @@ function SoloMode() {
           animation: bounce-once 0.6s ease-in-out;
         }
       `}</style>
-    </div>
-  );
-}
-
-// Question Preview Subcomponent
-function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
-        <h3 className="text-xl sm:text-2xl font-black text-gray-900">
-          Review Questions ({questions.length})
-        </h3>
-        <button 
-          onClick={onBack} 
-          className="w-full sm:w-auto px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200 text-gray-700 transition-all flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pr-2 space-y-3 sm:space-y-4">
-        {questions.map((q, index) => (
-          <div key={q.id} className="bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 hover:border-indigo-300 transition-all">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
-              <div className="flex items-start gap-2 sm:gap-3 flex-1">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-black text-sm sm:text-base">Q{index + 1}</span>
-                </div>
-                <h4 className="text-sm sm:text-base font-bold text-gray-900 leading-snug">{q.question}</h4>
-              </div>
-              
-              <div className="flex gap-2 sm:flex-shrink-0">
-                <button
-                  onClick={() => onEdit(index)}
-                  className="flex-1 sm:flex-none px-3 py-1.5 bg-blue-100 text-blue-750 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-200 transition-all flex items-center justify-center gap-1"
-                >
-                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  <span className="hidden sm:inline">Edit</span>
-                </button>
-                <button
-                  onClick={() => onDelete(index)}
-                  className="flex-1 sm:flex-none px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-red-200 transition-all flex items-center justify-center gap-1"
-                >
-                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  <span className="hidden sm:inline">Delete</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {q.options.map((opt, i) => (
-                <div
-                  key={i}
-                  className={`p-2.5 sm:p-3 rounded-lg border-2 text-xs sm:text-sm font-medium ${
-                    i === q.correctAnswer
-                      ? 'bg-green-50 border-green-400 text-green-900'
-                      : 'bg-gray-50 border-gray-200 text-gray-700'
-                  }`}
-                >
-                  <span className="font-bold">{String.fromCharCode(65 + i)}.</span> {opt}
-                  {i === q.correctAnswer && <span className="ml-2">✓</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Question Editor Subcomponent
-function QuestionEditor({ question, onSave, onCancel }) {
-  const [editedQuestion, setEditedQuestion] = useState({ ...question });
-  
-  const hasChanges = 
-    question.question !== editedQuestion.question ||
-    question.correctAnswer !== editedQuestion.correctAnswer ||
-    question.options.some((opt, i) => opt !== editedQuestion.options[i]);
-
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
-        <h3 className="text-xl sm:text-2xl font-black text-gray-900">Edit Question</h3>
-        <button 
-          onClick={onCancel} 
-          className="w-full sm:w-auto px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200 text-gray-700 transition-all flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Preview
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pr-2 space-y-4 sm:space-y-6">
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">Question</label>
-          <textarea
-            value={editedQuestion.question}
-            onChange={(e) => setEditedQuestion({ ...editedQuestion, question: e.target.value })}
-            rows="3"
-            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base resize-none"
-            placeholder="Enter your question here..."
-          />
-        </div>
-
-        <div className="space-y-3">
-          <label className="block text-sm font-bold text-gray-700">Options</label>
-          {editedQuestion.options.map((opt, i) => (
-            <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <input
-                type="text"
-                value={opt}
-                onChange={(e) => {
-                  const newOptions = [...editedQuestion.options];
-                  newOptions[i] = e.target.value;
-                  setEditedQuestion({ ...editedQuestion, options: newOptions });
-                }}
-                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
-                placeholder={`Option ${String.fromCharCode(65 + i)}`}
-              />
-              
-              <label className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all">
-                <input
-                  type="radio"
-                  name="correct"
-                  checked={editedQuestion.correctAnswer === i}
-                  onChange={() => setEditedQuestion({ ...editedQuestion, correctAnswer: i })}
-                  className="w-4 h-4 sm:w-5 sm:h-5"
-                />
-                <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">Correct</span>
-              </label>
-            </div>
-          ))}
-        </div>
-
-        <button
-          onClick={() => onSave(editedQuestion)}
-          disabled={!hasChanges}
-          className={`w-full py-3 sm:py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
-            hasChanges
-              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl cursor-pointer'
-              : 'bg-gray-300 text-gray-550 cursor-not-allowed opacity-60'
-          }`}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          {hasChanges ? 'Save Changes' : 'No Changes to Save'}
-        </button>
-        
-        {!hasChanges && (
-          <p className="text-center text-sm text-gray-500 -mt-2">
-            Make changes to enable the save button
-          </p>
-        )}
-      </div>
     </div>
   );
 }

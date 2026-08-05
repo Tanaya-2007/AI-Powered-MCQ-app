@@ -65,6 +65,7 @@ function CreateQuiz() {
 
       rec.onend = () => {
         setIsRecording(false);
+        setActiveTab('text'); // Switch tab only when recording stops or finishes
       };
 
       setRecognition(rec);
@@ -80,9 +81,9 @@ function CreateQuiz() {
     if (isRecording) {
       recognition.stop();
       setIsRecording(false);
+      setActiveTab('text'); // Switch tab only when recording stops
     } else {
-      // Switch active tab to text so they can see the transcription in real time
-      setActiveTab('text');
+      // Do NOT switch to text when starting recording so user stays on Voice tab
       try {
         recognition.start();
         setIsRecording(true);
@@ -262,8 +263,9 @@ function CreateQuiz() {
         })
       });
       const genData = await genResponse.json();
-      if (genData.success && genData.quiz?.questions) {
-        const parsedQuestions = genData.quiz.questions.map((q, idx) => ({
+      const questionsToParse = genData.questions || genData.quiz?.questions;
+      if (genData.success && questionsToParse) {
+        const parsedQuestions = questionsToParse.map((q, idx) => ({
           id: idx + 1,
           question: q.question,
           options: q.options,
@@ -358,13 +360,13 @@ function CreateQuiz() {
               {customAlert.type === 'success' && 'Success!'}
             </h3>
             
-            <p className="text-gray-600 text-sm mb-6 whitespace-pre-line leading-relaxed">
+            <p className="text-gray-605 text-sm mb-6 whitespace-pre-line leading-relaxed px-2">
               {customAlert.message}
             </p>
 
             <button
               onClick={() => setCustomAlert(null)}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-black rounded-2xl hover:shadow-xl shadow-indigo-550/20 active:scale-98 transition-all duration-200 tracking-wider text-base"
             >
               OK
             </button>
@@ -472,7 +474,7 @@ function CreateQuiz() {
                         </svg>
                         Preview & Edit All Questions
                       </button>
-                      <p className="text-xs text-center text-gray-600">
+                      <p className="text-xs text-center text-gray-650">
                         Review, edit, or delete questions before starting
                       </p>
                     </div>
@@ -627,7 +629,7 @@ function CreateQuiz() {
                       className={`group relative flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
                         activeTab === tab.id
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
-                          : 'bg-white text-gray-600 hover:bg-gray-55 border border-slate-205'
+                          : 'bg-white text-gray-650 hover:bg-gray-55 border border-slate-205'
                       }`}
                     >
                       <svg className="w-6 h-6 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -726,7 +728,7 @@ function CreateQuiz() {
                             </label>
                             <button
                               onClick={removeFile}
-                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-all"
+                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-605 transition-all"
                             >
                               Remove
                             </button>
@@ -756,13 +758,13 @@ function CreateQuiz() {
                       {isRecording ? 'Listening to your voice...' : 'Voice Input'}
                     </h4>
                     <p className="text-gray-600 mb-6">
-                      {isRecording ? 'Speak clearly. Your words will be transcribed in the text area.' : 'Click the button below to start transcribing your speech'}
+                      {isRecording ? 'Speak clearly. Your words will be transcribed when you click stop.' : 'Click the button below to start transcribing your speech'}
                     </p>
                     <button
                       onClick={toggleRecording}
-                      className={`px-8 py-4 text-white font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto ${
+                      className={`px-8 py-4 text-white font-black rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto ${
                         isRecording 
-                          ? 'bg-gradient-to-r from-red-500 to-pink-655 hover:shadow-red-500/30'
+                          ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-700 hover:shadow-red-650/40 border border-red-700'
                           : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-indigo-500/30'
                       }`}
                     >
@@ -793,7 +795,7 @@ function CreateQuiz() {
 
               {/* Topic Focus */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-750 mb-2">Topic Focus</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Topic Focus</label>
                 <input
                   type="text"
                   placeholder="e.g. Photosynthesis, databases..."
@@ -841,13 +843,13 @@ function CreateQuiz() {
                 />
                 <p className="text-xs text-gray-550 mt-2 text-center">Maximum 100 questions</p>
                 {(numQuestions && parseInt(numQuestions) > 100) && (
-                  <p className="text-xs text-red-600 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
+                  <p className="text-xs text-red-655 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
                 )}
               </div>
 
               {/* Time Per Question */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-750 mb-3">Time Per Question</label>
+                <label className="block text-sm font-bold text-slate-700 mb-3">Time Per Question</label>
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {[30, 60, 120].map((time) => (
                     <button
