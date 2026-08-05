@@ -18,15 +18,75 @@ function SoloMode() {
   const [isDragging, setIsDragging] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
 
-  // Fix: Force light theme styling on mount (clears dark class from document element)
+  // Voice Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const [recognition, setRecognition] = useState(null);
+
+  // Custom alert state
+  const [customAlert, setCustomAlert] = useState(null); // { message: '', type: 'error' | 'success' | 'warning' }
+
+  // Custom alert trigger helper
+  const triggerAlert = (message, type = 'error') => {
+    setCustomAlert({ message, type });
+  };
+
+  // Fix: Force light theme styling on mount & Init Speech Recognition
   useEffect(() => {
     document.documentElement.classList.remove('dark');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
+
+      rec.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setTextInput(prev => prev + ' ' + transcript);
+      };
+
+      rec.onerror = (e) => {
+        console.error('Speech recognition error:', e);
+        setIsRecording(false);
+      };
+
+      rec.onend = () => {
+        setIsRecording(false);
+      };
+
+      setRecognition(rec);
+    }
   }, []);
+
+  const toggleRecording = () => {
+    if (!recognition) {
+      triggerAlert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Opera.', 'warning');
+      return;
+    }
+
+    if (isRecording) {
+      recognition.stop();
+      setIsRecording(false);
+    } else {
+      // Switch active tab to text so they can see the transcription in real time
+      setActiveTab('text');
+      try {
+        recognition.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
 
   const handleFileUpload = (file) => {
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+        triggerAlert('File size must be less than 10MB', 'warning');
         return;
       }
       setUploadedFile(file);
@@ -55,32 +115,32 @@ function SoloMode() {
 
   const handleGenerateQuiz = async () => {
     if (!topic || topic.trim() === '') {
-      alert('❌ Please enter a topic focus (e.g. Photosynthesis, databases)');
+      triggerAlert('Please enter a topic focus (e.g. Photosynthesis, databases)', 'warning');
       return;
     }
 
     const questionsCount = parseInt(numQuestions) || 0;
     if (questionsCount === 0) {
-      alert('❌ Please enter number of questions');
+      triggerAlert('Please enter number of questions', 'warning');
       return;
     }
     if (questionsCount > 100) {
-      alert('⚠️ Maximum 100 questions allowed! Please reduce the number.');
+      triggerAlert('Maximum 100 questions allowed! Please reduce the number.', 'warning');
       return;
     }
   
     if (topic.trim().length < 2) {
-      alert('⚠️ Topic focus must be at least 2 characters long!');
+      triggerAlert('Topic focus must be at least 2 characters long!', 'warning');
       return;
     }
 
     const time = customTime ? parseInt(customTime) : timePerQuestion;
     if (time === 0) {
-      alert('❌ Please enter time per question');
+      triggerAlert('Please enter time per question', 'warning');
       return;
     }
     if (time > 300) {
-      alert('⚠️ Time cannot exceed 5 minutes (300 seconds)! Please reduce the time.');
+      triggerAlert('Time cannot exceed 5 minutes (300 seconds)! Please reduce the time.', 'warning');
       return;
     }
 
@@ -90,17 +150,26 @@ function SoloMode() {
       ? 'http://localhost:5000'
       : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
 
+    // Helper for resilient fetches (automatically switches to cloud backend if localhost:5000 is offline)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
+      let currentUrl = url;
       for (let i = 0; i < retries; i++) {
         try {
-          const res = await fetch(url, options);
+          const res = await fetch(currentUrl, options);
           if (res.ok || res.status === 400) return res;
         } catch (err) {
+          // If local connection fails, switch to production URL
+          if (currentUrl.startsWith('http://localhost:5000') || currentUrl.startsWith('http://127.0.0.1:5000')) {
+            console.warn("Local backend connection refused/failed. Switching to cloud backend...");
+            const prodBase = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
+            currentUrl = currentUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5000/, prodBase);
+            continue; // retry immediately with prod URL
+          }
           if (i === retries - 1) throw err;
-          await new Promise(r => setTimeout(r, 2500));
+          await new Promise(r => setTimeout(r, 2000));
         }
       }
-      return fetch(url, options);
+      return fetch(currentUrl, options);
     };
 
     try {
@@ -120,7 +189,7 @@ function SoloMode() {
         if (data.success) {
           materialId = data.materialId;
         } else {
-          alert(`❌ Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`);
+          triggerAlert(`Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`, 'error');
           setIsGenerating(false);
           return;
         }
@@ -137,7 +206,7 @@ function SoloMode() {
         if (data.success) {
           materialId = data.materialId;
         } else {
-          alert(`❌ Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`);
+          triggerAlert(`Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`, 'error');
           setIsGenerating(false);
           return;
         }
@@ -161,12 +230,12 @@ function SoloMode() {
         setGeneratedQuestions(genData.questions);
         setQuizReady(true);
       } else {
-        alert('❌ Failed to generate quiz: ' + (genData.message || 'Unknown error'));
+        triggerAlert('Failed to generate quiz: ' + (genData.message || 'Unknown error'), 'error');
       }
 
     } catch (error) {
       console.error('Failed to communicate with backend API:', error);
-      alert('⚡ The server is spinning up. Please click "Generate Quiz" again in 5 seconds!');
+      triggerAlert('The server is spinning up. Please click "Generate Quiz" again in 5 seconds!', 'warning');
     } finally {
       setIsGenerating(false);
     }
@@ -187,6 +256,55 @@ function SoloMode() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
+      
+      {/* Custom Theme Alert Modal */}
+      {customAlert && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform scale-100 animate-scale-in border border-slate-205 text-center relative">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center shadow-lg">
+              {customAlert.type === 'error' && (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-red-500 to-pink-650 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              )}
+              {customAlert.type === 'warning' && (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center animate-pulse">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              )}
+              {customAlert.type === 'success' && (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            <h3 className="text-2xl font-black text-gray-900 mb-2">
+              {customAlert.type === 'error' && 'Oops! Something went wrong'}
+              {customAlert.type === 'warning' && 'Attention Required'}
+              {customAlert.type === 'success' && 'Success!'}
+            </h3>
+            
+            <p className="text-gray-600 text-sm mb-6 whitespace-pre-line leading-relaxed">
+              {customAlert.message}
+            </p>
+
+            <button
+              onClick={() => setCustomAlert(null)}
+              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Quiz Ready POPUP */}
       {quizReady && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
@@ -448,7 +566,7 @@ function SoloMode() {
                       <div className="bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-2xl p-6 border border-indigo-100">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-655 rounded-xl flex items-center justify-center">
                               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
@@ -470,7 +588,7 @@ function SoloMode() {
                             </label>
                             <button
                               onClick={removeFile}
-                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-650 transition-all"
+                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-655 transition-all"
                             >
                               Remove
                             </button>
@@ -484,20 +602,40 @@ function SoloMode() {
                 {/* VOICE INPUT */}
                 {activeTab === 'voice' && (
                   <div className="text-center py-12">
-                    <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
-                    </div>
-                    <h4 className="text-2xl font-bold text-gray-900 mb-2">Voice Input</h4>
-                    <p className="text-gray-600 mb-6">Click the button below to start recording</p>
-                    <button className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300">
-                      <span className="flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    <div className={`w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg transition-transform duration-500 ${isRecording ? 'animate-pulse scale-110 ring-4 ring-red-500/30' : ''}`}>
+                      {isRecording ? (
+                        <div className="relative flex items-center justify-center">
+                          <div className="absolute w-12 h-12 bg-red-500 rounded-full animate-ping"></div>
+                          <span className="w-6 h-6 bg-red-600 rounded-full z-10"></span>
+                        </div>
+                      ) : (
+                        <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                         </svg>
-                        Start Recording
-                      </span>
+                      )}
+                    </div>
+                    <h4 className="text-2xl font-bold text-gray-900 mb-2">
+                      {isRecording ? 'Listening to your voice...' : 'Voice Input'}
+                    </h4>
+                    <p className="text-gray-600 mb-6">
+                      {isRecording ? 'Speak clearly. Your words will be transcribed in the text area.' : 'Click the button below to start transcribing your speech'}
+                    </p>
+                    <button
+                      onClick={toggleRecording}
+                      className={`px-8 py-4 text-white font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto ${
+                        isRecording 
+                          ? 'bg-gradient-to-r from-red-500 to-pink-600 hover:shadow-red-500/30'
+                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-indigo-500/30'
+                      }`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {isRecording ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        )}
+                      </svg>
+                      {isRecording ? 'Stop Recording' : 'Start Recording'}
                     </button>
                   </div>
                 )}
@@ -561,7 +699,7 @@ function SoloMode() {
                   placeholder="Enter number (max 100)"
                   min="1"
                   max="100"
-                  className="w-full px-4 py-3 bg-slate-55 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-center text-lg"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-center text-lg"
                 />
                 <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
                 {(numQuestions && parseInt(numQuestions) > 100) && (
@@ -601,7 +739,7 @@ function SoloMode() {
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 />
                 {(customTime && parseInt(customTime) > 300) && (
-                  <p className="text-xs text-red-600 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
+                  <p className="text-xs text-red-650 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
                 )}
               </div>
 
@@ -634,6 +772,72 @@ function SoloMode() {
           </div>
         </div>
       </div>
+      
+      {/* Delete Confirmation Popup  */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform scale-100 animate-scale-in border border-slate-200">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center shadow-xl">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">Delete Question?</h3>
+              <p className="text-gray-655 text-sm">
+                Are you sure you want to delete this question? This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Question Preview */}
+            {questionToDelete !== null && generatedQuestions[questionToDelete] && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-slate-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-black text-sm">Q{questionToDelete + 1}</span>
+                  </div>
+                  <p className="text-sm font-bold text-gray-905 line-clamp-2">
+                    {generatedQuestions[questionToDelete].question}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={cancelDeleteQuestion}
+                className="py-3 bg-gray-105 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteQuestion}
+                className="py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+          <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 px-6 py-4 flex items-center gap-3 min-w-[320px]">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-l-2xl"></div>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="text-sm font-bold text-gray-900 flex-1">{toastMessage}</span>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes moveDots {
@@ -673,6 +877,171 @@ function SoloMode() {
           animation: bounce-once 0.6s ease-in-out;
         }
       `}</style>
+    </div>
+  );
+}
+
+// Question Preview Subcomponent
+function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
+        <h3 className="text-xl sm:text-2xl font-black text-gray-900">
+          Review Questions ({questions.length})
+        </h3>
+        <button 
+          onClick={onBack} 
+          className="w-full sm:w-auto px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200 text-gray-700 transition-all flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pr-2 space-y-3 sm:space-y-4">
+        {questions.map((q, index) => (
+          <div key={q.id} className="bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 hover:border-indigo-300 transition-all">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+              <div className="flex items-start gap-2 sm:gap-3 flex-1">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-black text-sm sm:text-base">Q{index + 1}</span>
+                </div>
+                <h4 className="text-sm sm:text-base font-bold text-gray-900 leading-snug">{q.question}</h4>
+              </div>
+              
+              <div className="flex gap-2 sm:flex-shrink-0">
+                <button
+                  onClick={() => onEdit(index)}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-blue-100 text-blue-750 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-200 transition-all flex items-center justify-center gap-1"
+                >
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span className="hidden sm:inline">Edit</span>
+                </button>
+                <button
+                  onClick={() => onDelete(index)}
+                  className="flex-1 sm:flex-none px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-red-200 transition-all flex items-center justify-center gap-1"
+                >
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span className="hidden sm:inline">Delete</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {q.options.map((opt, i) => (
+                <div
+                  key={i}
+                  className={`p-2.5 sm:p-3 rounded-lg border-2 text-xs sm:text-sm font-medium ${
+                    i === q.correctAnswer
+                      ? 'bg-green-50 border-green-400 text-green-900'
+                      : 'bg-gray-50 border-gray-200 text-gray-700'
+                  }`}
+                >
+                  <span className="font-bold">{String.fromCharCode(65 + i)}.</span> {opt}
+                  {i === q.correctAnswer && <span className="ml-2">✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Question Editor Subcomponent
+function QuestionEditor({ question, onSave, onCancel }) {
+  const [editedQuestion, setEditedQuestion] = useState({ ...question });
+  
+  const hasChanges = 
+    question.question !== editedQuestion.question ||
+    question.correctAnswer !== editedQuestion.correctAnswer ||
+    question.options.some((opt, i) => opt !== editedQuestion.options[i]);
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
+        <h3 className="text-xl sm:text-2xl font-black text-gray-900">Edit Question</h3>
+        <button 
+          onClick={onCancel} 
+          className="w-full sm:w-auto px-4 py-2 bg-gray-100 rounded-lg font-semibold hover:bg-gray-200 text-gray-700 transition-all flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Preview
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pr-2 space-y-4 sm:space-y-6">
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">Question</label>
+          <textarea
+            value={editedQuestion.question}
+            onChange={(e) => setEditedQuestion({ ...editedQuestion, question: e.target.value })}
+            rows="3"
+            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base resize-none"
+            placeholder="Enter your question here..."
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="block text-sm font-bold text-gray-700">Options</label>
+          {editedQuestion.options.map((opt, i) => (
+            <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <input
+                type="text"
+                value={opt}
+                onChange={(e) => {
+                  const newOptions = [...editedQuestion.options];
+                  newOptions[i] = e.target.value;
+                  setEditedQuestion({ ...editedQuestion, options: newOptions });
+                }}
+                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
+                placeholder={`Option ${String.fromCharCode(65 + i)}`}
+              />
+              
+              <label className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all">
+                <input
+                  type="radio"
+                  name="correct"
+                  checked={editedQuestion.correctAnswer === i}
+                  onChange={() => setEditedQuestion({ ...editedQuestion, correctAnswer: i })}
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                />
+                <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">Correct</span>
+              </label>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={() => onSave(editedQuestion)}
+          disabled={!hasChanges}
+          className={`w-full py-3 sm:py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
+            hasChanges
+              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl cursor-pointer'
+              : 'bg-gray-300 text-gray-550 cursor-not-allowed opacity-60'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {hasChanges ? 'Save Changes' : 'No Changes to Save'}
+        </button>
+        
+        {!hasChanges && (
+          <p className="text-center text-sm text-gray-500 -mt-2">
+            Make changes to enable the save button
+          </p>
+        )}
+      </div>
     </div>
   );
 }

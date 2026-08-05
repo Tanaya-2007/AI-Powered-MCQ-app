@@ -27,10 +27,70 @@ function CreateQuiz() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
 
-  // Fix: Force light theme styling on mount (clears dark class from document element)
+  // Voice Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const [recognition, setRecognition] = useState(null);
+
+  // Custom alert state
+  const [customAlert, setCustomAlert] = useState(null); // { message: '', type: 'error' | 'success' | 'warning' }
+
+  // Custom alert trigger helper
+  const triggerAlert = (message, type = 'error') => {
+    setCustomAlert({ message, type });
+  };
+
+  // Fix: Force light theme styling on mount & Init Speech Recognition
   useEffect(() => {
     document.documentElement.classList.remove('dark');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
+
+      rec.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setTextInput(prev => prev + ' ' + transcript);
+      };
+
+      rec.onerror = (e) => {
+        console.error('Speech recognition error:', e);
+        setIsRecording(false);
+      };
+
+      rec.onend = () => {
+        setIsRecording(false);
+      };
+
+      setRecognition(rec);
+    }
   }, []);
+
+  const toggleRecording = () => {
+    if (!recognition) {
+      triggerAlert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Opera.', 'warning');
+      return;
+    }
+
+    if (isRecording) {
+      recognition.stop();
+      setIsRecording(false);
+    } else {
+      // Switch active tab to text so they can see the transcription in real time
+      setActiveTab('text');
+      try {
+        recognition.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
 
   const generateQuizCode = () => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -52,7 +112,7 @@ function CreateQuiz() {
   const handleFileUpload = (file) => {
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+        triggerAlert('File size must be less than 10MB', 'warning');
         return;
       }
       setUploadedFile(file);
@@ -82,40 +142,40 @@ function CreateQuiz() {
   const handleGenerateQuiz = async () => {
     // Validate topic focus
     if (!topic || topic.trim() === '') {
-      alert('❌ Please enter a topic focus (e.g. Photosynthesis, databases)');
+      triggerAlert('Please enter a topic focus (e.g. Photosynthesis, databases)', 'warning');
       return;
     }
     if (topic.trim().length < 2) {
-      alert('⚠️ Topic focus must be at least 2 characters long!');
+      triggerAlert('Topic focus must be at least 2 characters long!', 'warning');
       return;
     }
 
     const questionsCount = parseInt(numQuestions) || 0;
     if (questionsCount === 0) {
-      alert('❌ Please enter number of questions');
+      triggerAlert('Please enter number of questions', 'warning');
       return;
     }
     if (questionsCount > 100) {
-      alert('⚠️ Maximum 100 questions allowed! Please reduce the number.');
+      triggerAlert('Maximum 100 questions allowed! Please reduce the number.', 'warning');
       return;
     }
   
     const time = customTime ? parseInt(customTime) : timePerQuestion;
     if (time === 0) {
-      alert('❌ Please enter time per question');
+      triggerAlert('Please enter time per question', 'warning');
       return;
     }
     if (time > 300) {
-      alert('⚠️ Time cannot exceed 5 minutes (300 seconds)! Please reduce the time.');
+      triggerAlert('Time cannot exceed 5 minutes (300 seconds)! Please reduce the time.', 'warning');
       return;
     }
   
     if (activeTab === 'text' && !textInput.trim()) {
-      alert('❌ Please paste or write your text content first.');
+      triggerAlert('Please paste or write your text content first.', 'warning');
       return;
     }
     if (activeTab === 'file' && !uploadedFile) {
-      alert('❌ Please upload a study material file (PDF/Image) first.');
+      triggerAlert('Please upload a study material file (PDF/Image) first.', 'warning');
       return;
     }
   
@@ -125,20 +185,30 @@ function CreateQuiz() {
       ? 'http://localhost:5000'
       : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
 
+    // Helper for resilient backend fetches (automatically switches to cloud backend if localhost:5000 is offline)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
+      let currentUrl = url;
       for (let i = 0; i < retries; i++) {
         try {
-          const res = await fetch(url, options);
+          const res = await fetch(currentUrl, options);
           if (res.ok || res.status === 400) return res;
         } catch (err) {
+          // If local connection fails, switch to production URL
+          if (currentUrl.startsWith('http://localhost:5000') || currentUrl.startsWith('http://127.0.0.1:5000')) {
+            console.warn("Local backend connection refused/failed. Switching to cloud backend...");
+            const prodBase = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
+            currentUrl = currentUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5000/, prodBase);
+            continue; // retry immediately
+          }
           if (i === retries - 1) throw err;
-          await new Promise(r => setTimeout(r, 2500));
+          await new Promise(r => setTimeout(r, 2000));
         }
       }
-      return fetch(url, options);
+      return fetch(currentUrl, options);
     };
 
     try {
+      // 1. Ingest text or file into vector database with relevance check
       if (activeTab === 'text' && textInput.trim() !== '') {
         const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
@@ -155,7 +225,7 @@ function CreateQuiz() {
         if (data.success) {
           materialId = data.materialId;
         } else {
-          alert(`❌ Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`);
+          triggerAlert(`Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`, 'error');
           setIsGenerating(false);
           return;
         }
@@ -172,12 +242,13 @@ function CreateQuiz() {
         if (data.success) {
           materialId = data.materialId;
         } else {
-          alert(`❌ Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`);
+          triggerAlert(`Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`, 'error');
           setIsGenerating(false);
           return;
         }
       }
 
+      // 2. Generate actual questions based on topic and ingested document context
       const genResponse = await fetchWithRetry(`${API_BASE_URL}/api/generate-quiz`, {
         method: 'POST',
         headers: {
@@ -203,11 +274,11 @@ function CreateQuiz() {
         setGeneratedQuestions(parsedQuestions);
         setQuizReady(true);
       } else {
-        alert(`❌ Generation failed: ${genData.message || 'Unable to generate questions matching the topic.'}`);
+        triggerAlert(`Generation failed: ${genData.message || 'Unable to generate questions matching the topic.'}`, 'error');
       }
     } catch (error) {
       console.error('Failed to communicate with backend API:', error);
-      alert('⚡ The server is spinning up. Please click "Generate Quiz" again in 5 seconds!');
+      triggerAlert('The server is spinning up. Please click "Generate Quiz" again in 5 seconds!', 'warning');
     } finally {
       setIsGenerating(false);
     }
@@ -252,6 +323,54 @@ function CreateQuiz() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden animate-page-enter">
+
+      {/* Custom Theme Alert Modal */}
+      {customAlert && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform scale-100 animate-scale-in border border-slate-200 text-center relative">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center shadow-lg">
+              {customAlert.type === 'error' && (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-red-500 to-pink-655 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              )}
+              {customAlert.type === 'warning' && (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center animate-pulse">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              )}
+              {customAlert.type === 'success' && (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            <h3 className="text-2xl font-black text-gray-900 mb-2">
+              {customAlert.type === 'error' && 'Oops! Something went wrong'}
+              {customAlert.type === 'warning' && 'Attention Required'}
+              {customAlert.type === 'success' && 'Success!'}
+            </h3>
+            
+            <p className="text-gray-600 text-sm mb-6 whitespace-pre-line leading-relaxed">
+              {customAlert.message}
+            </p>
+
+            <button
+              onClick={() => setCustomAlert(null)}
+              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quiz Ready popup */}
       {quizReady && (
@@ -488,7 +607,7 @@ function CreateQuiz() {
           
           <div className="lg:col-span-2 space-y-6">
             
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-205 overflow-hidden">
               <div className="border-b border-slate-200 bg-slate-50/50 px-6 py-4">
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-full"></div>
@@ -539,7 +658,7 @@ function CreateQuiz() {
                       {textInput && (
                         <button
                           onClick={() => setTextInput('')}
-                          className="text-red-650 hover:text-red-750 font-semibold"
+                          className="text-red-655 hover:text-red-750 font-semibold"
                         >
                           Clear
                         </button>
@@ -561,7 +680,7 @@ function CreateQuiz() {
                             : 'border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30'
                         }`}
                       >
-                        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-655 rounded-2xl flex items-center justify-center">
                           <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
@@ -585,18 +704,18 @@ function CreateQuiz() {
                       <div className="bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-2xl p-6 border border-indigo-100">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-655 rounded-xl flex items-center justify-center">
                               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                             </div>
                             <div>
                               <p className="font-bold text-gray-900">{uploadedFile.name}</p>
-                              <p className="text-sm text-gray-600">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
+                              <p className="text-sm text-gray-605">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <label className="px-4 py-2 bg-white border border-slate-200 text-gray-700 font-semibold rounded-lg cursor-pointer hover:bg-gray-50 transition-all shadow-sm">
+                            <label className="px-4 py-2 bg-white border border-slate-202 text-gray-700 font-semibold rounded-lg cursor-pointer hover:bg-gray-50 transition-all shadow-sm">
                               Replace
                               <input
                                 type="file"
@@ -618,22 +737,43 @@ function CreateQuiz() {
                   </div>
                 )}
 
+                {/* VOICE INPUT */}
                 {activeTab === 'voice' && (
                   <div className="text-center py-12">
-                    <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
-                    </div>
-                    <h4 className="text-2xl font-bold text-gray-900 mb-2">Voice Input</h4>
-                    <p className="text-gray-655 mb-6">Click the button below to start recording</p>
-                    <button className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300">
-                      <span className="flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    <div className={`w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg transition-transform duration-500 ${isRecording ? 'animate-pulse scale-110 ring-4 ring-red-500/30' : ''}`}>
+                      {isRecording ? (
+                        <div className="relative flex items-center justify-center">
+                          <div className="absolute w-12 h-12 bg-red-500 rounded-full animate-ping"></div>
+                          <span className="w-6 h-6 bg-red-655 rounded-full z-10"></span>
+                        </div>
+                      ) : (
+                        <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                         </svg>
-                        Start Recording
-                      </span>
+                      )}
+                    </div>
+                    <h4 className="text-2xl font-bold text-gray-900 mb-2">
+                      {isRecording ? 'Listening to your voice...' : 'Voice Input'}
+                    </h4>
+                    <p className="text-gray-600 mb-6">
+                      {isRecording ? 'Speak clearly. Your words will be transcribed in the text area.' : 'Click the button below to start transcribing your speech'}
+                    </p>
+                    <button
+                      onClick={toggleRecording}
+                      className={`px-8 py-4 text-white font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto ${
+                        isRecording 
+                          ? 'bg-gradient-to-r from-red-500 to-pink-655 hover:shadow-red-500/30'
+                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-indigo-500/30'
+                      }`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {isRecording ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        )}
+                      </svg>
+                      {isRecording ? 'Stop Recording' : 'Start Recording'}
                     </button>
                   </div>
                 )}
@@ -653,19 +793,19 @@ function CreateQuiz() {
 
               {/* Topic Focus */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Topic Focus</label>
+                <label className="block text-sm font-bold text-slate-750 mb-2">Topic Focus</label>
                 <input
                   type="text"
                   placeholder="e.g. Photosynthesis, databases..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium text-sm text-slate-905"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-202 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium text-sm text-slate-905"
                 />
               </div>
 
               {/* Difficulty Level */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-705 mb-3">Difficulty Level</label>
+                <label className="block text-sm font-bold text-slate-700 mb-3">Difficulty Level</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { value: 'easy', label: 'Easy', color: 'from-green-500 to-emerald-600' },
@@ -678,7 +818,7 @@ function CreateQuiz() {
                       className={`py-3 rounded-xl font-bold text-sm transition-all duration-300 ${
                         difficulty === level.value
                           ? `bg-gradient-to-r ${level.color} text-white shadow-lg scale-105`
-                          : 'bg-slate-100 text-slate-655 hover:bg-slate-200'
+                          : 'bg-slate-105 text-slate-655 hover:bg-slate-200'
                       }`}
                     >
                       {level.label}
@@ -699,7 +839,7 @@ function CreateQuiz() {
                   max="100"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-center text-lg"
                 />
-                <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
+                <p className="text-xs text-gray-550 mt-2 text-center">Maximum 100 questions</p>
                 {(numQuestions && parseInt(numQuestions) > 100) && (
                   <p className="text-xs text-red-600 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
                 )}
@@ -707,7 +847,7 @@ function CreateQuiz() {
 
               {/* Time Per Question */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-3">Time Per Question</label>
+                <label className="block text-sm font-bold text-slate-750 mb-3">Time Per Question</label>
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {[30, 60, 120].map((time) => (
                     <button
@@ -719,7 +859,7 @@ function CreateQuiz() {
                       className={`py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
                         timePerQuestion === time && !customTime
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-205'
                       }`}
                     >
                       {time}s
@@ -734,10 +874,10 @@ function CreateQuiz() {
                     setTimePerQuestion(parseInt(e.target.value) || 60);
                   }}
                   placeholder="Custom time (max 300s)"
-                  className="w-full px-4 py-2 bg-slate-55 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 />
                 {(customTime && parseInt(customTime) > 300) && (
-                  <p className="text-xs text-red-600 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
+                  <p className="text-xs text-red-655 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
                 )}
               </div>
 
@@ -826,7 +966,7 @@ function CreateQuiz() {
       {showToast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
           <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 px-6 py-4 flex items-center gap-3 min-w-[320px]">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-l-2xl"></div>
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-650 to-purple-650 rounded-l-2xl"></div>
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -1025,7 +1165,7 @@ function QuestionEditor({ question, onSave, onCancel }) {
           className={`w-full py-3 sm:py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
             hasChanges
               ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl cursor-pointer'
-              : 'bg-gray-300 text-gray-550 cursor-not-allowed opacity-60'
+              : 'bg-gray-300 text-gray-555 cursor-not-allowed opacity-60'
           }`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
