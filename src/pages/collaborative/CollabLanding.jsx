@@ -24,17 +24,35 @@ function CollabLanding() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-blue-300/30 to-indigo-300/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
       </div>
 
-      <div className="relative z-10 flex-1 flex flex-col max-w-7xl mx-auto w-full py-8 sm:py-12 px-4">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate('/mode-selection')}
-          className="group flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-all duration-300 mb-8"
-        >
-          <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span className="font-bold">Back</span>
-        </button>
+      {/* Navigation */}
+      <nav className="relative z-30 px-4 sm:px-6 py-6 w-full">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
+            <div className="w-11 h-11 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-xl group-hover:shadow-indigo-500/50 transition-all duration-300 group-hover:rotate-3">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              QuizMaster
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/mode-selection')}
+              className="group flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 bg-white/80 hover:bg-white border-2 border-gray-200 rounded-lg transition-all duration-300"
+            >
+              <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="text-sm font-semibold">Back</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="relative z-10 flex-1 flex flex-col max-w-7xl mx-auto w-full py-8 px-4">
 
         {/* Header Section */}
         <div className="text-center space-y-4 sm:space-y-6 mb-12 sm:mb-16">
