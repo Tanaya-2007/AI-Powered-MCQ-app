@@ -140,8 +140,13 @@ function SoloMode() {
       triggerAlert('Please enter time per question', 'warning');
       return;
     }
-    if (time > 300) {
-      triggerAlert('Time cannot exceed 5 minutes (300 seconds)! Please reduce the time.', 'warning');
+    if (activeTab === 'text' || activeTab === 'voice') {
+      if (!textInput || textInput.trim().length < 30) {
+        triggerAlert('Please enter valid study material notes or record a voice note of at least 30 characters. Single words or short sentences (like "hey", "hii") are not sufficient for generating a quiz.', 'warning');
+        return;
+      }
+    } else if ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile) {
+      triggerAlert('Please upload a PDF or textbook image file first.', 'warning');
       return;
     }
 

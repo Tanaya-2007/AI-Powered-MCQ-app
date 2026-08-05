@@ -175,6 +175,15 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
       });
     }
 
+    // Strict validation: check if the study content is too short (e.g., greetings, single words)
+    if (rawText.trim().length < 30) {
+      return res.status(400).json({
+        success: false,
+        message: 'The provided content is too short to generate a meaningful quiz from (minimum 30 characters required). Please enter valid study material notes or upload a valid file.',
+        reason: 'Content length is under 30 characters.'
+      });
+    }
+
     // Optional: Validate content relevance to topic if topic is provided
     const topic = req.body.topic;
     if (topic && topic.trim().length >= 2) {
@@ -186,6 +195,7 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
       const checkPrompt = `
         You are a content validation assistant.
         Analyze if the following text is relevant to the topic focus: "${topic}".
+        If the text is just a simple greeting (like "hey", "hello", "hi", "testing"), gibberish, or completely unrelated to the academic/informational topic "${topic}", you MUST classify it as NOT relevant.
         Return ONLY a valid JSON object matching this schema:
         {
           "relevant": true or false,
@@ -211,7 +221,15 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
         }
         console.log(`✅ Relevance check passed! Content matches topic: "${topic}"`);
       } catch (checkErr) {
-        console.warn('⚠️ Relevance check validation error (bypassing):', checkErr.message);
+        console.error('⚠️ Relevance check validation error:', checkErr.message);
+        // If relevance check fails due to parsing or API issues but the content is clearly a brief message, reject it
+        if (rawText.trim().toLowerCase().includes('hey') || rawText.trim().toLowerCase().includes('hello') || rawText.trim().length < 50) {
+          return res.status(400).json({
+            success: false,
+            message: `The uploaded content is not valid study material for the topic "${topic}".`,
+            reason: 'Content is brief or conversational.'
+          });
+        }
       }
     }
 
@@ -296,6 +314,13 @@ app.post('/api/generate-quiz', async (req, res) => {
         })
         .join('\n\n---\n\n');
     } else {
+      if (materialId) {
+        console.warn(`❌ Topic mismatch: No content in uploaded material matches topic "${topic}".`);
+        return res.status(400).json({
+          success: false,
+          message: `No relevant content found for topic "${topic}" in your uploaded study material. Please make sure your Topic Focus matches the contents of your uploaded document.`
+        });
+      }
       console.log('⚠️ No matching segments found in Vector store. Falling back to general knowledge.');
       fallback = true;
     }

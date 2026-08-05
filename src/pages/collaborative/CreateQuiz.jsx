@@ -171,15 +171,16 @@ function CreateQuiz() {
       return;
     }
   
-    if (activeTab === 'text' && !textInput.trim()) {
-      triggerAlert('Please paste or write your text content first.', 'warning');
+    if (activeTab === 'text' || activeTab === 'voice') {
+      if (!textInput || textInput.trim().length < 30) {
+        triggerAlert('Please enter valid study material notes or record a voice note of at least 30 characters. Single words or short sentences (like "hey", "hii") are not sufficient for generating a quiz.', 'warning');
+        return;
+      }
+    } else if ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile) {
+      triggerAlert('Please upload a PDF or textbook image file first.', 'warning');
       return;
     }
-    if (activeTab === 'file' && !uploadedFile) {
-      triggerAlert('Please upload a study material file (PDF/Image) first.', 'warning');
-      return;
-    }
-  
+
     setIsGenerating(true);
     let materialId = null;
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
