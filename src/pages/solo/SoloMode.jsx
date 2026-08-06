@@ -38,15 +38,22 @@ function SoloMode() {
     if (SpeechRecognition) {
       const rec = new SpeechRecognition();
       rec.continuous = true;
-      rec.interimResults = true;
+      rec.interimResults = false;
       rec.lang = 'en-US';
 
       rec.onresult = (event) => {
-        let transcript = '';
+        let resultText = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            resultText += event.results[i][0].transcript;
+          }
         }
-        setTextInput(prev => prev + ' ' + transcript);
+        if (resultText) {
+          setTextInput(prev => {
+            const cleanPrev = prev.trim();
+            return cleanPrev ? `${cleanPrev} ${resultText.trim()}` : resultText.trim();
+          });
+        }
       };
 
       rec.onerror = (e) => {
@@ -56,7 +63,7 @@ function SoloMode() {
 
       rec.onend = () => {
         setIsRecording(false);
-        setActiveTab('text'); // Switch tab only when recording stops or finishes
+        setActiveTab('text');
       };
 
       setRecognition(rec);
@@ -71,10 +78,7 @@ function SoloMode() {
 
     if (isRecording) {
       recognition.stop();
-      setIsRecording(false);
-      setActiveTab('text'); // Switch tab only when recording stops
     } else {
-      // Do NOT switch to text when starting recording so user stays on Voice tab
       try {
         recognition.start();
         setIsRecording(true);
@@ -83,6 +87,7 @@ function SoloMode() {
       }
     }
   };
+
 
   const handleFileUpload = (file) => {
     if (file) {
