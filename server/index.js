@@ -189,7 +189,7 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
     if (topic && topic.trim().length >= 2) {
       console.log(`🔍 Validating relevance of uploaded content to topic focus: "${topic}"`);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash',
         generationConfig: { responseMimeType: 'application/json' }
       });
       const checkPrompt = `
@@ -336,7 +336,7 @@ app.post('/api/generate-quiz', async (req, res) => {
   // C. Build the prompt for Gemini
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash',
       generationConfig: {
         responseMimeType: 'application/json'
       }
@@ -410,8 +410,20 @@ app.post('/api/generate-quiz', async (req, res) => {
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
-    // Parse response
-    const questions = JSON.parse(responseText);
+    // Parse response with resilient extraction (removes markdown wrapping and extracts raw JSON arrays)
+    let questions;
+    try {
+      const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
+      questions = JSON.parse(cleanJsonText);
+    } catch (e) {
+      console.warn('⚠️ Standard JSON parse failed, attempting regex array extraction:', e.message);
+      const arrayMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (arrayMatch) {
+        questions = JSON.parse(arrayMatch[0]);
+      } else {
+        throw new Error('Failed to extract valid JSON questions array from response:\n' + responseText);
+      }
+    }
 
     console.log(`🎉 Successfully generated ${questions.length} questions.`);
     res.json({

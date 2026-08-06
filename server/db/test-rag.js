@@ -1,6 +1,6 @@
 import { generateEmbedding } from '../utils/gemini.js';
 import { initDbPool, getConnection, closeDbPool } from './db.js';
-import { saveMaterial, saveChunk, searchSimilarChunks } from './vectorStore.js';
+import { saveMaterial, saveChunk, searchSimilarChunks, initializeSchema } from './vectorStore.js';
 
 async function runTest() {
   console.log('🧪 Starting End-to-End RAG Code Verification Test...\n');
@@ -33,7 +33,10 @@ async function runTest() {
 
     const conn = await getConnection();
     console.log('✅ Oracle DB Connection: SUCCESS!');
-    await conn.close();
+    conn.release();
+
+    // Initialize the schema tables if not exist
+    await initializeSchema();
 
     // 3. Test Vector Store Operations (Only runs if DB is configured)
     console.log('\n📝 Testing Vector Store Writes & Search...');
