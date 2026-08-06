@@ -26,8 +26,11 @@ export async function generateEmbedding(text) {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-    const result = await model.embedContent(text);
+    const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+    const result = await model.embedContent({
+      content: { parts: [{ text }] },
+      outputDimensionality: 768
+    });
     
     if (result && result.embedding && result.embedding.values) {
       return result.embedding.values;
