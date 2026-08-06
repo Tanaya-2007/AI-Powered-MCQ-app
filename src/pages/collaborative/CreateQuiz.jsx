@@ -368,7 +368,7 @@ function CreateQuiz() {
 
             <button
               onClick={() => setCustomAlert(null)}
-              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-black rounded-2xl hover:shadow-xl shadow-indigo-550/20 active:scale-98 transition-all duration-200 tracking-wider text-base"
+              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-2xl hover:shadow-xl shadow-indigo-500/20 active:scale-98 transition-all duration-200 tracking-wider text-base"
             >
               OK
             </button>
@@ -970,7 +970,7 @@ function CreateQuiz() {
       {showToast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
           <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 px-6 py-4 flex items-center gap-3 min-w-[320px]">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-650 to-purple-650 rounded-l-2xl"></div>
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-l-2xl"></div>
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

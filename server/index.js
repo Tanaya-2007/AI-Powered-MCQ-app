@@ -210,7 +210,9 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
       
       try {
         const checkResult = await model.generateContent(checkPrompt);
-        const checkData = JSON.parse(checkResult.response.text());
+        const responseText = checkResult.response.text();
+        const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
+        const checkData = JSON.parse(cleanJsonText);
         if (checkData.relevant === false) {
           console.warn(`❌ Ingestion rejected: Content is not relevant to topic "${topic}". Reason: ${checkData.reason}`);
           return res.status(400).json({
@@ -223,7 +225,9 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
       } catch (checkErr) {
         console.error('⚠️ Relevance check validation error:', checkErr.message);
         // If relevance check fails due to parsing or API issues but the content is clearly a brief message, reject it
-        if (rawText.trim().toLowerCase().includes('hey') || rawText.trim().toLowerCase().includes('hello') || rawText.trim().length < 50) {
+        const textLower = rawText.trim().toLowerCase();
+        const isGreeting = /\b(hey|hello|hi|hii|helloo|testing)\b/.test(textLower);
+        if (isGreeting || rawText.trim().length < 50) {
           return res.status(400).json({
             success: false,
             message: `The uploaded content is not valid study material for the topic "${topic}".`,
