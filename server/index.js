@@ -14,6 +14,7 @@ import { splitText } from './utils/textSplitter.js';
 import { generateEmbedding } from './utils/gemini.js';
 import { saveMaterial, saveChunk, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateGroqContent } from './utils/groq.js';
 import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
 
 // Load environment variables
@@ -209,8 +210,15 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
       `;
       
       try {
-        const checkResult = await model.generateContent(checkPrompt);
-        const responseText = checkResult.response.text();
+        let responseText;
+        if (process.env.GROQ_API_KEY) {
+          console.log('🤖 Running relevance check via Groq API (Llama 3.3)...');
+          responseText = await generateGroqContent(checkPrompt, 'application/json');
+        } else {
+          console.log('🛰️ Running relevance check via Gemini API...');
+          const checkResult = await model.generateContent(checkPrompt);
+          responseText = checkResult.response.text();
+        }
         const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
         const checkData = JSON.parse(cleanJsonText);
         if (checkData.relevant === false) {
@@ -424,8 +432,15 @@ app.post('/api/generate-quiz', async (req, res) => {
       `;
     }
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    let responseText;
+    if (process.env.GROQ_API_KEY) {
+      console.log('🤖 Generating quiz questions via Groq API (Llama 3.3)...');
+      responseText = await generateGroqContent(prompt, 'application/json');
+    } else {
+      console.log('🛰️ Generating quiz questions via Gemini API...');
+      const result = await model.generateContent(prompt);
+      responseText = result.response.text();
+    }
     
     // Parse response with resilient extraction (removes markdown wrapping and extracts raw JSON arrays)
     let questions;
