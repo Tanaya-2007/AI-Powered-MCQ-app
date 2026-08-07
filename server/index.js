@@ -224,6 +224,23 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
         console.log(`✅ Relevance check passed! Content matches topic: "${topic}"`);
       } catch (checkErr) {
         console.error('⚠️ Relevance check validation error:', checkErr.message);
+        
+        // Report quota exceeded errors immediately
+        if (checkErr.message.includes('429') || checkErr.message.includes('quota') || checkErr.message.toLowerCase().includes('quota exceeded') || checkErr.message.includes('QuotaFailure')) {
+          return res.status(429).json({
+            success: false,
+            message: 'Your Google Gemini API Key has exceeded its quota or has been restricted (Rate Limit: 0). Please generate a new API Key in a new project on Google AI Studio or add billing to your current project.'
+          });
+        }
+        
+        // Report network connection failures immediately
+        if (checkErr.message.includes('fetch failed') || checkErr.message.includes('network socket') || checkErr.message.includes('ECONNRESET')) {
+          return res.status(503).json({
+            success: false,
+            message: 'A local network connection error occurred while connecting to the Google Gemini API. Please check your internet connection or disable any active VPN/proxies.'
+          });
+        }
+
         // If relevance check fails due to parsing or API issues but the content is clearly a brief message, reject it
         const textLower = rawText.trim().toLowerCase();
         const isGreeting = /\b(hey|hello|hi|hii|helloo|testing)\b/.test(textLower);
@@ -435,7 +452,23 @@ app.post('/api/generate-quiz', async (req, res) => {
   } catch (error) {
     console.error('❌ Gemini quiz generation notice:', error.message);
     
-    // Fallback question generator to guarantee quiz creation succeeds seamlessly
+    // If the error is a quota/rate limit error, return a clear error instead of falling back to sample questions
+    if (error.message.includes('429') || error.message.includes('quota') || error.message.toLowerCase().includes('quota exceeded') || error.message.includes('QuotaFailure')) {
+      return res.status(429).json({
+        success: false,
+        message: 'Your Google Gemini API Key has exceeded its quota or has been restricted (Rate Limit: 0). Please generate a new API Key in a new project on Google AI Studio or add billing to your current project.'
+      });
+    }
+
+    // If it is a TLS/DNS connection network socket reset error, return a clear error
+    if (error.message.includes('fetch failed') || error.message.includes('network socket') || error.message.includes('ECONNRESET')) {
+      return res.status(503).json({
+        success: false,
+        message: 'A local network connection error occurred while connecting to the Google Gemini API. Please check your internet connection or disable any active VPN/proxies.'
+      });
+    }
+    
+    // Fallback question generator to guarantee quiz creation succeeds seamlessly for local non-critical test cases
     const fallbackQuestions = Array.from({ length: Math.min(Number(count) || 5, 10) }, (_, i) => ({
       question: `Sample Question ${i + 1} on ${topic}: What is a core principle of ${topic}?`,
       options: [

@@ -37,6 +37,9 @@ export async function generateEmbedding(text) {
     }
   } catch (error) {
     console.warn('⚠️ Gemini embedding API call skipped/failed, generating 768-dim deterministic vector:', error.message);
+    if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('fetch failed') || error.message.includes('ECONNRESET')) {
+      throw error;
+    }
   }
 
   // Fallback: Generate a 768-dimensional float array from text char codes to guarantee vector DB storage succeeds
