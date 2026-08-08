@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateOpenAIEmbedding } from './openai.js';
 import dotenv from 'dotenv';
 
 // Load environment variables in case this utility is executed independently
@@ -23,6 +24,16 @@ const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key');
 export async function generateEmbedding(text) {
   if (!text || typeof text !== 'string' || text.trim() === '') {
     throw new Error('Input text must be a valid non-empty string.');
+  }
+
+  // If OpenAI is configured, use OpenAI embedding!
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      console.log('🤖 Generating 768-dim embedding via OpenAI (text-embedding-3-small)...');
+      return await generateOpenAIEmbedding(text);
+    } catch (error) {
+      console.error('❌ OpenAI embedding generation failed, falling back...', error.message);
+    }
   }
 
   try {

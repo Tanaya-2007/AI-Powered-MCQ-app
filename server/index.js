@@ -15,6 +15,7 @@ import { generateEmbedding } from './utils/gemini.js';
 import { saveMaterial, saveChunk, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { generateGroqContent } from './utils/groq.js';
+import { generateOpenAIContent } from './utils/openai.js';
 import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
 
 // Load environment variables
@@ -214,6 +215,9 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
         if (process.env.GROQ_API_KEY) {
           console.log('🤖 Running relevance check via Groq API (Llama 3.3)...');
           responseText = await generateGroqContent(checkPrompt, 'application/json');
+        } else if (process.env.OPENAI_API_KEY) {
+          console.log('🤖 Running relevance check via OpenAI API (gpt-4o-mini)...');
+          responseText = await generateOpenAIContent(checkPrompt, 'application/json');
         } else {
           console.log('🛰️ Running relevance check via Gemini API...');
           const checkResult = await model.generateContent(checkPrompt);
@@ -436,6 +440,9 @@ app.post('/api/generate-quiz', async (req, res) => {
     if (process.env.GROQ_API_KEY) {
       console.log('🤖 Generating quiz questions via Groq API (Llama 3.3)...');
       responseText = await generateGroqContent(prompt, 'application/json');
+    } else if (process.env.OPENAI_API_KEY) {
+      console.log('🤖 Generating quiz questions via OpenAI API (gpt-4o-mini)...');
+      responseText = await generateOpenAIContent(prompt, 'application/json');
     } else {
       console.log('🛰️ Generating quiz questions via Gemini API...');
       const result = await model.generateContent(prompt);
