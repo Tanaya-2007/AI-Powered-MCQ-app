@@ -472,9 +472,9 @@ app.post('/api/generate-quiz', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Gemini quiz generation notice:', error.message);
+    console.error('❌ Quiz generation error:', error.message);
     
-    // If the error is a quota/rate limit error, return a clear error instead of falling back to sample questions
+    // If the error is a quota/rate limit error, return a clear error
     if (error.message.includes('429') || error.message.includes('quota') || error.message.toLowerCase().includes('quota exceeded') || error.message.includes('QuotaFailure')) {
       return res.status(429).json({
         success: false,
@@ -490,23 +490,10 @@ app.post('/api/generate-quiz', async (req, res) => {
       });
     }
     
-    // Fallback question generator to guarantee quiz creation succeeds seamlessly for local non-critical test cases
-    const fallbackQuestions = Array.from({ length: Math.min(Number(count) || 5, 10) }, (_, i) => ({
-      question: `Sample Question ${i + 1} on ${topic}: What is a core principle of ${topic}?`,
-      options: [
-        `Fundamental concept ${i + 1} of ${topic}`,
-        `Alternative implementation approach`,
-        `Legacy standard model`,
-        `None of the above`
-      ],
-      correctAnswer: 0,
-      explanation: `Option A represents the fundamental concept of ${topic} based on standard curriculum guidelines.`
-    }));
-
-    res.json({
-      success: true,
-      fallback: true,
-      questions: fallbackQuestions
+    // Return the actual failure error to prevent silently falling back to mock questions
+    res.status(500).json({
+      success: false,
+      message: `Failed to generate quiz: ${error.message}`
     });
   }
 });

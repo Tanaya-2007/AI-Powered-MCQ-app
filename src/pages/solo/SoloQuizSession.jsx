@@ -88,6 +88,20 @@ function SoloQuizSession() {
   const markedCount = markedForReview.filter(m => m).length;
   const [pageTransition, setPageTransition] = useState('fade-in');
 
+  // Handle quiz completion navigation
+  useEffect(() => {
+    if (quizComplete) {
+      const results = calculateResults();
+      navigate('/solo-results', {
+        state: {
+          results,
+          quizData,
+          answers
+        }
+      });
+    }
+  }, [quizComplete, answers, quizData, navigate]);
+
   
   const handleSelectAnswer = useCallback((index) => {
     if (isAnswered) return;
