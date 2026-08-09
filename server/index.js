@@ -318,18 +318,28 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
 
 // 4. AI Quiz Generation Endpoint (Semantic Search + Gemini MCQ Creator)
 app.post('/api/generate-quiz', async (req, res) => {
-  const { topic, materialId, count = 5, difficulty = 'medium' } = req.body;
+  let { topic, materialId, count = 5, difficulty = 'medium' } = req.body;
 
   if (!topic || topic.trim() === '') {
     return res.status(400).json({ success: false, message: 'Topic name is required.' });
   }
 
   let contextText = '';
-  let fallback = false;
 
   console.log(`🔍 Received quiz generation request for topic: "${topic}" (Difficulty: ${difficulty}, Count: ${count})`);
 
   try {
+    // If materialId is not provided, fallback to the latest uploaded study material ID
+    if (!materialId) {
+      console.log('⚠️ materialId was not supplied. Querying the latest uploaded material ID...');
+      const pool = initDbPool();
+      const latestRes = await pool.query('SELECT id FROM study_materials ORDER BY created_at DESC LIMIT 1');
+      if (latestRes.rows.length > 0) {
+        materialId = latestRes.rows[0].id;
+        console.log(`✅ Using latest material ID: ${materialId}`);
+      }
+    }
+
     // A. Generate embedding for query topic
     const queryEmbedding = await generateEmbedding(topic);
 
@@ -347,19 +357,18 @@ app.post('/api/generate-quiz', async (req, res) => {
         })
         .join('\n\n---\n\n');
     } else {
-      if (materialId) {
-        console.warn(`❌ Topic mismatch: No content in uploaded material matches topic "${topic}".`);
-        return res.status(400).json({
-          success: false,
-          message: `No relevant content found for topic "${topic}" in your uploaded study material. Please make sure your Topic Focus matches the contents of your uploaded document.`
-        });
-      }
-      console.log('⚠️ No matching segments found in Vector store. Falling back to general knowledge.');
-      fallback = true;
+      console.warn(`❌ No relevant chunks found for topic "${topic}".`);
+      return res.status(400).json({
+        success: false,
+        message: `No relevant content found for topic "${topic}" in your uploaded study material. Please make sure your Topic Focus matches the contents of your uploaded document.`
+      });
     }
   } catch (error) {
-    console.warn('⚠️ Vector store retrieval skipped/failed. Falling back to general knowledge. Detail:', error.message);
-    fallback = true;
+    console.error('❌ Vector store retrieval failed:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to retrieve study material context: ${error.message}`
+    });
   }
 
   // C. Build the prompt for Gemini
@@ -371,70 +380,39 @@ app.post('/api/generate-quiz', async (req, res) => {
       }
     });
 
-    let prompt = '';
-    if (fallback) {
-      prompt = `
-        You are an expert educator. Your task is to generate a multiple-choice quiz based on your general knowledge.
-        
-        Topic to focus on: "${topic}"
-        Difficulty level: "${difficulty}"
-        Number of questions required: ${count}
-        
-        INSTRUCTIONS:
-        1. Generate exactly ${count} multiple-choice questions focusing on the topic "${topic}".
-        2. Align the questions to the "${difficulty}" difficulty level.
-        3. Every question must have:
-           - "question": string text
-           - "options": an array of exactly 4 strings
-           - "correctAnswer": number index (0, 1, 2, or 3) representing the correct option in the options array
-           - "explanation": a detailed explanation of why that option is correct.
-        4. Respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting, no introductory text, and no conversational text.
-        
-        JSON Array Schema:
-        [
-          {
-            "question": "question text",
-            "options": ["option A", "option B", "option C", "option D"],
-            "correctAnswer": 0,
-            "explanation": "explanation details"
-          }
-        ]
-      `;
-    } else {
-      prompt = `
-        You are an expert educator. Your task is to generate a multiple-choice quiz based on the textbook segments provided below.
-        
-        Topic to focus on: "${topic}"
-        Difficulty level: "${difficulty}"
-        Number of questions required: ${count}
-        
-        CONTEXT SEGMENTS FROM TEXTBOOK:
-        ===
-        ${contextText}
-        ===
-        
-        INSTRUCTIONS:
-        1. Generate exactly ${count} multiple-choice questions focusing on the topic "${topic}".
-        2. Use the provided context segments to source the questions and explanations. If the context does not contain enough information, you may supplement it with your general knowledge, but prioritize the context.
-        3. Align the questions to the "${difficulty}" difficulty level.
-        4. Every question must have:
-           - "question": string text
-           - "options": an array of exactly 4 strings
-           - "correctAnswer": number index (0, 1, 2, or 3) representing the correct option in the options array
-           - "explanation": a detailed explanation of why that option is correct, referencing concepts from the context.
-        5. Respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting, no introductory text, and no conversational text.
-        
-        JSON Array Schema:
-        [
-          {
-            "question": "question text",
-            "options": ["option A", "option B", "option C", "option D"],
-            "correctAnswer": 0,
-            "explanation": "explanation details"
-          }
-        ]
-      `;
-    }
+    const prompt = `
+      You are an expert educator. Your task is to generate a multiple-choice quiz based on the textbook segments provided below.
+      
+      Topic to focus on: "${topic}"
+      Difficulty level: "${difficulty}"
+      Number of questions required: ${count}
+      
+      CONTEXT SEGMENTS FROM TEXTBOOK:
+      ===
+      ${contextText}
+      ===
+      
+      INSTRUCTIONS:
+      1. Generate exactly ${count} multiple-choice questions focusing on the topic "${topic}".
+      2. Use ONLY the provided context segments to source the questions and explanations. Do NOT generate questions using external general knowledge or other topics not covered in the provided textbook segments.
+      3. Align the questions to the "${difficulty}" difficulty level.
+      4. Every question must have:
+         - "question": string text
+         - "options": an array of exactly 4 strings
+         - "correctAnswer": number index (0, 1, 2, or 3) representing the correct option in the options array
+         - "explanation": a detailed explanation of why that option is correct, referencing concepts from the context.
+      5. Respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting, no introductory text, and no conversational text.
+      
+      JSON Array Schema:
+      [
+        {
+          "question": "question text",
+          "options": ["option A", "option B", "option C", "option D"],
+          "correctAnswer": 0,
+          "explanation": "explanation details"
+        }
+      ]
+    `;
 
     let responseText;
     if (process.env.GROQ_API_KEY) {

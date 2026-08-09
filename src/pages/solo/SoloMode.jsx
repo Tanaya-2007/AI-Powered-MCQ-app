@@ -167,10 +167,11 @@ function SoloMode() {
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(currentUrl, options);
-          if (res.ok || res.status === 400) return res;
+          if (res.ok || res.status === 400 || res.status === 429 || res.status === 500 || res.status === 503) return res;
         } catch (err) {
-          // If local connection fails, switch to production URL
-          if (currentUrl.startsWith('http://localhost:5000') || currentUrl.startsWith('http://127.0.0.1:5000')) {
+          // If local connection fails, switch to production URL ONLY if we are not testing on localhost
+          const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          if (!isLocal && (currentUrl.startsWith('http://localhost:5000') || currentUrl.startsWith('http://127.0.0.1:5000'))) {
             console.warn("Local backend connection refused/failed. Switching to cloud backend...");
             const prodBase = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
             currentUrl = currentUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5000/, prodBase);
@@ -184,7 +185,7 @@ function SoloMode() {
     };
 
     try {
-      if (activeTab === 'text' && textInput.trim() !== '') {
+      if ((activeTab === 'text' || activeTab === 'voice') && textInput.trim() !== '') {
         const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
           method: 'POST',
           headers: {
@@ -204,7 +205,7 @@ function SoloMode() {
           setIsGenerating(false);
           return;
         }
-      } else if (activeTab === 'file' && uploadedFile) {
+      } else if ((activeTab === 'image' || activeTab === 'pdf') && uploadedFile) {
         const formData = new FormData();
         formData.append('file', uploadedFile);
         formData.append('topic', topic);
@@ -493,8 +494,9 @@ function SoloMode() {
                   ].map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`group relative flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                      onClick={() => !isGenerating && setActiveTab(tab.id)}
+                      disabled={isGenerating}
+                      className={`group relative flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                         activeTab === tab.id
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg scale-105'
                           : 'bg-white text-gray-600 hover:bg-gray-55 border border-slate-200'
@@ -524,14 +526,16 @@ function SoloMode() {
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Paste your text content here... (lecture notes, book chapters, articles, etc.)"
                       rows="12"
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-gray-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none transition-all duration-300"
+                      disabled={isGenerating}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-gray-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-500">{textInput.length} characters</span>
                       {textInput && (
                         <button
-                          onClick={() => setTextInput('')}
-                          className="text-red-655 hover:text-red-750 font-semibold"
+                          onClick={() => !isGenerating && setTextInput('')}
+                          disabled={isGenerating}
+                          className="text-red-655 hover:text-red-750 font-semibold disabled:opacity-55 disabled:cursor-not-allowed"
                         >
                           Clear
                         </button>
@@ -545,14 +549,14 @@ function SoloMode() {
                   <div className="space-y-4">
                     {!uploadedFile ? (
                       <div
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
+                        onDrop={isGenerating ? undefined : handleDrop}
+                        onDragOver={isGenerating ? undefined : handleDragOver}
+                        onDragLeave={isGenerating ? undefined : handleDragLeave}
                         className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
                           isDragging
                             ? 'border-indigo-500 bg-indigo-50/50'
                             : 'border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30'
-                        }`}
+                        } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-purple-655 rounded-2xl flex items-center justify-center">
                           <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -563,10 +567,11 @@ function SoloMode() {
                           Drop your {activeTab === 'image' ? 'image' : 'PDF'} here
                         </h4>
                         <p className="text-gray-605 mb-4">or click to browse</p>
-                        <label className="inline-block px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl cursor-pointer hover:shadow-lg transition-all duration-300">
+                        <label className={`inline-block px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl cursor-pointer hover:shadow-lg transition-all duration-300 ${isGenerating ? 'opacity-55 cursor-not-allowed pointer-events-none' : ''}`}>
                           Choose File
                           <input
                             type="file"
+                            disabled={isGenerating}
                             accept={activeTab === 'image' ? 'image/*' : '.pdf'}
                             onChange={(e) => handleFileUpload(e.target.files[0])}
                             className="hidden"
@@ -589,18 +594,20 @@ function SoloMode() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <label className="px-4 py-2 bg-white border border-slate-200 text-gray-700 font-semibold rounded-lg cursor-pointer hover:bg-slate-50 transition-all shadow-sm">
+                            <label className={`px-4 py-2 bg-white border border-slate-200 text-gray-700 font-semibold rounded-lg cursor-pointer hover:bg-slate-50 transition-all shadow-sm ${isGenerating ? 'opacity-55 cursor-not-allowed pointer-events-none' : ''}`}>
                               Replace
                               <input
                                 type="file"
+                                disabled={isGenerating}
                                 accept={activeTab === 'image' ? 'image/*' : '.pdf'}
                                 onChange={(e) => handleFileUpload(e.target.files[0])}
                                 className="hidden"
                               />
                             </label>
                             <button
-                              onClick={removeFile}
-                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-655 transition-all"
+                              onClick={() => !isGenerating && removeFile()}
+                              disabled={isGenerating}
+                              className="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-655 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Remove
                             </button>
@@ -673,7 +680,8 @@ function SoloMode() {
                   placeholder="e.g. Photosynthesis, databases..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium text-sm text-slate-900"
+                  disabled={isGenerating}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium text-sm text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -688,8 +696,9 @@ function SoloMode() {
                   ].map((level) => (
                     <button
                       key={level.value}
-                      onClick={() => setDifficulty(level.value)}
-                      className={`py-3 rounded-xl font-bold text-sm transition-all duration-300 ${
+                      onClick={() => !isGenerating && setDifficulty(level.value)}
+                      disabled={isGenerating}
+                      className={`py-3 rounded-xl font-bold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                         difficulty === level.value
                           ? `bg-gradient-to-r ${level.color} text-white shadow-lg scale-105`
                           : 'bg-slate-100 text-slate-655 hover:bg-slate-200'
@@ -708,12 +717,13 @@ function SoloMode() {
                   type="number"
                   value={numQuestions}
                   onChange={(e) => setNumQuestions(e.target.value)}
+                  disabled={isGenerating}
                   placeholder="Enter number (max 100)"
                   min="1"
                   max="100"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-center text-lg"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-center text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-500 mt-2 text-center">Maximum 100 questions</p>
+                <p className="text-xs text-gray-550 mt-2 text-center">Maximum 100 questions</p>
                 {(numQuestions && parseInt(numQuestions) > 100) && (
                   <p className="text-xs text-red-650 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
                 )}
@@ -727,10 +737,13 @@ function SoloMode() {
                     <button
                       key={time}
                       onClick={() => {
-                        setTimePerQuestion(time);
-                        setCustomTime('');
+                        if (!isGenerating) {
+                          setTimePerQuestion(time);
+                          setCustomTime('');
+                        }
                       }}
-                      className={`py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
+                      disabled={isGenerating}
+                      className={`py-2 rounded-lg font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                         timePerQuestion === time && !customTime
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-202'
@@ -747,8 +760,9 @@ function SoloMode() {
                     setCustomTime(e.target.value);
                     setTimePerQuestion(parseInt(e.target.value) || 60);
                   }}
+                  disabled={isGenerating}
                   placeholder="Custom time (max 300s)"
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 {(customTime && parseInt(customTime) > 300) && (
                   <p className="text-xs text-red-655 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
@@ -759,7 +773,7 @@ function SoloMode() {
               {!quizReady && (
                 <button
                   onClick={handleGenerateQuiz}
-                  disabled={isGenerating || !topic || topic.trim().length < 2 || (activeTab === 'text' && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
+                  disabled={isGenerating || !topic || topic.trim().length < 2 || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
                   className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
                   {isGenerating ? (
