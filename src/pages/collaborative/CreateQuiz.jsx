@@ -229,7 +229,13 @@ function CreateQuiz() {
         if (data.success) {
           materialId = data.materialId;
         } else {
-          triggerAlert(`Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`, 'error');
+          if (data.errorType === 'TOPIC_MISMATCH') {
+            triggerAlert(data.message || `Topic mismatch: Your uploaded content is not related to "${topic}".`, 'warning');
+          } else if (data.errorType === 'INSUFFICIENT_CONTENT') {
+            triggerAlert(data.message || "Your study material is too short or doesn't contain enough information to generate a quiz.", 'warning');
+          } else {
+            triggerAlert(data.message || 'Ingestion pipeline failed.', 'error');
+          }
           setIsGenerating(false);
           return;
         }
@@ -246,7 +252,13 @@ function CreateQuiz() {
         if (data.success) {
           materialId = data.materialId;
         } else {
-          triggerAlert(`Ingestion failed: ${data.message}\nReason: ${data.reason || 'Irrelevant content.'}`, 'error');
+          if (data.errorType === 'TOPIC_MISMATCH') {
+            triggerAlert(data.message || `Topic mismatch: Your uploaded content is not related to "${topic}".`, 'warning');
+          } else if (data.errorType === 'INSUFFICIENT_CONTENT') {
+            triggerAlert(data.message || "Your study material is too short or doesn't contain enough information to generate a quiz.", 'warning');
+          } else {
+            triggerAlert(data.message || 'Ingestion pipeline failed.', 'error');
+          }
           setIsGenerating(false);
           return;
         }

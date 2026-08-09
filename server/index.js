@@ -90,50 +90,39 @@ app.get('/api/status', (req, res) => {
 
 // 2. Oracle Database Connectivity Check Endpoint
 app.get('/api/db-check', async (req, res) => {
-  const user = process.env.DB_USER;
-  const password = process.env.DB_PASSWORD;
-  const connectString = process.env.DB_CONNECTION_STRING;
-
-  if (!user || !password || !connectString) {
-    return res.status(400).json({
-      success: false,
-      message: 'Database credentials are missing in the .env file. Please edit server/.env and fill in DB_USER, DB_PASSWORD, and DB_CONNECTION_STRING.'
-    });
-  }
-
   let connection;
   try {
-    // Attempt standard thin connection
-    connection = await oracledb.getConnection({
-      user,
-      password,
-      connectString
-    });
+    const pool = await initDbPool();
+    if (!pool) {
+      return res.status(400).json({
+        success: false,
+        message: 'PostgreSQL connection credentials are missing in server/.env.'
+      });
+    }
 
-    // Run a simple test query (e.g. check current sysdate or user)
-    const result = await connection.execute('SELECT user, sysdate FROM dual');
+    connection = await pool.connect();
+    const result = await connection.query('SELECT NOW()');
 
     res.json({
       success: true,
-      message: 'Successfully connected to Oracle Database!',
+      message: 'Successfully connected to PostgreSQL Database!',
       details: {
-        dbUser: result.rows[0].USER,
-        dbSysdate: result.rows[0].SYSDATE
+        now: result.rows[0].now
       }
     });
 
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to connect to Oracle Database.',
+      message: 'Failed to connect to PostgreSQL Database.',
       error: error.message
     });
   } finally {
     if (connection) {
       try {
-        await connection.close();
+        connection.release();
       } catch (err) {
-        console.error('Error closing database connection:', err);
+        console.error('Error releasing database connection:', err);
       }
     }
   }
@@ -176,67 +165,100 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
         message: 'Text extraction returned empty content. Ensure the file has readable text.'
       });
     }
-
-    // Strict validation: check if the study content is too short (e.g., greetings, single words)
-    if (rawText.trim().length < 30) {
+    // A quick local length check to avoid calling APIs on completely empty/useless input
+    if (!rawText || rawText.trim().length < 5) {
       return res.status(400).json({
         success: false,
-        message: 'The provided content is too short to generate a meaningful quiz from (minimum 30 characters required). Please enter valid study material notes or upload a valid file.',
-        reason: 'Content length is under 30 characters.'
+        errorType: 'INSUFFICIENT_CONTENT',
+        message: 'Please provide some study material first.'
       });
     }
 
-    // Optional: Validate content relevance to topic if topic is provided
     const topic = req.body.topic;
     if (topic && topic.trim().length >= 2) {
-      console.log(`🔍 Validating relevance of uploaded content to topic focus: "${topic}"`);
+      console.log(`🔍 Running semantic validation for topic focus: "${topic}"`);
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.0-flash',
         generationConfig: { responseMimeType: 'application/json' }
       });
+
       const checkPrompt = `
-        You are a content validation assistant.
-        Analyze if the following text is relevant to the topic focus: "${topic}".
-        If the text is just a simple greeting (like "hey", "hello", "hi", "testing"), gibberish, or completely unrelated to the academic/informational topic "${topic}", you MUST classify it as NOT relevant.
+        You are an advanced academic content analyzer and validation assistant.
+        Analyze the following text extract against the selected topic focus: "${topic}".
+        
+        Evaluate the text for:
+        1. Content Sufficiency:
+           - "EMPTY": If the text is empty or just white space.
+           - "INSUFFICIENT": If the text contains almost no academic or informational substance, or is just gibberish, or a generic greeting (e.g. "hey", "hello", "test"), or is too short to generate any meaningful grounded questions (e.g. just a single word like "Database" with no definition or explanation).
+           - "SUFFICIENT": If the text contains at least one meaningful definition, concept, or fact (even a single sentence like "Photosynthesis converts light energy into chemical energy") from which at least one grounded question can be created.
+           - "RICH": If the text contains multiple pages, rich sections, or comprehensive notes that can easily support multiple questions.
+        
+        2. Detected Topic:
+           - Auto-detect the primary subject or topic of the text (e.g. "Database systems", "Photosynthesis", "Java programming"). Be specific.
+        
+        3. Topic Matching (relative to the user's selected topic: "${topic}"):
+           - "EXACT": The text topic is directly and specifically the selected topic.
+           - "RELATED": The text topic is a subtopic, parent topic, or closely related academic area (e.g., selected topic is "Database", text is about "SQL Normalization"; or selected topic is "Machine Learning", text is about "Neural Networks"; or selected topic is "Computer Science", text is about "Operating Systems").
+           - "MISMATCH": The text is completely unrelated to the selected topic (e.g. selected topic is "Database", text is about "Photosynthesis" or "Plant Biology").
+        
         Return ONLY a valid JSON object matching this schema:
         {
-          "relevant": true or false,
-          "reason": "a short sentence explaining why it is or is not relevant to the topic"
+          "sufficiency": "EMPTY" | "INSUFFICIENT" | "SUFFICIENT" | "RICH",
+          "sufficiencyReason": "explanation of sufficiency classification",
+          "detectedTopic": "detected topic string",
+          "matchType": "EXACT" | "RELATED" | "MISMATCH",
+          "relationExplanation": "explanation of why it is classified as exact, related, or mismatch"
         }
         
-        Text to analyze (first 3000 chars):
+        Text to analyze (first 4000 chars):
         """
-        ${rawText.substring(0, 3000)}
+        ${rawText.substring(0, 4000)}
         """
       `;
-      
+
       try {
         let responseText;
         if (process.env.GROQ_API_KEY) {
-          console.log('🤖 Running relevance check via Groq API (Llama 3.3)...');
+          console.log('🤖 Running validation via Groq API (Llama 3.3)...');
           responseText = await generateGroqContent(checkPrompt, 'application/json');
         } else if (process.env.OPENAI_API_KEY) {
-          console.log('🤖 Running relevance check via OpenAI API (gpt-4o-mini)...');
+          console.log('🤖 Running validation via OpenAI API (gpt-4o-mini)...');
           responseText = await generateOpenAIContent(checkPrompt, 'application/json');
         } else {
-          console.log('🛰️ Running relevance check via Gemini API...');
+          console.log('🛰️ Running validation via Gemini API...');
           const checkResult = await model.generateContent(checkPrompt);
           responseText = checkResult.response.text();
         }
+
         const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
         const checkData = JSON.parse(cleanJsonText);
-        if (checkData.relevant === false) {
-          console.warn(`❌ Ingestion rejected: Content is not relevant to topic "${topic}". Reason: ${checkData.reason}`);
+
+        console.log('[Validation Result]', checkData);
+
+        if (checkData.sufficiency === 'EMPTY' || checkData.sufficiency === 'INSUFFICIENT') {
+          console.warn(`❌ Ingestion rejected: Insufficient content. Reason: ${checkData.sufficiencyReason}`);
           return res.status(400).json({
             success: false,
-            message: `The uploaded content does not appear to be relevant to your topic "${topic}".`,
-            reason: checkData.reason
+            errorType: 'INSUFFICIENT_CONTENT',
+            message: checkData.sufficiencyReason || "Your study material is too short or doesn't contain enough information to generate a quiz."
           });
         }
-        console.log(`✅ Relevance check passed! Content matches topic: "${topic}"`);
+
+        if (checkData.matchType === 'MISMATCH') {
+          console.warn(`❌ Ingestion rejected: Topic mismatch. Selected: "${topic}", Detected: "${checkData.detectedTopic}"`);
+          return res.status(400).json({
+            success: false,
+            errorType: 'TOPIC_MISMATCH',
+            message: `⚠️ Topic mismatch detected.\n\nYou selected: "${topic}"\nBut your uploaded content appears to be about: "${checkData.detectedTopic}".\n\nPlease either:\n• change the topic to "${checkData.detectedTopic}"\nOR\n• upload content related to "${topic}".`,
+            detectedTopic: checkData.detectedTopic,
+            selectedTopic: topic
+          });
+        }
+
+        console.log(`✅ Content validation passed! Sufficiency: ${checkData.sufficiency}, Match Type: ${checkData.matchType}`);
       } catch (checkErr) {
-        console.error('⚠️ Relevance check validation error:', checkErr.message);
-        
+        console.error('⚠️ Content validation error:', checkErr.message);
+
         // Report quota exceeded errors immediately
         if (checkErr.message.includes('429') || checkErr.message.includes('quota') || checkErr.message.toLowerCase().includes('quota exceeded') || checkErr.message.includes('QuotaFailure')) {
           return res.status(429).json({
@@ -244,7 +266,7 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
             message: 'Your Google Gemini API Key has exceeded its quota or has been restricted (Rate Limit: 0). Please generate a new API Key in a new project on Google AI Studio or add billing to your current project.'
           });
         }
-        
+
         // Report network connection failures immediately
         if (checkErr.message.includes('fetch failed') || checkErr.message.includes('network socket') || checkErr.message.includes('ECONNRESET')) {
           return res.status(503).json({
@@ -253,14 +275,14 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
           });
         }
 
-        // If relevance check fails due to parsing or API issues but the content is clearly a brief message, reject it
+        // Resilient fallback checks:
         const textLower = rawText.trim().toLowerCase();
         const isGreeting = /\b(hey|hello|hi|hii|helloo|testing)\b/.test(textLower);
-        if (isGreeting || rawText.trim().length < 50) {
+        if (isGreeting || rawText.trim().length < 25) {
           return res.status(400).json({
             success: false,
-            message: `The uploaded content is not valid study material for the topic "${topic}".`,
-            reason: 'Content is brief or conversational.'
+            errorType: 'INSUFFICIENT_CONTENT',
+            message: 'Your input is too limited to create meaningful MCQs. Add a few more concepts or upload study material.'
           });
         }
       }
@@ -315,6 +337,19 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
     }
   }
 });
+
+// Helpers for semantic duplication check using Jaccard Similarity on tokenized words
+function getTokens(text) {
+  if (!text || typeof text !== 'string') return new Set();
+  return new Set(text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean));
+}
+
+function computeJaccard(setA, setB) {
+  if (setA.size === 0 || setB.size === 0) return 0;
+  const intersection = new Set([...setA].filter(x => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+  return intersection.size / union.size;
+}
 
 // 4. AI Quiz Generation Endpoint (Semantic Search + Gemini MCQ Creator)
 app.post('/api/generate-quiz', async (req, res) => {
@@ -393,25 +428,41 @@ app.post('/api/generate-quiz', async (req, res) => {
       ===
       
       INSTRUCTIONS:
-      1. Generate exactly ${count} multiple-choice questions focusing on the topic "${topic}".
-      2. Use ONLY the provided context segments to source the questions and explanations. Do NOT generate questions using external general knowledge or other topics not covered in the provided textbook segments.
-      3. Align the questions to the "${difficulty}" difficulty level.
-      4. Every question must have:
-         - "question": string text
-         - "options": an array of exactly 4 strings
-         - "correctAnswer": number index (0, 1, 2, or 3) representing the correct option in the options array
-         - "explanation": a detailed explanation of why that option is correct, referencing concepts from the context.
-      5. Respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting, no introductory text, and no conversational text.
+      1. Analyze the context segments. If they do not contain enough substance to generate exactly ${count} unique, high-quality, non-overlapping questions without duplicating concepts or making up facts, you MUST set the "insufficient" flag to true and specify "maxPossibleQuestions" in the JSON response. Do NOT attempt to invent unrelated questions.
       
-      JSON Array Schema:
-      [
-        {
-          "question": "question text",
-          "options": ["option A", "option B", "option C", "option D"],
-          "correctAnswer": 0,
-          "explanation": "explanation details"
-        }
-      ]
+      2. If you generate the quiz, ensure every question:
+         - is directly and factually grounded in the provided context segments.
+         - has a "question" string, "options" array of exactly 4 strings, "correctAnswer" index (0, 1, 2, or 3), "explanation" string, and a "sourceReference" string referencing the specific concept or sentence from the context.
+         - aligns with the "${difficulty}" difficulty level:
+           * "easy": focuses on basic definitions, facts, and direct concept identification.
+           * "medium": focuses on conceptual application, simple scenario analysis, or comparison.
+           * "hard": focuses on complex scenarios, trap options, multi-step reasoning, or edge cases.
+         - has no duplicate options and no ambiguous answers.
+      
+      3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text):
+      {
+        "insufficient": false,
+        "maxPossibleQuestions": ${count},
+        "reason": "optional explanation string",
+        "questions": [
+          {
+            "question": "question text",
+            "options": ["option 0", "option 1", "option 2", "option 3"],
+            "correctAnswer": 0,
+            "explanation": "detailed explanation of correct answer",
+            "difficulty": "${difficulty}",
+            "topic": "${topic}",
+            "sourceReference": "exact reference quote or concept"
+          }
+        ]
+      }
+      
+      If the content is insufficient:
+      {
+        "insufficient": true,
+        "maxPossibleQuestions": 2,
+        "reason": "Brief explanation of why the content can only support 2 questions"
+      }
     `;
 
     let responseText;
@@ -427,26 +478,97 @@ app.post('/api/generate-quiz', async (req, res) => {
       responseText = result.response.text();
     }
     
-    // Parse response with resilient extraction (removes markdown wrapping and extracts raw JSON arrays)
-    let questions;
+    // Parse response with resilient extraction (removes markdown wrapping and extracts raw JSON object)
+    let payload;
     try {
       const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
-      questions = JSON.parse(cleanJsonText);
+      payload = JSON.parse(cleanJsonText);
     } catch (e) {
-      console.warn('⚠️ Standard JSON parse failed, attempting regex array extraction:', e.message);
-      const arrayMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (arrayMatch) {
-        questions = JSON.parse(arrayMatch[0]);
+      console.warn('⚠️ Standard JSON parse failed, attempting regex object extraction:', e.message);
+      const objectMatch = responseText.match(/\{\s*"insufficient"[\s\S]*\}/);
+      if (objectMatch) {
+        payload = JSON.parse(objectMatch[0]);
       } else {
-        throw new Error('Failed to extract valid JSON questions array from response:\n' + responseText);
+        throw new Error('Failed to extract valid JSON payload from response:\n' + responseText);
       }
     }
 
-    console.log(`🎉 Successfully generated ${questions.length} questions.`);
+    if (payload.insufficient === true) {
+      const maxQ = payload.maxPossibleQuestions || 0;
+      console.warn(`❌ Ingestion failed: Insufficient unique content for ${count} questions (Max possible: ${maxQ}).`);
+      return res.status(400).json({
+        success: false,
+        errorType: 'INSUFFICIENT_CONTENT',
+        message: `Your content contains enough information for approximately ${maxQ} unique questions. Add more material to generate ${count} questions.`
+      });
+    }
+
+    const generatedRaw = payload.questions || [];
+    const validQuestions = [];
+    const questionTexts = [];
+
+    // Perform self-validation & duplicate detection
+    for (const q of generatedRaw) {
+      // 1. Validate property existence & types
+      if (!q.question || typeof q.question !== 'string' || q.question.trim() === '') continue;
+      if (!Array.isArray(q.options) || q.options.length !== 4) continue;
+      if (typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer > 3) continue;
+      if (!q.explanation || typeof q.explanation !== 'string') continue;
+
+      // 2. Options uniqueness check
+      const uniqueOptions = new Set(q.options.map(o => String(o).trim().toLowerCase()));
+      if (uniqueOptions.size !== 4) continue;
+
+      // 3. Near-duplicate check with already accepted questions
+      let isDuplicate = false;
+      const tokensQ = getTokens(q.question);
+      for (const acceptedText of questionTexts) {
+        const tokensAccepted = getTokens(acceptedText);
+        const similarity = computeJaccard(tokensQ, tokensAccepted);
+        if (similarity > 0.6) {
+          isDuplicate = true;
+          break;
+        }
+      }
+      if (isDuplicate) continue;
+
+      // Clean properties and accept
+      q.question = q.question.trim();
+      q.options = q.options.map(o => String(o).trim());
+      q.explanation = q.explanation.trim();
+      q.topic = q.topic || topic;
+      q.difficulty = q.difficulty || difficulty;
+      q.sourceReference = q.sourceReference || 'User study material';
+
+      validQuestions.push(q);
+      questionTexts.push(q.question);
+    }
+
+    console.log(`[Validation] Validated ${validQuestions.length} of ${generatedRaw.length} questions.`);
+
+    if (validQuestions.length < count) {
+      console.warn(`❌ Ingestion failed: Only ${validQuestions.length} valid questions could be generated (Requested: ${count}).`);
+      return res.status(400).json({
+        success: false,
+        errorType: 'INSUFFICIENT_CONTENT',
+        message: `Your content contains enough information for approximately ${validQuestions.length} unique questions. Add more material to generate ${count} questions.`
+      });
+    }
+
+    // Slice to exactly requested count
+    const finalQuestions = validQuestions.slice(0, count);
+
+    console.log(`🎉 Successfully generated ${finalQuestions.length} grounded questions.`);
     res.json({
       success: true,
-      fallback,
-      questions
+      fallback: false,
+      questions: finalQuestions,
+      metadata: {
+        sourceType: materialId ? 'uploaded_material' : 'text_input',
+        detectedTopic: topic,
+        topicMatch: true,
+        grounded: true
+      }
     });
 
   } catch (error) {
