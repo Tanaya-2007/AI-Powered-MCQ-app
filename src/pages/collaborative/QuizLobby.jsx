@@ -21,6 +21,7 @@ function QuizLobby() {
 
     // Host registers the room code with the socket server along with configurations
     socket.emit('create-room', {
+      roomCode: quizCode,
       quizTitle: "AI Generated Multiplayer Quiz",
       questions: questions || [],
       difficulty: difficulty || 'medium',

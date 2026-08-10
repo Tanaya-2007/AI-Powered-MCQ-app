@@ -652,14 +652,24 @@ io.on('connection', (socket) => {
   console.log(`🔌 Client connected to WebSocket: ${socket.id}`);
 
   // A. Host Creates a Room
-  socket.on('create-room', ({ quizTitle, questions, difficulty, timePerQuestion }) => {
-    // Generate a unique 6-character room code
-    let roomCode;
-    do {
-      roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    } while (rooms.has(roomCode));
+  socket.on('create-room', ({ roomCode, quizTitle, questions, difficulty, timePerQuestion }) => {
+    const actualRoomCode = (roomCode || Math.random().toString(36).substring(2, 8).toUpperCase()).toUpperCase();
+    
+    // Check if the room already exists (host reconnect/refresh case)
+    if (rooms.has(actualRoomCode)) {
+      const existingRoom = rooms.get(actualRoomCode);
+      if (existingRoom.deleteTimeout) {
+        clearTimeout(existingRoom.deleteTimeout);
+        existingRoom.deleteTimeout = null;
+      }
+      existingRoom.hostId = socket.id; // update host socket id
+      socket.join(actualRoomCode);
+      socket.emit('room-created', { roomCode: actualRoomCode, quizTitle: existingRoom.quizTitle });
+      console.log(`🔄 Host reconnected to existing room ${actualRoomCode}. Cleared delete timeout.`);
+      return;
+    }
 
-    rooms.set(roomCode, {
+    rooms.set(actualRoomCode, {
       hostId: socket.id,
       quizTitle,
       questions: questions || [],
@@ -670,9 +680,9 @@ io.on('connection', (socket) => {
       timePerQuestion: timePerQuestion || 60
     });
 
-    socket.join(roomCode);
-    socket.emit('room-created', { roomCode, quizTitle });
-    console.log(`🏠 Room ${roomCode} created by host socket: ${socket.id} (Difficulty: ${difficulty}, Time: ${timePerQuestion}s)`);
+    socket.join(actualRoomCode);
+    socket.emit('room-created', { roomCode: actualRoomCode, quizTitle });
+    console.log(`🏠 Room ${actualRoomCode} created by host socket: ${socket.id} (Difficulty: ${difficulty}, Time: ${timePerQuestion}s)`);
   });
 
   // B. Player Joins a Room (Handles new joins, late joins, and reconnects)
@@ -693,6 +703,7 @@ io.on('connection', (socket) => {
       // Update socket ID and avatar to the new connection
       player.id = socket.id;
       player.avatar = avatar || player.avatar || '🧑';
+      player.online = true;
       console.log(`👤 Player "${playerName}" reconnected. Updated socket ID.`);
     } else {
       // New player joining
@@ -700,7 +711,8 @@ io.on('connection', (socket) => {
         id: socket.id,
         name: playerName,
         avatar: avatar || '🧑', // Save the player's chosen emoji avatar
-        score: 0
+        score: 0,
+        online: true
       };
       room.players.push(player);
       console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode} with avatar: ${avatar}`);
@@ -782,21 +794,25 @@ io.on('connection', (socket) => {
 
     // Check if the disconnected client belongs to any room
     for (const [roomCode, room] of rooms.entries()) {
-      // If Host disconnects -> close the room completely
+      // If Host disconnects -> close the room completely after a grace period to support reconnections
       if (room.hostId === socket.id) {
-        io.to(roomCode).emit('room-closed', { message: 'Host disconnected. Room closed.' });
-        rooms.delete(roomCode);
-        console.log(`🗑️ Room ${roomCode} deleted because host disconnected.`);
+        console.log(`⚠️ Host disconnected from room ${roomCode}. Starting 20-second room delete grace period...`);
+        io.to(roomCode).emit('host-disconnected', { message: 'Host disconnected. Waiting for reconnection...' });
+        
+        room.deleteTimeout = setTimeout(() => {
+          io.to(roomCode).emit('room-closed', { message: 'Host connection lost. Room closed.' });
+          rooms.delete(roomCode);
+          console.log(`🗑️ Room ${roomCode} deleted after 20-second host reconnect grace period expired.`);
+        }, 20000); 
         break;
       }
 
-      // If Player disconnects -> remove from list and update other clients
-      const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      if (playerIndex !== -1) {
-        const player = room.players[playerIndex];
-        room.players.splice(playerIndex, 1);
+      // If Player disconnects -> mark as offline and notify other clients
+      const player = room.players.find(p => p.id === socket.id);
+      if (player) {
+        player.online = false;
         io.to(roomCode).emit('player-left', { players: room.players });
-        console.log(`👤 Player "${player.name}" left room ${roomCode} (disconnected).`);
+        console.log(`👤 Player "${player.name}" went offline in room ${roomCode} (disconnected).`);
         break;
       }
     }
