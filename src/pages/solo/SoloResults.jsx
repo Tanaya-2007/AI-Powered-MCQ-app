@@ -329,9 +329,11 @@ function SoloResults() {
             onClick={() => smoothTransition(() => {
               navigate('/quiz-session', { 
                 state: {
+                  questions: quizData.questions,
                   difficulty: quizData.difficulty,
                   numQuestions: quizData.totalQuestions,
-                  timePerQuestion: quizData.timePerQuestion
+                  timePerQuestion: quizData.timePerQuestion,
+                  title: quizData.title
                 },
                 replace: true 
               });
