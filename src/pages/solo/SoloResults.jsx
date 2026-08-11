@@ -333,6 +333,7 @@ function SoloResults() {
                   difficulty: quizData.difficulty,
                   numQuestions: quizData.totalQuestions,
                   timePerQuestion: quizData.timePerQuestion,
+                  timerEnabled: quizData.timerEnabled,
                   title: quizData.title
                 },
                 replace: true 

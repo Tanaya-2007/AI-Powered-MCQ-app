@@ -52,7 +52,7 @@ function SoloQuizSession() {
     difficulty: quizConfig.difficulty || "medium",
     totalQuestions: questionsSource.length,
     timePerQuestion: quizConfig.timePerQuestion || 60,
-    timerEnabled: true,
+    timerEnabled: quizConfig.timerEnabled !== undefined ? quizConfig.timerEnabled : true,
     backNavigationEnabled: true,
     questions: questionsSource.map((q, idx) => ({
       id: q.id || (idx + 1),

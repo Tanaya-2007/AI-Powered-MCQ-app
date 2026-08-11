@@ -14,6 +14,7 @@ function SoloMode() {
   const [timePerQuestion, setTimePerQuestion] = useState(60);
   const [customTime, setCustomTime] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [timerEnabled, setTimerEnabled] = useState(true);
   const [quizReady, setQuizReady] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
@@ -274,6 +275,7 @@ function SoloMode() {
         difficulty: difficulty,
         numQuestions: generatedQuestions.length,
         timePerQuestion: time,
+        timerEnabled: timerEnabled,
         title: topic
       }
     });
@@ -741,45 +743,67 @@ function SoloMode() {
                 )}
               </div>
 
-              {/* Time Per Question */}
+              {/* Timer Toggle Option */}
               <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-3">Time Per Question</label>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {[30, 60, 120].map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => {
-                        if (!isGenerating) {
-                          setTimePerQuestion(time);
-                          setCustomTime('');
-                        }
-                      }}
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700">Enable Question Timer</label>
+                    <p className="text-xs text-slate-500">Enable countdown timer for each question</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={timerEnabled} 
+                      onChange={(e) => !isGenerating && setTimerEnabled(e.target.checked)}
                       disabled={isGenerating}
-                      className={`py-2 rounded-lg font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        timePerQuestion === time && !customTime
-                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-202'
-                      }`}
-                    >
-                      {time}s
-                    </button>
-                  ))}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-indigo-600 peer-checked:to-purple-600"></div>
+                  </label>
                 </div>
-                <input
-                  type="number"
-                  value={customTime}
-                  onChange={(e) => {
-                    setCustomTime(e.target.value);
-                    setTimePerQuestion(parseInt(e.target.value) || 60);
-                  }}
-                  disabled={isGenerating}
-                  placeholder="Custom time (max 300s)"
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                {(customTime && parseInt(customTime) > 300) && (
-                  <p className="text-xs text-red-655 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
-                )}
               </div>
+
+              {/* Time Per Question */}
+              {timerEnabled && (
+                <div className="mb-6 animate-fade-in">
+                  <label className="block text-sm font-bold text-slate-700 mb-3">Time Per Question</label>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[30, 60, 120].map((time) => (
+                      <button
+                        key={time}
+                        onClick={() => {
+                          if (!isGenerating) {
+                            setTimePerQuestion(time);
+                            setCustomTime('');
+                          }
+                        }}
+                        disabled={isGenerating}
+                        className={`py-2 rounded-lg font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          timePerQuestion === time && !customTime
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-202'
+                        }`}
+                      >
+                        {time}s
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    value={customTime}
+                    onChange={(e) => {
+                      setCustomTime(e.target.value);
+                      setTimePerQuestion(parseInt(e.target.value) || 60);
+                    }}
+                    disabled={isGenerating}
+                    placeholder="Custom time (max 300s)"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  {(customTime && parseInt(customTime) > 300) && (
+                    <p className="text-xs text-red-655 font-semibold mt-2">⚠️ Maximum time is 5 minutes (300 seconds)</p>
+                  )}
+                </div>
+              )}
 
               {/* Generate Button */}
               {!quizReady && (
