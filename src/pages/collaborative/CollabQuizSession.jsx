@@ -176,6 +176,18 @@ function CollabQuizSession() {
     setShowFinalLeaderboard(true); 
   };
 
+  if (!question) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center space-y-4 animate-pulse">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <h2 className="text-xl font-bold text-slate-800">Loading quiz questions...</h2>
+          <p className="text-sm text-slate-500">Waiting for host to synchronize room questions.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (showFinalLeaderboard) {
     return (
       <FinalLeaderboardPage

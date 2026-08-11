@@ -741,6 +741,7 @@ io.on('connection', (socket) => {
     if (room && room.hostId === socket.id) {
       room.status = 'PLAYING';
       io.to(roomCode).emit('quiz-started', {
+        questions: room.questions,
         questionsCount: room.questions.length,
         difficulty: room.difficulty,
         timePerQuestion: room.timePerQuestion

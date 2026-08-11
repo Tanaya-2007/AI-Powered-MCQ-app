@@ -63,7 +63,7 @@ function AttemptQuiz() {
     });
 
     // B. Listen for the host to trigger quiz start
-    socket.on('quiz-started', ({ questionsCount, difficulty, timePerQuestion }) => {
+    socket.on('quiz-started', ({ questions, questionsCount, difficulty, timePerQuestion }) => {
       console.log(`🎮 Host started the quiz! Total questions: ${questionsCount} (Difficulty: ${difficulty}, Timer: ${timePerQuestion}s)`);
       
       navigate('/collab/quiz-session', {
@@ -72,6 +72,7 @@ function AttemptQuiz() {
           difficulty: difficulty || 'medium',
           numQuestions: questionsCount,
           timePerQuestion: timePerQuestion || 60,
+          questions: questions, // Pass the synchronized questions list!
           // We pass the local user and host details for visual alignment
           participants: [
             { id: 'host', name: 'Host', avatar: '👑', isHost: true, joinedAt: Date.now() },
