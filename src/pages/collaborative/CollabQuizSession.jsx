@@ -60,17 +60,24 @@ function CollabQuizSession() {
           if (existing) {
             existing.score = sp.score;
             existing.avatar = sp.avatar || existing.avatar || '🧑';
+            existing.totalTimeTaken = sp.totalTimeTaken;
+            existing.correctAnswersCount = sp.correctAnswersCount;
           } else {
             mergedList.push({
               id: sp.id,
               name: sp.name,
               avatar: sp.avatar || '🧑', // preserve custom avatar sent by the player
               isHost: false,
-              score: sp.score
+              score: sp.score,
+              totalTimeTaken: sp.totalTimeTaken,
+              correctAnswersCount: sp.correctAnswersCount
             });
           }
         });
-        return mergedList.sort((a, b) => b.score - a.score);
+        return mergedList.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (a.totalTimeTaken || 0) - (b.totalTimeTaken || 0);
+        });
       });
     });
 
@@ -84,19 +91,27 @@ function CollabQuizSession() {
         setShowQuestionResult(false);
         setParticipantAnswers([]);
       });
-
-      // C. Player Listens: Host ended quiz
-      socket.on('quiz-finished', ({ leaderboard }) => {
-        setCurrentParticipants(prev => {
-          const updated = prev.map(p => {
-            const matchingServerPlayer = leaderboard.find(sp => sp.name === p.name);
-            return matchingServerPlayer ? { ...p, score: matchingServerPlayer.score } : p;
-          });
-          return updated.sort((a, b) => b.score - a.score);
-        });
-        setShowFinalLeaderboard(true);
-      });
     }
+
+    // C. Host & Player Listen: Quiz finished
+    socket.on('quiz-finished', ({ leaderboard }) => {
+      setCurrentParticipants(prev => {
+        const updated = prev.map(p => {
+          const matchingServerPlayer = leaderboard.find(sp => sp.name === p.name);
+          return matchingServerPlayer ? { 
+            ...p, 
+            score: matchingServerPlayer.score,
+            totalTimeTaken: matchingServerPlayer.totalTimeTaken,
+            correctAnswersCount: matchingServerPlayer.correctAnswersCount
+          } : p;
+        });
+        return updated.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (a.totalTimeTaken || 0) - (b.totalTimeTaken || 0);
+        });
+      });
+      setShowFinalLeaderboard(true);
+    });
 
     // D. Room Closed (Host disconnected)
     socket.on('room-closed', ({ message }) => {
@@ -119,11 +134,13 @@ function CollabQuizSession() {
     
     if (!isHost) {
       const isCorrect = index === question.correctAnswer;
+      const timeTaken = (timePerQuestion || 60) - timeLeft;
       // Emit selection to websocket server to update score
       socket.emit('submit-answer', {
         roomCode: quizCode,
         questionIndex: currentQuestion,
-        isCorrect
+        isCorrect,
+        timeTaken
       });
     }
   };

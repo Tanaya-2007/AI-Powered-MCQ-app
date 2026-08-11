@@ -8,7 +8,12 @@ function FinalLeaderboardPage({ participants, onExit }) {
   const playersOnly = participants.filter(p => !p.isHost);
   
   const sortedParticipants = [...playersOnly]
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
+    .sort((a, b) => {
+      if ((b.score || 0) !== (a.score || 0)) {
+        return (b.score || 0) - (a.score || 0);
+      }
+      return (a.totalTimeTaken || 0) - (b.totalTimeTaken || 0);
+    });
 
   // Top 3
   const top3 = sortedParticipants.slice(0, 3);
@@ -106,7 +111,10 @@ function FinalLeaderboardPage({ participants, onExit }) {
                     {top3[1].name}
                   </h3>
                   <p className="text-2xl font-black text-gray-900">{top3[1].score || 0}</p>
-                  <p className="text-xs text-gray-600 font-semibold">points</p>
+                  <p className="text-[10px] text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                    ⏱️ {top3[1].totalTimeTaken !== undefined ? `${top3[1].totalTimeTaken}s` : '0s'}
+                  </p>
+                  <p className="text-[10px] text-gray-600 font-semibold mt-0.5">points</p>
                 </div>
               )}
 
@@ -133,7 +141,10 @@ function FinalLeaderboardPage({ participants, onExit }) {
                   <p className="text-4xl font-black bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
                     {top3[0].score || 0}
                   </p>
-                  <p className="text-sm text-gray-600 font-semibold">points</p>
+                  <p className="text-xs text-orange-700 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                    ⏱️ {top3[0].totalTimeTaken !== undefined ? `${top3[0].totalTimeTaken}s` : '0s'}
+                  </p>
+                  <p className="text-xs text-gray-600 font-semibold mt-1">points</p>
                 </div>
               )}
 
@@ -150,7 +161,10 @@ function FinalLeaderboardPage({ participants, onExit }) {
                     {top3[2].name}
                   </h3>
                   <p className="text-2xl font-black text-gray-900">{top3[2].score || 0}</p>
-                  <p className="text-xs text-gray-600 font-semibold">points</p>
+                  <p className="text-[10px] text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                    ⏱️ {top3[2].totalTimeTaken !== undefined ? `${top3[2].totalTimeTaken}s` : '0s'}
+                  </p>
+                  <p className="text-[10px] text-gray-600 font-semibold mt-0.5">points</p>
                 </div>
               )}
             </div>
@@ -203,11 +217,13 @@ function FinalLeaderboardPage({ participants, onExit }) {
                         </div>
 
                         {/* Score */}
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-xl font-black text-gray-900 transition-all">
+                        <div className="text-right flex-shrink-0 flex flex-col items-end">
+                          <p className="text-xl font-black text-gray-900 transition-all leading-none">
                             {participant.score || 0}
                           </p>
-                          <p className="text-xs text-gray-500">pts</p>
+                          <span className="text-[10px] text-gray-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded-full mt-1">
+                            ⏱️ {participant.totalTimeTaken !== undefined ? `${participant.totalTimeTaken}s` : '0s'}
+                          </span>
                         </div>
                       </div>
 

@@ -750,18 +750,25 @@ io.on('connection', (socket) => {
   });
 
   // D. Submit Answer (Triggered by Player)
-  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect }) => {
+  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect, timeTaken }) => {
     const room = rooms.get(roomCode);
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
       if (player) {
+        if (player.totalTimeTaken === undefined) player.totalTimeTaken = 0;
+        if (player.correctAnswersCount === undefined) player.correctAnswersCount = 0;
+
+        const secsTaken = Number(timeTaken) || 0;
+        player.totalTimeTaken += secsTaken;
+
         if (isCorrect) {
           player.score += 10; // Simple, clean 10 points per correct answer
+          player.correctAnswersCount += 1;
         }
 
         // Broadcast updated scores to everyone in the room (displays on real-time Leaderboard)
         io.to(roomCode).emit('scores-updated', { players: room.players });
-        console.log(`📝 Player "${player.name}" submitted answer for Q${questionIndex} (Correct: ${isCorrect}). Score: ${player.score}`);
+        console.log(`📝 Player "${player.name}" submitted answer for Q${questionIndex} (Correct: ${isCorrect}, Time: ${secsTaken}s). Score: ${player.score}, Total Time: ${player.totalTimeTaken}s`);
       }
     }
   });
@@ -781,8 +788,17 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (room && room.hostId === socket.id) {
       room.status = 'FINISHED';
+
+      // Sort: 1. Higher score/correct answers. 2. Less time taken (totalTimeTaken).
+      const sortedLeaderboard = [...room.players].sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return (a.totalTimeTaken || 0) - (b.totalTimeTaken || 0);
+      });
+
       io.to(roomCode).emit('quiz-finished', {
-        leaderboard: room.players.sort((a, b) => b.score - a.score)
+        leaderboard: sortedLeaderboard
       });
       console.log(`🏁 Quiz ended in room ${roomCode} by host.`);
     }
