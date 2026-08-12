@@ -86,7 +86,6 @@ function QuizLobby() {
     return () => {
       socket.off('player-joined');
       socket.off('player-left');
-      socket.disconnect();
     };
   }, [questions, difficulty, timePerQuestion]);
 

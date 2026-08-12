@@ -51,6 +51,24 @@ function CollabQuizSession() {
       socket.connect();
     }
 
+    // Re-associate or re-join room to handle socket reconnects/refreshes cleanly
+    if (isHost) {
+      socket.emit('create-room', {
+        roomCode: quizCode,
+        quizTitle: quizData.title,
+        questions: quizData.questions,
+        difficulty: location.state?.difficulty,
+        timePerQuestion: timePerQuestion
+      });
+    } else {
+      const localPlayer = currentParticipants.find(p => !p.isHost) || {};
+      socket.emit('join-room', {
+        roomCode: quizCode,
+        playerName: localPlayer.name || 'Guest',
+        avatar: localPlayer.avatar || '🦊'
+      });
+    }
+
     // A. Listen for scoreboard updates from server (updates leaderboard and merges missing players)
     socket.on('scores-updated', ({ players }) => {
       setCurrentParticipants(prev => {
@@ -119,11 +137,20 @@ function CollabQuizSession() {
       navigate('/');
     });
 
+    // E. Player Answered Listener (for Host progress tracking)
+    socket.on('player-answered', ({ playerId, playerName }) => {
+      setParticipantAnswers(prev => {
+        if (prev.some(p => p.id === playerId)) return prev;
+        return [...prev, { id: playerId, name: playerName }];
+      });
+    });
+
     return () => {
       socket.off('scores-updated');
       socket.off('show-question');
       socket.off('quiz-finished');
       socket.off('room-closed');
+      socket.off('player-answered');
     };
   }, [isHost, timePerQuestion, navigate]);
 

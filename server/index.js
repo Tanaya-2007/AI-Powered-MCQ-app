@@ -769,6 +769,13 @@ io.on('connection', (socket) => {
 
         // Broadcast updated scores to everyone in the room (displays on real-time Leaderboard)
         io.to(roomCode).emit('scores-updated', { players: room.players });
+        
+        // Notify host that this player has answered the current question
+        io.to(roomCode).emit('player-answered', { 
+          playerId: socket.id, 
+          playerName: player.name, 
+          questionIndex 
+        });
         console.log(`📝 Player "${player.name}" submitted answer for Q${questionIndex} (Correct: ${isCorrect}, Time: ${secsTaken}s). Score: ${player.score}, Total Time: ${player.totalTimeTaken}s`);
       }
     }
