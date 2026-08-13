@@ -20,7 +20,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
 
 
   const restOfPlayers = useMemo(() => {
-    const afterTop3 = sortedParticipants.slice(3);
+    const afterTop3 = top3[0]?.score === 0 ? sortedParticipants : sortedParticipants.slice(3);
     if (!searchQuery.trim()) return afterTop3;
     
     return afterTop3.filter(p => 
@@ -96,83 +96,92 @@ function FinalLeaderboardPage({ participants, onExit }) {
         {/* Top 3 */}
         {top3.length > 0 && (
           <div className="mb-8">
-            <div className="flex items-end justify-center gap-3">
-              
-              {/* 2nd Place - Left */}
-              {top3[1] && (
-                <div className="flex flex-col items-center w-24">
-                  <div className="w-16 h-16 bg-gradient-to-br from-slate-300 to-slate-400 rounded-full flex items-center justify-center shadow-lg mb-2 relative">
-                    <span className="text-2xl font-black text-white">2</span>
-                  </div>
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border-4 border-white flex items-center justify-center text-2xl shadow-md mb-2">
-                    {top3[1].avatar}
-                  </div>
-                  <h3 className="text-sm font-black text-gray-900 mb-1 text-center">
-                    {top3[1].name}
-                  </h3>
-                  <p className="text-2xl font-black text-gray-900">{top3[1].score || 0}</p>
-                  <p className="text-[10px] text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
-                    ⏱️ {top3[1].totalTimeTaken !== undefined ? `${top3[1].totalTimeTaken}s` : '0s'}
-                  </p>
-                  <p className="text-[10px] text-gray-600 font-semibold mt-0.5">points</p>
+            {top3[0].score === 0 ? (
+              <div className="bg-red-50 border-2 border-red-200 rounded-3xl p-6 text-center shadow-lg transform transition-all duration-300 hover:scale-102 flex flex-col items-center justify-center gap-3">
+                <span className="text-5xl animate-bounce">😢</span>
+                <div>
+                  <h2 className="text-xl font-black text-red-700">Everyone Lost!</h2>
+                  <p className="text-xs text-red-650 font-bold mt-1">All players scored 0 points. Better luck next time!</p>
                 </div>
-              )}
-
-              {/* 1st Place - Center  */}
-              {top3[0] && (
-                <div className="flex flex-col items-center w-32 -mt-6">
-                  <div className="mb-1">
-                    <span className="text-3xl">👑</span>
-                  </div>
-                  <div className="relative mb-2">
-                    <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-xl border-4 border-yellow-200">
-                      <span className="text-3xl font-black text-white">1</span>
+              </div>
+            ) : (
+              <div className="flex items-end justify-center gap-3">
+                {/* 2nd Place - Left */}
+                {top3[1] && (
+                  <div className="flex flex-col items-center w-24">
+                    <div className="w-16 h-16 bg-gradient-to-br from-slate-300 to-slate-400 rounded-full flex items-center justify-center shadow-lg mb-2 relative">
+                      <span className="text-2xl font-black text-white">2</span>
                     </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-md whitespace-nowrap">
-                      WINNER
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border-4 border-white flex items-center justify-center text-2xl shadow-md mb-2">
+                      {top3[1].avatar}
                     </div>
+                    <h3 className="text-sm font-black text-gray-900 mb-1 text-center">
+                      {top3[1].name}
+                    </h3>
+                    <p className="text-2xl font-black text-gray-900">{top3[1].score || 0}</p>
+                    <p className="text-[10px] text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                      ⏱️ {top3[1].totalTimeTaken !== undefined ? `${top3[1].totalTimeTaken}s` : '0s'}
+                    </p>
+                    <p className="text-[10px] text-gray-600 font-semibold mt-0.5">points</p>
                   </div>
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 border-4 border-white flex items-center justify-center text-3xl shadow-lg mb-2 mt-3">
-                    {top3[0].avatar}
-                  </div>
-                  <h3 className="text-lg font-black text-gray-900 mb-1 text-center">
-                    {top3[0].name}
-                  </h3>
-                  <p className="text-4xl font-black bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
-                    {top3[0].score || 0}
-                  </p>
-                  <p className="text-xs text-orange-700 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
-                    ⏱️ {top3[0].totalTimeTaken !== undefined ? `${top3[0].totalTimeTaken}s` : '0s'}
-                  </p>
-                  <p className="text-xs text-gray-600 font-semibold mt-1">points</p>
-                </div>
-              )}
+                )}
 
-              {/* 3rd Place - Right */}
-              {top3[2] && (
-                <div className="flex flex-col items-center w-24">
-                  <div className="w-16 h-16 bg-gradient-to-br from-slate-300 to-slate-400 rounded-full flex items-center justify-center shadow-lg mb-2 relative">
-                    <span className="text-2xl font-black text-white">3</span>
+                {/* 1st Place - Center  */}
+                {top3[0] && (
+                  <div className="flex flex-col items-center w-32 -mt-6">
+                    <div className="mb-1">
+                      <span className="text-3xl">👑</span>
+                    </div>
+                    <div className="relative mb-2">
+                      <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-xl border-4 border-yellow-200">
+                        <span className="text-3xl font-black text-white">1</span>
+                      </div>
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-md whitespace-nowrap">
+                        WINNER
+                      </div>
+                    </div>
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 border-4 border-white flex items-center justify-center text-3xl shadow-lg mb-2 mt-3">
+                      {top3[0].avatar}
+                    </div>
+                    <h3 className="text-lg font-black text-gray-900 mb-1 text-center">
+                      {top3[0].name}
+                    </h3>
+                    <p className="text-4xl font-black bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                      {top3[0].score || 0}
+                    </p>
+                    <p className="text-xs text-orange-700 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                      ⏱️ {top3[0].totalTimeTaken !== undefined ? `${top3[0].totalTimeTaken}s` : '0s'}
+                    </p>
+                    <p className="text-xs text-gray-600 font-semibold mt-1">points</p>
                   </div>
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border-4 border-white flex items-center justify-center text-2xl shadow-md mb-2">
-                    {top3[2].avatar}
+                )}
+
+                {/* 3rd Place - Right */}
+                {top3[2] && (
+                  <div className="flex flex-col items-center w-24">
+                    <div className="w-16 h-16 bg-gradient-to-br from-slate-300 to-slate-400 rounded-full flex items-center justify-center shadow-lg mb-2 relative">
+                      <span className="text-2xl font-black text-white">3</span>
+                    </div>
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 border-4 border-white flex items-center justify-center text-2xl shadow-md mb-2">
+                      {top3[2].avatar}
+                    </div>
+                    <h3 className="text-sm font-black text-gray-900 mb-1 text-center">
+                      {top3[2].name}
+                    </h3>
+                    <p className="text-2xl font-black text-gray-900">{top3[2].score || 0}</p>
+                    <p className="text-[10px] text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                      ⏱️ {top3[2].totalTimeTaken !== undefined ? `${top3[2].totalTimeTaken}s` : '0s'}
+                    </p>
+                    <p className="text-[10px] text-gray-600 font-semibold mt-0.5">points</p>
                   </div>
-                  <h3 className="text-sm font-black text-gray-900 mb-1 text-center">
-                    {top3[2].name}
-                  </h3>
-                  <p className="text-2xl font-black text-gray-900">{top3[2].score || 0}</p>
-                  <p className="text-[10px] text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
-                    ⏱️ {top3[2].totalTimeTaken !== undefined ? `${top3[2].totalTimeTaken}s` : '0s'}
-                  </p>
-                  <p className="text-[10px] text-gray-600 font-semibold mt-0.5">points</p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* Rest Players */}
-        {sortedParticipants.length > 3 && (
+        {(sortedParticipants.length > 3 || top3[0]?.score === 0) && (
           <div>
             {/* Search Bar */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-4 mb-5">
@@ -189,7 +198,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
                 </svg>
               </div>
               <p className="text-xs text-gray-500 font-semibold mt-3">
-                Showing {restOfPlayers.length} of {sortedParticipants.length - 3} players
+                Showing {restOfPlayers.length} of {top3[0]?.score === 0 ? sortedParticipants.length : sortedParticipants.length - 3} players
               </p>
             </div>
 
