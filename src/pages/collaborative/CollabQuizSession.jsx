@@ -24,9 +24,22 @@ function CollabQuizSession() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(timePerQuestion || 60);
   const [participantAnswers, setParticipantAnswers] = useState([]);
-  const [currentParticipants, setCurrentParticipants] = useState(participants || []);
+  const [currentParticipants, setCurrentParticipants] = useState(() => {
+    const finishedQuizCache = sessionStorage.getItem(`collab_finished_${quizCode}`);
+    if (finishedQuizCache) {
+      try {
+        const parsed = JSON.parse(finishedQuizCache);
+        return parsed.leaderboard;
+      } catch (e) {
+        console.error('Error parsing collab finished cache:', e);
+      }
+    }
+    return participants || [];
+  });
   const [showQuestionResult, setShowQuestionResult] = useState(false);
-  const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(false);
+  const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(() => {
+    return sessionStorage.getItem(`collab_finished_${quizCode}`) !== null;
+  });
 
   const question = quizData.questions[currentQuestion];
   const totalQuestions = quizData.questions.length;
@@ -80,6 +93,7 @@ function CollabQuizSession() {
             existing.avatar = sp.avatar || existing.avatar || '🧑';
             existing.totalTimeTaken = sp.totalTimeTaken;
             existing.correctAnswersCount = sp.correctAnswersCount;
+            existing.selectedOption = sp.selectedOption; // Map selectedOption!
           } else {
             mergedList.push({
               id: sp.id,
@@ -88,7 +102,8 @@ function CollabQuizSession() {
               isHost: false,
               score: sp.score,
               totalTimeTaken: sp.totalTimeTaken,
-              correctAnswersCount: sp.correctAnswersCount
+              correctAnswersCount: sp.correctAnswersCount,
+              selectedOption: sp.selectedOption // Map selectedOption!
             });
           }
         });
@@ -113,6 +128,9 @@ function CollabQuizSession() {
 
     // C. Host & Player Listen: Quiz finished
     socket.on('quiz-finished', ({ leaderboard }) => {
+      // Cache final results to survive page refresh
+      sessionStorage.setItem(`collab_finished_${quizCode}`, JSON.stringify({ leaderboard }));
+      
       setCurrentParticipants(prev => {
         const updated = prev.map(p => {
           const matchingServerPlayer = leaderboard.find(sp => sp.name === p.name);
@@ -120,7 +138,8 @@ function CollabQuizSession() {
             ...p, 
             score: matchingServerPlayer.score,
             totalTimeTaken: matchingServerPlayer.totalTimeTaken,
-            correctAnswersCount: matchingServerPlayer.correctAnswersCount
+            correctAnswersCount: matchingServerPlayer.correctAnswersCount,
+            selectedOption: matchingServerPlayer.selectedOption // Map selectedOption!
           } : p;
         });
         return updated.sort((a, b) => {
@@ -167,7 +186,8 @@ function CollabQuizSession() {
         roomCode: quizCode,
         questionIndex: currentQuestion,
         isCorrect,
-        timeTaken
+        timeTaken,
+        selectedOption: index
       });
     }
   };

@@ -751,7 +751,7 @@ io.on('connection', (socket) => {
   });
 
   // D. Submit Answer (Triggered by Player)
-  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect, timeTaken }) => {
+  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect, timeTaken, selectedOption }) => {
     const room = rooms.get(roomCode);
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
@@ -761,6 +761,7 @@ io.on('connection', (socket) => {
 
         const secsTaken = Number(timeTaken) || 0;
         player.totalTimeTaken += secsTaken;
+        player.selectedOption = selectedOption; // Save selectedOption!
 
         if (isCorrect) {
           player.score += 10; // Simple, clean 10 points per correct answer
@@ -786,6 +787,12 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (room && room.hostId === socket.id) {
       room.currentQuestionIndex = nextIndex; // Track current index in room state for late joiners
+      
+      // Reset selectedOption for all players for the new question
+      room.players.forEach(p => {
+        p.selectedOption = undefined;
+      });
+
       io.to(roomCode).emit('show-question', { questionIndex: nextIndex });
       console.log(`➡️ Host progressed room ${roomCode} to question index ${nextIndex}`);
     }
