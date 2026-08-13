@@ -798,6 +798,15 @@ io.on('connection', (socket) => {
     }
   });
 
+  // E2. Reveal Results Early (Triggered by Host)
+  socket.on('reveal-results', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (room && room.hostId === socket.id) {
+      io.to(roomCode).emit('results-revealed');
+      console.log(`👁️ Host revealed results early in room ${roomCode}`);
+    }
+  });
+
   // F. End Quiz (Triggered by Host)
   socket.on('end-quiz', ({ roomCode }) => {
     const room = rooms.get(roomCode);

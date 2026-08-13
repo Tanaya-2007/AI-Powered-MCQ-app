@@ -54,16 +54,7 @@ function QuestionResultPage({
     }));
   }, []);
 
-  // Auto redirect (only for non-hosts)
-  useEffect(() => {
-    if (!isHost) {
-      const timer = setTimeout(() => {
-        onNextQuestion();
-      }, autoRedirectTime * 1000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [autoRedirectTime, onNextQuestion, isHost]);
+  // Players wait for host to progress the quiz room synchronously
 
   const getOptionColor = (option) => {
     if (option.isCorrect) {
@@ -286,8 +277,8 @@ function QuestionResultPage({
                 <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></div>
                 <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></div>
               </div>
-              <span className="text-sm font-medium text-gray-700">
-                {isLastQuestion ? 'Loading results...' : `Next in ${autoRedirectTime}s`}
+              <span className="text-sm font-bold text-gray-700">
+                {isLastQuestion ? 'Waiting for host to view final results...' : 'Waiting for host to proceed...'}
               </span>
             </div>
           )}

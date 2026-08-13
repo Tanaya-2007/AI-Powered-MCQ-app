@@ -164,12 +164,20 @@ function CollabQuizSession() {
       });
     });
 
+    // F. Player Listens: Host revealed results early
+    if (!isHost) {
+      socket.on('results-revealed', () => {
+        setShowQuestionResult(true);
+      });
+    }
+
     return () => {
       socket.off('scores-updated');
       socket.off('show-question');
       socket.off('quiz-finished');
       socket.off('room-closed');
       socket.off('player-answered');
+      socket.off('results-revealed');
     };
   }, [isHost, timePerQuestion, navigate]);
 
@@ -194,6 +202,7 @@ function CollabQuizSession() {
 
   const handleShowResults = () => {
     if (!isHost) return;
+    socket.emit('reveal-results', { roomCode: quizCode });
     setShowQuestionResult(true); 
   };
 
@@ -303,7 +312,7 @@ function CollabQuizSession() {
       <div className="relative z-20 pt-32 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+            <div className={isHost ? "lg:col-span-2" : "lg:col-span-3"}>
               <QuestionCard
                 question={question}
                 currentQuestion={currentQuestion}
@@ -315,13 +324,8 @@ function CollabQuizSession() {
               />
             </div>
 
-            <div className="lg:col-span-1 space-y-6">
-              <LiveLeaderboardMini 
-                participants={currentParticipants} 
-                maxShow={5} 
-              />
-              
-              {isHost && (
+            {isHost && (
+              <div className="lg:col-span-1 space-y-6">
                 <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl border-2 border-yellow-300 p-5 shadow-lg">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-9 h-9 bg-yellow-500 rounded-xl flex items-center justify-center shadow-md">
@@ -353,22 +357,20 @@ function CollabQuizSession() {
                       End Quiz
                     </button>
 
-                    <div className="pt-3 border-t-2 border-yellow-200">
-                      <div className="text-xs text-gray-600 space-y-1.5">
-                        <p className="flex items-center gap-2">
-                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                          Answered: {participantAnswers.length}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                          Waiting: {currentParticipants.length - participantAnswers.length - 1}
-                        </p>
-                      </div>
+                    <div className="mt-4 pt-4 border-t border-yellow-200 space-y-2">
+                      <p className="text-xs text-gray-550 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Answered: {participantAnswers.length}
+                      </p>
+                      <p className="text-xs text-gray-550 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                        Waiting: {currentParticipants.filter(p => !p.isHost).length - participantAnswers.length}
+                      </p>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
