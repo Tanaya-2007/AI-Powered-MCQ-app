@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import socket from '../../services/socket';
 import QuestionCard from '../../components/collab/QuestionCard';
-import LiveLeaderboardMini from '../../components/collab/LiveLeaderboardMini';
 import QuestionResultPage from './QuestionResultPage';
 import FinalLeaderboardPage from './FinalLeaderboardPage';
+import MidQuizLeaderboardPage from './MidQuizLeaderboardPage';
 
 function CollabQuizSession() {
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ function CollabQuizSession() {
     return participants || [];
   });
   const [showQuestionResult, setShowQuestionResult] = useState(false);
+  const [showMidLeaderboard, setShowMidLeaderboard] = useState(false);
   const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(() => {
     return sessionStorage.getItem(`collab_finished_${quizCode}`) !== null;
   });
@@ -122,6 +123,7 @@ function CollabQuizSession() {
         setIsAnswered(false);
         setTimeLeft(timePerQuestion || 60);
         setShowQuestionResult(false);
+        setShowMidLeaderboard(false); // Reset mid leaderboard state
         setParticipantAnswers([]);
       });
     }
@@ -168,6 +170,13 @@ function CollabQuizSession() {
     if (!isHost) {
       socket.on('results-revealed', () => {
         setShowQuestionResult(true);
+        setShowMidLeaderboard(false);
+      });
+
+      // F2. Player Listens: Host revealed mid leaderboard
+      socket.on('mid-leaderboard-revealed', () => {
+        setShowQuestionResult(false);
+        setShowMidLeaderboard(true);
       });
     }
 
@@ -178,6 +187,7 @@ function CollabQuizSession() {
       socket.off('room-closed');
       socket.off('player-answered');
       socket.off('results-revealed');
+      socket.off('mid-leaderboard-revealed');
     };
   }, [isHost, timePerQuestion, navigate]);
 
@@ -206,8 +216,17 @@ function CollabQuizSession() {
     setShowQuestionResult(true); 
   };
 
+  const handleShowMidLeaderboard = () => {
+    if (!isHost) return;
+    socket.emit('reveal-mid-leaderboard', { roomCode: quizCode });
+    setShowQuestionResult(false);
+    setShowMidLeaderboard(true);
+  };
+
   const handleNextQuestion = () => {
     if (!isHost) return;
+    
+    setShowMidLeaderboard(false); // Hide mid quiz leaderboard on progression
     
     if (isLastQuestion) {
       socket.emit('end-quiz', { roomCode: quizCode });
@@ -263,9 +282,22 @@ function CollabQuizSession() {
         participants={currentParticipants}
         currentUserId={currentUser?.id || 'unknown'}
         isHost={isHost}
-        onNextQuestion={handleNextQuestion}
+        onNextQuestion={handleShowMidLeaderboard}
         isLastQuestion={isLastQuestion}
         autoRedirectTime={5}
+      />
+    );
+  }
+
+  if (showMidLeaderboard) {
+    return (
+      <MidQuizLeaderboardPage
+        participants={currentParticipants}
+        isHost={isHost}
+        isLastQuestion={isLastQuestion}
+        onNext={handleNextQuestion}
+        questionIndex={currentQuestion}
+        totalQuestions={totalQuestions}
       />
     );
   }

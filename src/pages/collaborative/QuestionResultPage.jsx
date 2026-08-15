@@ -155,12 +155,11 @@ function QuestionResultPage({
             </div>
           )}
         </div>
-
         {/* Voting Results & Leaderboard */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 animate-slide-up">
           
           {/*  Voting Distribution */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200 p-6 shadow-lg h-full">
               <h2 className="text-lg font-black text-gray-900 mb-5 flex items-center gap-2">
                 <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
@@ -249,16 +248,6 @@ function QuestionResultPage({
               </div>
             </div>
           </div>
-
-          
-          <div className="lg:col-span-1">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200 p-4 shadow-lg mb-4">
-              <p className="text-xs text-gray-600 text-center">
-                <span className="font-black">🏆 Rankings:</span> Based on <span className="text-green-600 font-bold">correct</span> + <span className="text-blue-600 font-bold">speed</span>
-              </p>
-            </div>
-            <LiveLeaderboardMini participants={participants} maxShow={5} />
-          </div>
         </div>
 
         {/* Controls */}
@@ -266,9 +255,9 @@ function QuestionResultPage({
           {isHost ? (
             <button
               onClick={onNextQuestion}
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-lg font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
+              className="px-8 py-4 bg-gradient-to-r from-purple-650 to-indigo-650 text-white text-lg font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
             >
-              {isLastQuestion ? '🏆 View Final Results' : '➡️ Next Question'}
+              ➡️ Show Leaderboard
             </button>
           ) : (
             <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-sm">
@@ -278,11 +267,11 @@ function QuestionResultPage({
                 <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></div>
               </div>
               <span className="text-sm font-bold text-gray-700">
-                {isLastQuestion ? 'Waiting for host to view final results...' : 'Waiting for host to proceed...'}
+                Waiting for host to show leaderboard...
               </span>
             </div>
           )}
-        </div>
+        </div>      </div>
 
       </div>
 

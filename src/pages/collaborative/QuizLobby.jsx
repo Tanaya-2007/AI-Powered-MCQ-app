@@ -349,7 +349,7 @@ function QuizLobby() {
                   </div>
 
                   <div className="text-right">
-                    <div className="text-4xl font-black text-white">{participants.length}</div>
+                    <div className="text-4xl font-black text-white">{participants.length - 1}</div>
                     <div className="text-white/80 text-xs font-semibold">PLAYERS</div>
                   </div>
                 </div>
@@ -444,7 +444,7 @@ function QuizLobby() {
                       </svg>
                       Start Quiz Now
                       <span className="px-3 py-1 bg-white/20 rounded-full text-sm backdrop-blur-sm">
-                        {participants.length} Players
+                        {participants.length - 1} Players
                       </span>
                     </span>
                   </button>
