@@ -4,7 +4,12 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
   
   const playersOnly = participants.filter(p => !p.isHost); 
   const sortedParticipants = [...playersOnly]
-    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .sort((a, b) => {
+      if ((b.score || 0) !== (a.score || 0)) {
+        return (b.score || 0) - (a.score || 0);
+      }
+      return (a.totalTimeTaken || 0) - (b.totalTimeTaken || 0);
+    })
     .slice(0, maxShow);
     
   const [prevRankings, setPrevRankings] = useState({});
@@ -31,7 +36,11 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
     if (Object.keys(changes).length > 0) {
       setTimeout(() => setRankChanges({}), 2000);
     }
-  }, [sortedParticipants.map(p => p.id).join(','), sortedParticipants.map(p => p.score).join(',')]);
+  }, [
+    sortedParticipants.map(p => p.id).join(','), 
+    sortedParticipants.map(p => p.score).join(','),
+    sortedParticipants.map(p => p.totalTimeTaken || 0).join(',')
+  ]);
  
   const maxScore = Math.max(...playersOnly.map(p => p.score || 0), 1);
 
@@ -79,7 +88,7 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
                 </div>
 
                 {/* Score with rank change indicator */}
-                <div className="text-right flex-shrink-0 relative">
+                <div className="text-right flex-shrink-0 relative flex flex-col items-end">
                   {rankChanges[participant.id] && (
                     <div className={`absolute -top-2 -right-2 text-sm animate-bounce ${
                       rankChanges[participant.id] > 0 ? 'text-green-600' : 'text-red-600'
@@ -87,10 +96,15 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
                       {rankChanges[participant.id] > 0 ? '↑' : '↓'}
                     </div>
                   )}
-                  <p className={`text-xl font-black ${rank === 0 ? 'text-green-600' : 'text-gray-900'} ${rankChanges[participant.id] ? 'scale-110' : ''} transition-all`}>
-                    {participant.score || 0}
-                  </p>
-                  <p className="text-xs text-gray-500">pts</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-xl font-black ${rank === 0 ? 'text-green-600' : 'text-gray-900'} ${rankChanges[participant.id] ? 'scale-110' : ''} transition-all`}>
+                      {participant.score || 0}
+                    </span>
+                    <span className="text-[10px] text-gray-500 font-semibold">pts</span>
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                    ⏱️ {participant.totalTimeTaken !== undefined ? `${participant.totalTimeTaken}s` : '0s'}
+                  </span>
                 </div>
               </div>
 

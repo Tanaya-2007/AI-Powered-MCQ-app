@@ -807,6 +807,15 @@ io.on('connection', (socket) => {
     }
   });
 
+  // E3. Reveal Mid-Quiz Leaderboard (Triggered by Host)
+  socket.on('reveal-mid-leaderboard', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (room && room.hostId === socket.id) {
+      io.to(roomCode).emit('mid-leaderboard-revealed');
+      console.log(`📊 Host revealed mid-quiz leaderboard in room ${roomCode}`);
+    }
+  });
+
   // F. End Quiz (Triggered by Host)
   socket.on('end-quiz', ({ roomCode }) => {
     const room = rooms.get(roomCode);

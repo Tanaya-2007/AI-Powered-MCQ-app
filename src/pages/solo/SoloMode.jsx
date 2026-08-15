@@ -26,9 +26,65 @@ function SoloMode() {
   // Custom alert state
   const [customAlert, setCustomAlert] = useState(null); // { message: '', type: 'error' | 'success' | 'warning' }
 
+  // Google Forms Export States
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportUrl, setExportUrl] = useState('');
+  const [exportSetupRequired, setExportSetupRequired] = useState(false);
+  const [exportSetupSteps, setExportSetupSteps] = useState([]);
+
+  // Toast Notification state
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToastMessage = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
+
   // Custom alert trigger helper
   const triggerAlert = (message, type = 'error') => {
     setCustomAlert({ message, type });
+  };
+
+  const handleExportToGoogleForms = async () => {
+    if (!generatedQuestions || generatedQuestions.length === 0) {
+      triggerAlert('No questions available to export.', 'warning');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/export-quiz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: topic || 'Gemini AI Quiz',
+          questions: generatedQuestions
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setExportUrl(data.formUrl);
+        setExportSetupRequired(false);
+        setExportModalOpen(true);
+      } else if (data.setupRequired) {
+        setExportSetupRequired(true);
+        setExportSetupSteps(data.setupSteps || []);
+        setExportModalOpen(true);
+      } else {
+        triggerAlert(data.message || 'Failed to export to Google Forms.', 'error');
+      }
+    } catch (error) {
+      console.error(error);
+      triggerAlert('Failed to connect to server for Google Forms export.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Fix: Force light theme styling on mount & Init Speech Recognition
@@ -403,17 +459,37 @@ function SoloMode() {
             </div>
 
             {/* Begin Quiz Button */}
-            <button
-              onClick={handleBeginQuiz}
-              className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
-            >
-              <span className="flex items-center justify-center gap-2">
-                🚀 Begin Quiz
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleBeginQuiz}
+                className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg font-bold rounded-xl hover:shadow-2xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-105"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  🚀 Begin Quiz
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </span>
+              </button>
+
+              <button
+                onClick={handleExportToGoogleForms}
+                disabled={isExporting}
+                className="w-full py-3 bg-purple-650 hover:bg-purple-700 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">📋</span>
+                    Export to Google Forms
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -834,6 +910,104 @@ function SoloMode() {
           </div>
         </div>
       </div>
+
+      {/* Google Forms Export Modal */}
+      {exportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in">
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 transform scale-100 animate-scale-in text-center">
+            {/* Close Button */}
+            <button
+              onClick={() => setExportModalOpen(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-650 transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {exportSetupRequired ? (
+              <div>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-2">Setup Required</h3>
+                  <p className="text-sm text-gray-500">Google Cloud API credentials are missing on the backend. Please configure them by following these steps:</p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6 max-h-60 overflow-y-auto text-left text-xs font-semibold text-gray-700 space-y-3">
+                  {exportSetupSteps.map((step, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <span className="text-indigo-650 font-bold">{idx + 1}.</span>
+                      <p className="text-gray-650 leading-relaxed">{step.substring(3)}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-center">
+                  <button
+                    onClick={() => setExportModalOpen(false)}
+                    className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-650 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+                  >
+                    Got It
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-2">Export Complete!</h3>
+                <p className="text-sm text-gray-500 mb-6">Your quiz has been successfully generated and exported directly to Google Forms!</p>
+
+                <div className="space-y-3">
+                  <a
+                    href={exportUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    👁️ Open Google Form Quiz
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(exportUrl);
+                      showToastMessage('🔗 Google Form link copied!');
+                    }}
+                    className="w-full py-3 bg-white border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-55 transition-all flex items-center justify-center gap-2"
+                  >
+                    📋 Copy Form Link
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+          <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-200 px-6 py-4 flex items-center gap-3 min-w-[320px]">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-purple-600 rounded-l-2xl"></div>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-650 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="text-sm font-bold text-gray-900 flex-1">{toastMessage}</span>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes moveDots {
