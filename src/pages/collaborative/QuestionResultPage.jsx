@@ -271,7 +271,7 @@ function QuestionResultPage({
               </span>
             </div>
           )}
-        </div>      </div>
+        </div>
 
       </div>
 
