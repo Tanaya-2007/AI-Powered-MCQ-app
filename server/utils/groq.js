@@ -5,6 +5,49 @@ dotenv.config();
 const groqApiKey = process.env.GROQ_API_KEY;
 
 /**
+ * Dynamically queries the Groq API to retrieve available models
+ * and selects the best matching active model based on user permissions.
+ * @param {string} apiKey 
+ * @returns {Promise<string>} Model ID to use.
+ */
+async function getActiveGroqModel(apiKey) {
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const activeIds = (data.data || []).map(m => m.id);
+      
+      const preferences = [
+        'llama-3.3-70b-versatile',
+        'llama-3.3-70b-specdec',
+        'llama3-70b-8192',
+        'groq/compound',
+        'qwen/qwen3.6-27b',
+        'openai/gpt-oss-120b'
+      ];
+      
+      for (const pref of preferences) {
+        if (activeIds.includes(pref)) {
+          return pref;
+        }
+      }
+      
+      // Look for any model that is not a transcription/prompt-guard model
+      const fallback = activeIds.find(id => !id.includes('whisper') && !id.includes('guard'));
+      if (fallback) return fallback;
+    }
+  } catch (err) {
+    console.error('⚠️ Failed to retrieve active Groq models:', err.message);
+  }
+  return 'llama-3.3-70b-versatile'; // fallback default
+}
+
+/**
  * Sends a chat completion request to the Groq API.
  * Uses native fetch to avoid extra dependencies.
  * 
@@ -17,8 +60,12 @@ export async function generateGroqContent(prompt, responseMimeType = 'text/plain
     throw new Error('GROQ_API_KEY is not defined in server/.env');
   }
 
+  // Auto-detect which model is supported by this API key
+  const selectedModel = await getActiveGroqModel(groqApiKey);
+  console.log(`🤖 Utilizing Groq Model: ${selectedModel}`);
+
   const payload = {
-    model: 'llama-3.3-70b-versatile',
+    model: selectedModel,
     messages: [
       {
         role: 'user',
