@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 
 function CreateQuiz() {
   const navigate = useNavigate();
+  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
   
   // States
   const [activeTab, setActiveTab] = useState('text');
@@ -228,9 +231,6 @@ function CreateQuiz() {
 
     setIsGenerating(true);
     let materialId = null;
-    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:5000'
-      : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
 
     // Helper for resilient backend fetches (automatically switches to cloud backend if localhost:5000 is offline)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
