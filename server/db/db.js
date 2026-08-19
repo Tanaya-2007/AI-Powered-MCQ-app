@@ -10,6 +10,17 @@ const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING;
 
 let pool;
+let schemaInitializer = null;
+let schemaInitialized = false;
+
+/**
+ * Registers the database schema initializer function to prevent circular dependency
+ * and allow lazy schema initialization when the pool connects successfully.
+ * @param {Function} fn 
+ */
+export function registerSchemaInitializer(fn) {
+  schemaInitializer = fn;
+}
 
 /**
  * Initializes the PostgreSQL Connection Pool.
@@ -34,13 +45,28 @@ export async function initDbPool() {
       }
     });
 
-    // Test checkout a connection to verify credentials
-    const client = await pool.connect();
+    // Test checkout a connection to verify credentials with retries (production grade resilience)
+    let client;
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        client = await pool.connect();
+        break;
+      } catch (err) {
+        if (attempt === maxRetries) {
+          throw err;
+        }
+        console.warn(`⚠️ PostgreSQL connection attempt ${attempt} failed: ${err.message}. Retrying in 2 seconds...`);
+        await new Promise(res => setTimeout(res, 2000));
+      }
+    }
+
     console.log('🚀 PostgreSQL connection pool initialized successfully.');
     client.release();
     return pool;
   } catch (error) {
     console.error('❌ Failed to initialize PostgreSQL connection pool:', error.message);
+    pool = null; // Reset pool so it can be re-attempted
     throw error;
   }
 }
@@ -56,6 +82,18 @@ export async function getConnection() {
 
   if (!pool) {
     throw new Error('Database connection pool is not initialized. Please verify your server/.env settings.');
+  }
+
+  // Lazy initialize the schema if not already initialized
+  if (pool && !schemaInitialized && schemaInitializer) {
+    schemaInitialized = true; // Set flag early to avoid parallel re-entry
+    try {
+      console.log('🛠️ Dynamically initializing database schema on connection...');
+      await schemaInitializer();
+    } catch (e) {
+      schemaInitialized = false; // Reset to retry on next checkout if it fails
+      console.error('❌ Dynamic database schema initialization failed:', e.message);
+    }
   }
 
   try {

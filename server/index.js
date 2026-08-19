@@ -8,7 +8,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initDbPool, closeDbPool } from './db/db.js';
+import { initDbPool, closeDbPool, registerSchemaInitializer } from './db/db.js';
 import { extractTextFromFile } from './utils/parser.js';
 import { splitText } from './utils/textSplitter.js';
 import { generateEmbedding } from './utils/gemini.js';
@@ -912,6 +912,8 @@ app.post('/api/contact', async (req, res) => {
 });
 
 // Start Server
+registerSchemaInitializer(initializeSchema);
+
 httpServer.listen(PORT, async () => {
   console.log(`🚀 QuizMaster server (with Socket.io) listening on port ${PORT}`);
   console.log(`🔗 Status endpoint: http://localhost:${PORT}/api/status`);
@@ -921,11 +923,31 @@ httpServer.listen(PORT, async () => {
   try {
     const pool = await initDbPool();
     if (pool) {
+      console.log('📦 Database pool ready, running schema setup...');
       await initializeSchema();
     }
   } catch (error) {
-    console.error('⚠️ Could not initialize PostgreSQL DB Pool on startup. Ensure connection URL is set in .env.');
+    console.error('⚠️ Could not initialize PostgreSQL DB Pool on startup. Connection will automatically retry when a request is made.');
   }
+});
+
+// Global Error Handler Middleware (Production-grade safety)
+app.use((err, req, res, next) => {
+  console.error('💥 Uncaught System Error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'An unexpected system error occurred.',
+    error: process.env.NODE_ENV === 'production' ? {} : err.message
+  });
+});
+
+// Process-level handlers for uncaught issues to prevent process crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Promise Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
 });
 
 // Graceful shutdown
