@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 function SoloMode() {
   const navigate = useNavigate();
   const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000'
+    ? 'http://localhost:5001'
     : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
   
   // States
@@ -35,6 +35,8 @@ function SoloMode() {
   const [exportUrl, setExportUrl] = useState('');
   const [exportSetupRequired, setExportSetupRequired] = useState(false);
   const [exportSetupSteps, setExportSetupSteps] = useState([]);
+  const [exportAppsScriptCode, setExportAppsScriptCode] = useState('');
+  const [exportAppsScriptFallback, setExportAppsScriptFallback] = useState(false);
 
   // Toast Notification state
   const [showToast, setShowToast] = useState(false);
@@ -74,9 +76,16 @@ function SoloMode() {
       if (data.success) {
         setExportUrl(data.formUrl);
         setExportSetupRequired(false);
+        setExportAppsScriptFallback(false);
+        setExportModalOpen(true);
+      } else if (data.appsScriptFallback) {
+        setExportAppsScriptCode(data.appsScriptCode || '');
+        setExportAppsScriptFallback(true);
+        setExportSetupRequired(false);
         setExportModalOpen(true);
       } else if (data.setupRequired) {
         setExportSetupRequired(true);
+        setExportAppsScriptFallback(false);
         setExportSetupSteps(data.setupSteps || []);
         setExportModalOpen(true);
       } else {
@@ -88,6 +97,16 @@ function SoloMode() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const copyQuizAsText = () => {
+    if (!generatedQuestions || generatedQuestions.length === 0) return;
+    const text = generatedQuestions.map((q, idx) => {
+      const optionsStr = q.options.map((opt, oIdx) => `     ${String.fromCharCode(65 + oIdx)}) ${opt}${oIdx === q.correctAnswer ? ' * (Correct)' : ''}`).join('\n');
+      return `Q${idx + 1}: ${q.question}\nOptions:\n${optionsStr}\nExplanation: ${q.explanation || 'N/A'}\n`;
+    }).join('\n');
+    navigator.clipboard.writeText(text);
+    showToastMessage('📋 Quiz questions copied to clipboard!');
   };
 
   // Fix: Force light theme styling on mount & Init Speech Recognition
@@ -218,7 +237,7 @@ function SoloMode() {
     setIsGenerating(true);
     let materialId = null;
 
-    // Helper for resilient fetches (automatically switches to cloud backend if localhost:5000 is offline)
+    // Helper for resilient fetches (automatically switches to cloud backend if localhost:5001 is offline)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
       let currentUrl = url;
       for (let i = 0; i < retries; i++) {
@@ -228,10 +247,10 @@ function SoloMode() {
         } catch (err) {
           // If local connection fails, switch to production URL ONLY if we are not testing on localhost
           const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-          if (!isLocal && (currentUrl.startsWith('http://localhost:5000') || currentUrl.startsWith('http://127.0.0.1:5000'))) {
+          if (!isLocal && (currentUrl.startsWith('http://localhost:5001') || currentUrl.startsWith('http://127.0.0.1:5001'))) {
             console.warn("Local backend connection refused/failed. Switching to cloud backend...");
             const prodBase = import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com';
-            currentUrl = currentUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5000/, prodBase);
+            currentUrl = currentUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):5001/, prodBase);
             continue; // retry immediately with prod URL
           }
           if (i === retries - 1) throw err;
@@ -475,7 +494,7 @@ function SoloMode() {
               <button
                 onClick={handleExportToGoogleForms}
                 disabled={isExporting}
-                className="w-full py-3 bg-purple-650 hover:bg-purple-700 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isExporting ? (
                   <>
@@ -955,6 +974,49 @@ function SoloMode() {
                   </button>
                 </div>
               </div>
+            ) : exportAppsScriptFallback ? (
+              <div>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-2">One-Click Apps Script</h3>
+                  <p className="text-sm text-gray-500">Google API Service Account error occurred, but you can create this quiz in your own Google Forms account instantly with zero cloud setup:</p>
+                </div>
+
+                <div className="bg-indigo-50 border border-indigo-150 rounded-2xl p-4 mb-4 text-left text-xs font-bold text-gray-700 space-y-1">
+                  <p className="flex gap-1.5"><span className="text-indigo-600">1.</span> Click the button below to copy the code.</p>
+                  <p className="flex gap-1.5"><span className="text-indigo-600">2.</span> Open <a href="https://script.google.com" target="_blank" rel="noreferrer" className="text-indigo-600 underline hover:text-indigo-700">script.google.com</a> and click "New Project".</p>
+                  <p className="flex gap-1.5"><span className="text-indigo-600">3.</span> Delete any default code, paste the script, and click "Run"!</p>
+                </div>
+
+                <textarea
+                  readOnly
+                  value={exportAppsScriptCode}
+                  className="w-full h-32 p-3 font-mono text-[10px] text-gray-700 bg-slate-100 border border-slate-300 rounded-xl mb-4 focus:outline-none focus:border-indigo-500"
+                />
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(exportAppsScriptCode);
+                      showToastMessage('📋 Apps Script code copied!');
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-base font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    📋 Copy Apps Script Code
+                  </button>
+                  
+                  <button
+                    onClick={() => setExportModalOpen(false)}
+                    className="w-full py-3 bg-white border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-55 transition-all flex items-center justify-center gap-2"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <div>
                 <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center text-green-600">
@@ -986,6 +1048,13 @@ function SoloMode() {
                     className="w-full py-3 bg-white border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-55 transition-all flex items-center justify-center gap-2"
                   >
                     📋 Copy Form Link
+                  </button>
+
+                  <button
+                    onClick={copyQuizAsText}
+                    className="w-full py-3 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 text-sm font-bold rounded-xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    📝 Copy Quiz Questions (Text Format)
                   </button>
                 </div>
               </div>

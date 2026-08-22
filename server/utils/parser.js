@@ -65,8 +65,8 @@ export async function extractTextFromFile(filePath, mimeType) {
     }
 
     try {
-      // Use gemini-2.0-flash as it is extremely fast and optimized for multimodal transcription/OCR tasks
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      // Use gemini-3.6-flash as it is extremely fast and optimized for multimodal transcription/OCR tasks
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
       const imagePart = fileToGenerativePart(filePath, mimeType);
       
       const prompt = `

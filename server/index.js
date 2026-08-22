@@ -22,7 +22,7 @@ import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Wrap Express app inside HTTP server to support WebSockets (Socket.io)
 const httpServer = createServer(app);
@@ -178,7 +178,7 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
     if (topic && topic.trim().length >= 2) {
       console.log(`🔍 Running semantic validation for topic focus: "${topic}"`);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.6-flash',
         generationConfig: { responseMimeType: 'application/json' }
       });
 
@@ -198,16 +198,17 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
         
         3. Topic Matching (relative to the user's selected topic: "${topic}"):
            - "EXACT": The text topic is directly and specifically the selected topic.
-           - "RELATED": The text topic is a subtopic, parent topic, or closely related academic area (e.g., selected topic is "Database", text is about "SQL Normalization"; or selected topic is "Machine Learning", text is about "Neural Networks"; or selected topic is "Computer Science", text is about "Operating Systems").
-           - "MISMATCH": The text is completely unrelated to the selected topic (e.g. selected topic is "Database", text is about "Photosynthesis" or "Plant Biology").
+           - "RELATED": The text topic is a subtopic, parent topic, or closely related academic area (e.g., selected topic is "Database", text is about "SQL Normalization"; or selected topic is "Machine Learning", text is about "Neural Networks").
+           - "TOO_GENERIC": The user's selected topic is too broad, generic, or short (e.g., user selected "design" but text is specifically about "System design"; or user selected "programming" but text is about "Java programming").
+           - "MISMATCH": The text is completely unrelated to the selected topic (e.g. selected topic is "Database", text is about "Photosynthesis").
         
         Return ONLY a valid JSON object matching this schema:
         {
           "sufficiency": "EMPTY" | "INSUFFICIENT" | "SUFFICIENT" | "RICH",
           "sufficiencyReason": "explanation of sufficiency classification",
           "detectedTopic": "detected topic string",
-          "matchType": "EXACT" | "RELATED" | "MISMATCH",
-          "relationExplanation": "explanation of why it is classified as exact, related, or mismatch"
+          "matchType": "EXACT" | "RELATED" | "TOO_GENERIC" | "MISMATCH",
+          "relationExplanation": "explanation of why it is classified as exact, related, too generic, or mismatch"
         }
         
         Text to analyze (first 4000 chars):
@@ -219,8 +220,15 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
       try {
         let responseText;
         if (process.env.GROQ_API_KEY) {
-          console.log('🤖 Running validation via Groq API (Llama 3.3)...');
-          responseText = await generateGroqContent(checkPrompt, 'application/json');
+          try {
+            console.log('🤖 Running validation via Groq API...');
+            responseText = await generateGroqContent(checkPrompt, 'application/json');
+          } catch (groqError) {
+            console.warn('⚠️ Groq validation failed, falling back to Gemini API:', groqError.message);
+            console.log('🛰️ Running validation via Gemini API...');
+            const checkResult = await model.generateContent(checkPrompt);
+            responseText = checkResult.response.text();
+          }
         } else if (process.env.OPENAI_API_KEY) {
           console.log('🤖 Running validation via OpenAI API (gpt-4o-mini)...');
           responseText = await generateOpenAIContent(checkPrompt, 'application/json');
@@ -244,12 +252,14 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
           });
         }
 
-        if (checkData.matchType === 'MISMATCH') {
-          console.warn(`❌ Ingestion rejected: Topic mismatch. Selected: "${topic}", Detected: "${checkData.detectedTopic}"`);
+        if (checkData.matchType === 'MISMATCH' || checkData.matchType === 'TOO_GENERIC') {
+          console.warn(`❌ Ingestion rejected: Topic mismatch or too generic. Selected: "${topic}", Detected: "${checkData.detectedTopic}"`);
           return res.status(400).json({
             success: false,
             errorType: 'TOPIC_MISMATCH',
-            message: `⚠️ Topic mismatch detected.\n\nYou selected: "${topic}"\nBut your uploaded content appears to be about: "${checkData.detectedTopic}".\n\nPlease either:\n• change the topic to "${checkData.detectedTopic}"\nOR\n• upload content related to "${topic}".`,
+            message: checkData.matchType === 'TOO_GENERIC'
+              ? `⚠️ The topic focus "${topic}" is too generic.\n\nPlease refine your Topic Focus to match the specific subject of your study material: "${checkData.detectedTopic}".`
+              : `⚠️ Topic mismatch detected.\n\nYou selected: "${topic}"\nBut your uploaded content appears to be about: "${checkData.detectedTopic}".\n\nPlease either:\n• change the topic to "${checkData.detectedTopic}"\nOR\n• upload content related to "${topic}".`,
             detectedTopic: checkData.detectedTopic,
             selectedTopic: topic
           });
@@ -409,7 +419,7 @@ app.post('/api/generate-quiz', async (req, res) => {
   // C. Build the prompt for Gemini
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.6-flash',
       generationConfig: {
         responseMimeType: 'application/json'
       }
@@ -467,8 +477,15 @@ app.post('/api/generate-quiz', async (req, res) => {
 
     let responseText;
     if (process.env.GROQ_API_KEY) {
-      console.log('🤖 Generating quiz questions via Groq API (Llama 3.3)...');
-      responseText = await generateGroqContent(prompt, 'application/json');
+      try {
+        console.log('🤖 Generating quiz questions via Groq API...');
+        responseText = await generateGroqContent(prompt, 'application/json');
+      } catch (groqError) {
+        console.warn('⚠️ Groq quiz generation failed, falling back to Gemini API:', groqError.message);
+        console.log('🛰️ Generating quiz questions via Gemini API...');
+        const result = await model.generateContent(prompt);
+        responseText = result.response.text();
+      }
     } else if (process.env.OPENAI_API_KEY) {
       console.log('🤖 Generating quiz questions via OpenAI API (gpt-4o-mini)...');
       responseText = await generateOpenAIContent(prompt, 'application/json');
@@ -598,6 +615,40 @@ app.post('/api/generate-quiz', async (req, res) => {
   }
 });
 
+// Helper to generate a copy-pasteable Google Apps Script to create the Google Form Quiz
+function generateAppsScript(quizTitle, questions) {
+  let code = `function createGoogleFormQuiz() {\n`;
+  code += `  var form = FormApp.create(${JSON.stringify(quizTitle)});\n`;
+  code += `  form.setIsQuiz(true);\n\n`;
+  
+  questions.forEach((q, idx) => {
+    code += `  // Question ${idx + 1}\n`;
+    code += `  var item = form.addMultipleChoiceItem();\n`;
+    code += `  item.setTitle(${JSON.stringify(q.question)});\n`;
+    
+    // Build choices
+    const choicesList = q.options.map((opt, oIdx) => {
+      const isCorrect = oIdx === q.correctAnswer;
+      return `item.createChoice(${JSON.stringify(opt)}, ${isCorrect})`;
+    }).join(',\n      ');
+    
+    code += `  item.setChoices([\n      ${choicesList}\n  ]);\n`;
+    code += `  item.setPoints(1);\n`;
+    
+    if (q.explanation) {
+      code += `  var feedback = FormApp.createFeedback().setText(${JSON.stringify(q.explanation)}).build();\n`;
+      code += `  item.setFeedbackForCorrect(feedback);\n`;
+      code += `  item.setFeedbackForIncorrect(feedback);\n`;
+    }
+    code += `\n`;
+  });
+  
+  code += `  Logger.log("Form created successfully! ID: " + form.getId());\n`;
+  code += `  Logger.log("Responder URL: " + form.getPublishedUrl());\n`;
+  code += `}\n`;
+  return code;
+}
+
 // 5. Google Forms Export Endpoint (Creates a graded Quiz in Google Forms)
 app.post('/api/export-quiz', async (req, res) => {
   const { title, questions } = req.body;
@@ -639,9 +690,12 @@ app.post('/api/export-quiz', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Failed to export to Google Forms:', error);
-    res.status(500).json({
+    const appsScriptCode = generateAppsScript(title, questions);
+    res.json({
       success: false,
-      message: 'Failed to export to Google Forms.',
+      appsScriptFallback: true,
+      appsScriptCode,
+      message: 'Failed to export to Google Forms automatically. Use the One-Click Google Apps Script code below to generate it instantly without any Cloud setup!',
       error: error.message
     });
   }
