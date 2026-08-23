@@ -989,7 +989,8 @@ function SoloMode() {
                 <div className="bg-indigo-50 border border-indigo-150 rounded-2xl p-4 mb-4 text-left text-xs font-bold text-gray-700 space-y-1">
                   <p className="flex gap-1.5"><span className="text-indigo-600">1.</span> Click the button below to copy the code.</p>
                   <p className="flex gap-1.5"><span className="text-indigo-600">2.</span> Open <a href="https://script.google.com" target="_blank" rel="noreferrer" className="text-indigo-600 underline hover:text-indigo-700">script.google.com</a> and click "New Project".</p>
-                  <p className="flex gap-1.5"><span className="text-indigo-600">3.</span> Delete any default code, paste the script, and click "Run"!</p>
+                  <p className="flex gap-1.5"><span className="text-indigo-600">3.</span> Delete any default code, paste the script, and click "Run".</p>
+                  <p className="flex gap-1.5"><span className="text-indigo-600">4.</span> **[COMPULSORY]** Open the created Form, click the **Settings** tab, and toggle **"Release marks"** to **"Immediately after each submission"** so candidates see scores and correct answers instantly!</p>
                 </div>
 
                 <textarea
@@ -1025,7 +1026,10 @@ function SoloMode() {
                   </svg>
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-2">Export Complete!</h3>
-                <p className="text-sm text-gray-500 mb-6">Your quiz has been successfully generated and exported directly to Google Forms!</p>
+                <p className="text-sm text-gray-500 mb-2">Your quiz has been successfully generated and exported directly to Google Forms!</p>
+                <p className="text-xs text-amber-600 font-bold mb-6 bg-amber-50 border border-amber-200 rounded-xl p-2.5 leading-relaxed">
+                  ⚠️ **IMPORTANT:** By default, Google hides answers after submission. You must open the form, click the **Settings** tab, and set **"Release marks"** to **"Immediately after each submission"** for candidates to see results instantly!
+                </p>
 
                 <div className="space-y-3">
                   <a
