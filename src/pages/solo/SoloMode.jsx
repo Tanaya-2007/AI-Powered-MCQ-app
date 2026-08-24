@@ -440,7 +440,7 @@ function SoloMode() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 font-medium">Time per question:</span>
-                <span className="text-gray-900 font-bold">{customTime || timePerQuestion}s</span>
+                <span className="text-gray-900 font-bold">{timerEnabled ? `${customTime || timePerQuestion}s` : 'Unlimited'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 font-medium">Difficulty:</span>
@@ -449,7 +449,11 @@ function SoloMode() {
               <div className="flex justify-between text-sm pt-2 border-t-2 border-indigo-200">
                 <span className="text-indigo-600 font-bold">Total Time:</span>
                 <span className="text-indigo-900 font-black">
-                  {Math.floor((parseInt(numQuestions) * (customTime || timePerQuestion)) / 60)} min {((parseInt(numQuestions) * (customTime || timePerQuestion)) % 60)} sec
+                  {timerEnabled ? (
+                    `${Math.floor((parseInt(numQuestions) * (customTime || timePerQuestion)) / 60)} min ${((parseInt(numQuestions) * (customTime || timePerQuestion)) % 60)} sec`
+                  ) : (
+                    'Unlimited'
+                  )}
                 </span>
               </div>
             </div>

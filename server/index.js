@@ -389,7 +389,9 @@ app.post('/api/generate-quiz', async (req, res) => {
     const queryEmbedding = await generateEmbedding(topic);
 
     // B. Query vector store for matching textbook segments
-    const chunks = await searchSimilarChunks(queryEmbedding, 5, materialId);
+    const chunkLimit = Math.max(12, Math.ceil(Number(count) * 0.8));
+    console.log(`🔍 Querying vector store for up to ${chunkLimit} relevant chunks (based on requested count: ${count})...`);
+    const chunks = await searchSimilarChunks(queryEmbedding, chunkLimit, materialId);
 
     if (chunks && chunks.length > 0) {
       console.log(`✅ Found ${chunks.length} semantically relevant chunks in vector DB.`);
