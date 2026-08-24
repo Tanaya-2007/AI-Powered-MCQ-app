@@ -365,13 +365,14 @@ function computeJaccard(setA, setB) {
 app.post('/api/generate-quiz', async (req, res) => {
   let { topic, materialId, count = 5, difficulty = 'medium' } = req.body;
 
-  if (!topic || topic.trim() === '') {
-    return res.status(400).json({ success: false, message: 'Topic name is required.' });
+  // Make topic focus optional
+  if (!topic) {
+    topic = '';
   }
 
   let contextText = '';
 
-  console.log(`🔍 Received quiz generation request for topic: "${topic}" (Difficulty: ${difficulty}, Count: ${count})`);
+  console.log(`Received quiz generation request (Topic: "${topic || 'Auto-detect'}", Difficulty: ${difficulty}, Count: ${count})`);
 
   try {
     // If materialId is not provided, fallback to the latest uploaded study material ID
@@ -385,16 +386,32 @@ app.post('/api/generate-quiz', async (req, res) => {
       }
     }
 
-    // A. Generate embedding for query topic
-    const queryEmbedding = await generateEmbedding(topic);
+    let chunks = [];
+    if (topic && topic.trim() !== '') {
+      // A. Generate embedding for query topic
+      const queryEmbedding = await generateEmbedding(topic);
 
-    // B. Query vector store for matching textbook segments
-    const chunkLimit = Math.max(12, Math.ceil(Number(count) * 0.8));
-    console.log(`🔍 Querying vector store for up to ${chunkLimit} relevant chunks (based on requested count: ${count})...`);
-    const chunks = await searchSimilarChunks(queryEmbedding, chunkLimit, materialId);
+      // B. Query vector store for matching textbook segments
+      const chunkLimit = Math.max(12, Math.ceil(Number(count) * 0.8));
+      console.log(`🔍 Querying vector store for up to ${chunkLimit} relevant chunks (based on requested count: ${count})...`);
+      chunks = await searchSimilarChunks(queryEmbedding, chunkLimit, materialId);
+    } else {
+      // B. Retrieve sequential chunks for the material ID directly
+      console.log(`🔍 Querying all sequential chunks for materialId: ${materialId}...`);
+      const pool = initDbPool();
+      const result = await pool.query(
+        `SELECT c.id, c.content, c.page_number, c.chunk_index, m.filename 
+         FROM document_chunks c 
+         JOIN study_materials m ON c.material_id = m.id 
+         WHERE c.material_id = $1 
+         ORDER BY c.chunk_index ASC LIMIT 50`,
+        [Number(materialId)]
+      );
+      chunks = result.rows;
+    }
 
     if (chunks && chunks.length > 0) {
-      console.log(`✅ Found ${chunks.length} semantically relevant chunks in vector DB.`);
+      console.log(`✅ Found ${chunks.length} segments to use as context.`);
       contextText = chunks
         .map(c => {
           const fn = c.filename || c.FILENAME || 'study_material';
@@ -404,14 +421,14 @@ app.post('/api/generate-quiz', async (req, res) => {
         })
         .join('\n\n---\n\n');
     } else {
-      console.warn(`❌ No relevant chunks found for topic "${topic}".`);
+      console.warn(`❌ No segments found in database.`);
       return res.status(400).json({
         success: false,
-        message: `No relevant content found for topic "${topic}" in your uploaded study material. Please make sure your Topic Focus matches the contents of your uploaded document.`
+        message: 'No study material segments found in your database. Please upload a file first.'
       });
     }
   } catch (error) {
-    console.error('❌ Vector store retrieval failed:', error.message);
+    console.error('❌ Context retrieval failed:', error.message);
     return res.status(500).json({
       success: false,
       message: `Failed to retrieve study material context: ${error.message}`
@@ -423,6 +440,7 @@ app.post('/api/generate-quiz', async (req, res) => {
   const questionTexts = [];
   let attempts = 0;
   const targetCount = Number(count);
+  let detectedTopic = topic || '';
 
   try {
     const model = genAI.getGenerativeModel({
@@ -444,7 +462,7 @@ app.post('/api/generate-quiz', async (req, res) => {
       const prompt = `
         You are an expert educator. Your task is to generate a multiple-choice quiz based on the textbook segments provided below.
         
-        Topic to focus on: "${topic}"
+        Topic to focus on: "${topic || 'Auto-detect'}"
         Difficulty level: "${difficulty}"
         Number of questions required in this batch: ${needed}
         
@@ -464,10 +482,11 @@ app.post('/api/generate-quiz', async (req, res) => {
            - aligns with the "${difficulty}" difficulty level.
            - has no duplicate options and no ambiguous answers.
         
-        3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text). You must list all ${needed} generated questions inside the "questions" array:
+        3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text). You must list all ${needed} generated questions inside the "questions" array, and auto-detect a suitable specific topic title for the "detectedTopic" field:
         {
           "insufficient": false,
           "maxPossibleQuestions": ${needed},
+          "detectedTopic": "Auto-detected specific quiz topic name",
           "reason": "Successfully generated the requested questions.",
           "questions": [
             {
@@ -476,7 +495,7 @@ app.post('/api/generate-quiz', async (req, res) => {
               "correctAnswer": 0,
               "explanation": "detailed explanation of correct answer",
               "difficulty": "${difficulty}",
-              "topic": "${topic}",
+              "topic": "${topic || 'Auto-detected topic'}",
               "sourceReference": "exact reference quote or concept"
             }
           ]
@@ -517,6 +536,10 @@ app.post('/api/generate-quiz', async (req, res) => {
           console.error('Failed to extract valid JSON payload from response:\n' + responseText);
           continue;
         }
+      }
+
+      if (payload.detectedTopic && !detectedTopic) {
+        detectedTopic = payload.detectedTopic;
       }
 
       const generatedRaw = payload.questions || [];
@@ -575,7 +598,7 @@ app.post('/api/generate-quiz', async (req, res) => {
       questions: finalQuestions,
       metadata: {
         sourceType: materialId ? 'uploaded_material' : 'text_input',
-        detectedTopic: topic,
+        detectedTopic: detectedTopic || topic || 'Study Quiz',
         topicMatch: true,
         grounded: true
       }

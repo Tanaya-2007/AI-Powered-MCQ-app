@@ -269,7 +269,7 @@ function SoloMode() {
           },
           body: JSON.stringify({
             text: textInput,
-            filename: `${topic}_notes.txt`,
+            filename: topic ? `${topic}_notes.txt` : 'study_material.txt',
             topic: topic
           })
         });
@@ -785,18 +785,7 @@ function SoloMode() {
                 Quiz Settings
               </h3>
 
-              {/* Topic Focus */}
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Topic Focus</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Photosynthesis, databases..."
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  disabled={isGenerating}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium text-sm text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
+
 
               {/* Difficulty Level */}
               <div className="mb-6">
