@@ -457,22 +457,24 @@ function CreateQuiz() {
       {/* Quiz Ready popup */}
       {quizReady && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-fade-in overflow-y-auto py-8">
-          <div className="relative bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 border border-slate-200">
-            <button
-              onClick={() => {
-                setQuizReady(false);
-                setShowPreview(false);
-                setShowEdit(false);
-              }}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all z-10"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-6xl w-full h-[90vh] max-h-[90vh] flex flex-col border border-slate-200 overflow-hidden">
+            {!showPreview && !showEdit && (
+              <button
+                onClick={() => {
+                  setQuizReady(false);
+                  setShowPreview(false);
+                  setShowEdit(false);
+                }}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all z-10"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
 
             {!showPreview && !showEdit ? (
-              <>
+              <div className="flex-1 overflow-y-auto p-6 sm:p-8">
                 {/* Success header */}
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-xl animate-bounce-once">
@@ -616,7 +618,7 @@ function CreateQuiz() {
                     </div>
                   </div>
                 </div>
-              </>
+              </div>
             ) : showPreview ? (
               <QuestionPreview
                 questions={generatedQuestions}
@@ -1261,8 +1263,8 @@ function CreateQuiz() {
 // Question Preview Subcomponent
 function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b-2 border-gray-200 bg-white z-20 p-6 sm:p-8 pb-4 sm:pb-4">
         <h3 className="text-xl sm:text-2xl font-black text-gray-900">
           Review Questions ({questions.length})
         </h3>
@@ -1277,7 +1279,7 @@ function QuestionPreview({ questions, onEdit, onDelete, onBack }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 space-y-3 sm:space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 sm:px-8 pb-6 sm:pb-8 space-y-3 sm:space-y-4">
         {questions.map((q, index) => (
           <div key={q.id} className="bg-white border-2 border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 hover:border-indigo-300 transition-all">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
@@ -1342,8 +1344,8 @@ function QuestionEditor({ question, onSave, onCancel }) {
     question.options.some((opt, i) => opt !== editedQuestion.options[i]);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 pb-4 border-b-2 border-gray-200">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b-2 border-gray-200 bg-white z-20 p-6 sm:p-8 pb-4 sm:pb-4">
         <h3 className="text-xl sm:text-2xl font-black text-gray-900">Edit Question</h3>
         <button 
           onClick={onCancel} 
@@ -1356,7 +1358,7 @@ function QuestionEditor({ question, onSave, onCancel }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 space-y-4 sm:space-y-6">
+      <div className="flex-1 overflow-y-auto px-6 sm:px-8 pb-6 sm:pb-8 space-y-4 sm:space-y-6">
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">Question</label>
           <textarea
