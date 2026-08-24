@@ -418,7 +418,12 @@ app.post('/api/generate-quiz', async (req, res) => {
     });
   }
 
-  // C. Build the prompt for Gemini
+  // C. Run a loop to accumulate up to `count` questions, avoiding repeats
+  const validQuestions = [];
+  const questionTexts = [];
+  let attempts = 0;
+  const targetCount = Number(count);
+
   try {
     const model = genAI.getGenerativeModel({
       model: 'gemini-3.6-flash',
@@ -427,155 +432,141 @@ app.post('/api/generate-quiz', async (req, res) => {
       }
     });
 
-    const prompt = `
-      You are an expert educator. Your task is to generate a multiple-choice quiz based on the textbook segments provided below.
-      
-      Topic to focus on: "${topic}"
-      Difficulty level: "${difficulty}"
-      Number of questions required: ${count}
-      
-      CONTEXT SEGMENTS FROM TEXTBOOK:
-      ===
-      ${contextText}
-      ===
-      
-      INSTRUCTIONS:
-      1. Analyze the context segments. If they do not contain enough substance to generate exactly ${count} unique, high-quality, non-overlapping questions without duplicating concepts or making up facts, you MUST set the "insufficient" flag to true and specify "maxPossibleQuestions" in the JSON response. Do NOT attempt to invent unrelated questions.
-      
-      2. If you generate the quiz, ensure every question:
-         - is directly and factually grounded in the provided context segments.
-         - has a "question" string, "options" array of exactly 4 strings, "correctAnswer" index (0, 1, 2, or 3), "explanation" string, and a "sourceReference" string referencing the specific concept or sentence from the context.
-         - aligns with the "${difficulty}" difficulty level:
-           * "easy": focuses on basic definitions, facts, and direct concept identification.
-           * "medium": focuses on conceptual application, simple scenario analysis, or comparison.
-           * "hard": focuses on complex scenarios, trap options, multi-step reasoning, or edge cases.
-         - has no duplicate options and no ambiguous answers.
-      
-      3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text):
-      {
-        "insufficient": false,
-        "maxPossibleQuestions": ${count},
-        "reason": "optional explanation string",
-        "questions": [
-          {
-            "question": "question text",
-            "options": ["option 0", "option 1", "option 2", "option 3"],
-            "correctAnswer": 0,
-            "explanation": "detailed explanation of correct answer",
-            "difficulty": "${difficulty}",
-            "topic": "${topic}",
-            "sourceReference": "exact reference quote or concept"
-          }
-        ]
-      }
-      
-      If the content is insufficient:
-      {
-        "insufficient": true,
-        "maxPossibleQuestions": 2,
-        "reason": "Brief explanation of why the content can only support 2 questions"
-      }
-    `;
+    while (validQuestions.length < targetCount && attempts < 3) {
+      attempts++;
+      const needed = targetCount - validQuestions.length;
+      console.log(`🤖 MCQ generation loop: attempt ${attempts}/3, currently have ${validQuestions.length}/${targetCount} questions, need ${needed} more.`);
 
-    let responseText;
-    if (process.env.GROQ_API_KEY) {
-      try {
-        console.log('🤖 Generating quiz questions via Groq API...');
-        responseText = await generateGroqContent(prompt, 'application/json');
-      } catch (groqError) {
-        console.warn('⚠️ Groq quiz generation failed, falling back to Gemini API:', groqError.message);
-        console.log('🛰️ Generating quiz questions via Gemini API...');
+      const avoidPromptText = questionTexts.length > 0
+        ? `You MUST avoid generating questions similar or duplicate to these already generated questions:\n${questionTexts.map((qText, idx) => `${idx + 1}. ${qText}`).join('\n')}`
+        : '';
+
+      const prompt = `
+        You are an expert educator. Your task is to generate a multiple-choice quiz based on the textbook segments provided below.
+        
+        Topic to focus on: "${topic}"
+        Difficulty level: "${difficulty}"
+        Number of questions required in this batch: ${needed}
+        
+        ${avoidPromptText}
+        
+        CONTEXT SEGMENTS FROM TEXTBOOK:
+        ===
+        ${contextText}
+        ===
+        
+        INSTRUCTIONS:
+        1. Analyze the context segments. You MUST generate exactly ${needed} unique, high-quality, non-overlapping questions. If the text is short or limited, expand your questions by covering different aspects, details, scenarios, applications, variations, or implications of the concepts mentioned in the text. Always set "insufficient" to false. Do not set it to true under any circumstances.
+        
+        2. Ensure every question:
+           - is directly and factually grounded in the provided context segments.
+           - has a "question" string, "options" array of exactly 4 strings, "correctAnswer" index (0, 1, 2, or 3), "explanation" string, and a "sourceReference" string referencing the specific concept or sentence from the context.
+           - aligns with the "${difficulty}" difficulty level.
+           - has no duplicate options and no ambiguous answers.
+        
+        3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text). You must list all ${needed} generated questions inside the "questions" array:
+        {
+          "insufficient": false,
+          "maxPossibleQuestions": ${needed},
+          "reason": "Successfully generated the requested questions.",
+          "questions": [
+            {
+              "question": "question text",
+              "options": ["option 0", "option 1", "option 2", "option 3"],
+              "correctAnswer": 0,
+              "explanation": "detailed explanation of correct answer",
+              "difficulty": "${difficulty}",
+              "topic": "${topic}",
+              "sourceReference": "exact reference quote or concept"
+            }
+          ]
+        }
+      `;
+
+      let responseText;
+      if (process.env.GROQ_API_KEY) {
+        try {
+          console.log(`🤖 Attempting to generate ${needed} questions via Groq API...`);
+          responseText = await generateGroqContent(prompt, 'application/json');
+        } catch (groqError) {
+          console.warn('⚠️ Groq quiz generation failed, falling back to Gemini API:', groqError.message);
+          console.log(`🛰️ Attempting to generate ${needed} questions via Gemini API...`);
+          const result = await model.generateContent(prompt);
+          responseText = result.response.text();
+        }
+      } else if (process.env.OPENAI_API_KEY) {
+        console.log(`🤖 Attempting to generate ${needed} questions via OpenAI API (gpt-4o-mini)...`);
+        responseText = await generateOpenAIContent(prompt, 'application/json');
+      } else {
+        console.log(`🛰️ Attempting to generate ${needed} questions via Gemini API...`);
         const result = await model.generateContent(prompt);
         responseText = result.response.text();
       }
-    } else if (process.env.OPENAI_API_KEY) {
-      console.log('🤖 Generating quiz questions via OpenAI API (gpt-4o-mini)...');
-      responseText = await generateOpenAIContent(prompt, 'application/json');
-    } else {
-      console.log('🛰️ Generating quiz questions via Gemini API...');
-      const result = await model.generateContent(prompt);
-      responseText = result.response.text();
-    }
-    
-    // Parse response with resilient extraction (removes markdown wrapping and extracts raw JSON object)
-    let payload;
-    try {
-      const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
-      payload = JSON.parse(cleanJsonText);
-    } catch (e) {
-      console.warn('⚠️ Standard JSON parse failed, attempting regex object extraction:', e.message);
-      const objectMatch = responseText.match(/\{\s*"insufficient"[\s\S]*\}/);
-      if (objectMatch) {
-        payload = JSON.parse(objectMatch[0]);
-      } else {
-        throw new Error('Failed to extract valid JSON payload from response:\n' + responseText);
-      }
-    }
 
-    if (payload.insufficient === true) {
-      const maxQ = payload.maxPossibleQuestions || 0;
-      console.warn(`❌ Ingestion failed: Insufficient unique content for ${count} questions (Max possible: ${maxQ}).`);
-      return res.status(400).json({
-        success: false,
-        errorType: 'INSUFFICIENT_CONTENT',
-        message: `Your content contains enough information for approximately ${maxQ} unique questions. Add more material to generate ${count} questions.`
-      });
-    }
-
-    const generatedRaw = payload.questions || [];
-    const validQuestions = [];
-    const questionTexts = [];
-
-    // Perform self-validation & duplicate detection
-    for (const q of generatedRaw) {
-      // 1. Validate property existence & types
-      if (!q.question || typeof q.question !== 'string' || q.question.trim() === '') continue;
-      if (!Array.isArray(q.options) || q.options.length !== 4) continue;
-      if (typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer > 3) continue;
-      if (!q.explanation || typeof q.explanation !== 'string') continue;
-
-      // 2. Options uniqueness check
-      const uniqueOptions = new Set(q.options.map(o => String(o).trim().toLowerCase()));
-      if (uniqueOptions.size !== 4) continue;
-
-      // 3. Near-duplicate check with already accepted questions
-      let isDuplicate = false;
-      const tokensQ = getTokens(q.question);
-      for (const acceptedText of questionTexts) {
-        const tokensAccepted = getTokens(acceptedText);
-        const similarity = computeJaccard(tokensQ, tokensAccepted);
-        if (similarity > 0.6) {
-          isDuplicate = true;
-          break;
+      // Parse JSON payload
+      let payload;
+      try {
+        const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
+        payload = JSON.parse(cleanJsonText);
+      } catch (e) {
+        console.warn('⚠️ Standard JSON parse failed, attempting regex object extraction:', e.message);
+        const objectMatch = responseText.match(/\{\s*"insufficient"[\s\S]*\}/);
+        if (objectMatch) {
+          payload = JSON.parse(objectMatch[0]);
+        } else {
+          console.error('Failed to extract valid JSON payload from response:\n' + responseText);
+          continue;
         }
       }
-      if (isDuplicate) continue;
 
-      // Clean properties and accept
-      q.question = q.question.trim();
-      q.options = q.options.map(o => String(o).trim());
-      q.explanation = q.explanation.trim();
-      q.topic = q.topic || topic;
-      q.difficulty = q.difficulty || difficulty;
-      q.sourceReference = q.sourceReference || 'User study material';
+      const generatedRaw = payload.questions || [];
+      console.log(`📥 API response yielded ${generatedRaw.length} raw questions.`);
 
-      validQuestions.push(q);
-      questionTexts.push(q.question);
+      // Validate & append questions
+      for (const q of generatedRaw) {
+        if (!q.question || typeof q.question !== 'string' || q.question.trim() === '') continue;
+        if (!Array.isArray(q.options) || q.options.length !== 4) continue;
+        if (typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer > 3) continue;
+        if (!q.explanation || typeof q.explanation !== 'string') continue;
+
+        const uniqueOptions = new Set(q.options.map(o => String(o).trim().toLowerCase()));
+        if (uniqueOptions.size !== 4) continue;
+
+        let isDuplicate = false;
+        const tokensQ = getTokens(q.question);
+        for (const acceptedText of questionTexts) {
+          const tokensAccepted = getTokens(acceptedText);
+          const similarity = computeJaccard(tokensQ, tokensAccepted);
+          if (similarity > 0.6) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        if (isDuplicate) continue;
+
+        q.question = q.question.trim();
+        q.options = q.options.map(o => String(o).trim());
+        q.explanation = q.explanation.trim();
+        q.topic = q.topic || topic;
+        q.difficulty = q.difficulty || difficulty;
+        q.sourceReference = q.sourceReference || 'User study material';
+
+        validQuestions.push(q);
+        questionTexts.push(q.question);
+      }
     }
 
-    console.log(`[Validation] Validated ${validQuestions.length} of ${generatedRaw.length} questions.`);
-
-    if (validQuestions.length < count) {
-      console.warn(`❌ Ingestion failed: Only ${validQuestions.length} valid questions could be generated (Requested: ${count}).`);
+    if (validQuestions.length === 0) {
+      console.warn(`❌ Ingestion failed: No valid questions could be generated.`);
       return res.status(400).json({
         success: false,
         errorType: 'INSUFFICIENT_CONTENT',
-        message: `Your content contains enough information for approximately ${validQuestions.length} unique questions. Add more material to generate ${count} questions.`
+        message: `Your content is not sufficient to generate any valid questions. Please provide more detailed textbook context.`
       });
     }
 
     // Slice to exactly requested count
-    const finalQuestions = validQuestions.slice(0, count);
+    const finalQuestions = validQuestions.slice(0, targetCount);
 
     console.log(`🎉 Successfully generated ${finalQuestions.length} grounded questions.`);
     res.json({
