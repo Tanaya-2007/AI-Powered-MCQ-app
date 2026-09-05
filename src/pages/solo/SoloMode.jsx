@@ -199,11 +199,6 @@ function SoloMode() {
   };
 
   const handleGenerateQuiz = async () => {
-    if (!topic || topic.trim() === '') {
-      triggerAlert('Please enter a topic focus (e.g. Photosynthesis, databases)', 'warning');
-      return;
-    }
-
     const questionsCount = parseInt(numQuestions) || 0;
     if (questionsCount === 0) {
       triggerAlert('Please enter number of questions', 'warning');
@@ -211,11 +206,6 @@ function SoloMode() {
     }
     if (questionsCount > 100) {
       triggerAlert('Maximum 100 questions allowed! Please reduce the number.', 'warning');
-      return;
-    }
-  
-    if (topic.trim().length < 2) {
-      triggerAlert('Topic focus must be at least 2 characters long!', 'warning');
       return;
     }
 
@@ -328,6 +318,9 @@ function SoloMode() {
       const genData = await genResponse.json();
       const questionsToParse = genData.questions || genData.quiz?.questions;
       if (genData.success && questionsToParse) {
+        if (genData.metadata?.detectedTopic) {
+          setTopic(genData.metadata.detectedTopic);
+        }
         setGeneratedQuestions(questionsToParse);
         setQuizReady(true);
       } else {
@@ -351,7 +344,7 @@ function SoloMode() {
         numQuestions: generatedQuestions.length,
         timePerQuestion: time,
         timerEnabled: timerEnabled,
-        title: topic
+        title: topic || 'Study Material Quiz'
       }
     });
   };
@@ -897,7 +890,7 @@ function SoloMode() {
               {!quizReady && (
                 <button
                   onClick={handleGenerateQuiz}
-                  disabled={isGenerating || !topic || topic.trim().length < 2 || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
+                  disabled={isGenerating || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
                   className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
                   {isGenerating ? (

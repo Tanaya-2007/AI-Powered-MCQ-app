@@ -210,16 +210,6 @@ function CreateQuiz() {
   };
 
   const handleGenerateQuiz = async () => {
-    // Validate topic focus
-    if (!topic || topic.trim() === '') {
-      triggerAlert('Please enter a topic focus (e.g. Photosynthesis, databases)', 'warning');
-      return;
-    }
-    if (topic.trim().length < 2) {
-      triggerAlert('Topic focus must be at least 2 characters long!', 'warning');
-      return;
-    }
-
     const questionsCount = parseInt(numQuestions) || 0;
     if (questionsCount === 0) {
       triggerAlert('Please enter number of questions', 'warning');
@@ -345,6 +335,9 @@ function CreateQuiz() {
       const genData = await genResponse.json();
       const questionsToParse = genData.questions || genData.quiz?.questions;
       if (genData.success && questionsToParse) {
+        if (genData.metadata?.detectedTopic) {
+          setTopic(genData.metadata.detectedTopic);
+        }
         const parsedQuestions = questionsToParse.map((q, idx) => ({
           id: idx + 1,
           question: q.question,
@@ -518,7 +511,7 @@ function CreateQuiz() {
                       <div className="space-y-2">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-gray-600 font-medium">Topic</span>
-                          <span className="text-gray-900 font-bold">{topic}</span>
+                          <span className="text-gray-900 font-bold">{topic || 'Study Material Quiz'}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-gray-600 font-medium">Questions</span>
@@ -989,7 +982,7 @@ function CreateQuiz() {
               {!quizReady && (
                 <button
                   onClick={handleGenerateQuiz}
-                  disabled={isGenerating || !topic || topic.trim().length < 2 || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
+                  disabled={isGenerating || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
                   className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
                   {isGenerating ? (
