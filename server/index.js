@@ -178,7 +178,7 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
     if (topic && topic.trim().length >= 2) {
       console.log(`🔍 Running semantic validation for topic focus: "${topic}"`);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.8-flash',
         generationConfig: { responseMimeType: 'application/json' }
       });
 
@@ -287,12 +287,12 @@ app.post('/api/ingest', upload.single('file'), async (req, res) => {
 
         // Resilient fallback checks:
         const textLower = rawText.trim().toLowerCase();
-        const isGreeting = /\b(hey|hello|hi|hii|helloo|testing)\b/.test(textLower);
-        if (isGreeting || rawText.trim().length < 25) {
+        const isGreeting = /^(hey|hello|hi|hii|helloo|testing)$/i.test(textLower);
+        if (isGreeting || rawText.trim().length < 2) {
           return res.status(400).json({
             success: false,
             errorType: 'INSUFFICIENT_CONTENT',
-            message: 'Your input is too limited to create meaningful MCQs. Add a few more concepts or upload study material.'
+            message: 'Your input is too limited to create meaningful MCQs. Please enter a topic or upload study material.'
           });
         }
       }
@@ -444,7 +444,7 @@ app.post('/api/generate-quiz', async (req, res) => {
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-3.8-flash',
       generationConfig: {
         responseMimeType: 'application/json'
       }

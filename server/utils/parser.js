@@ -64,26 +64,42 @@ export async function extractTextFromFile(filePath, mimeType) {
       throw new Error('GEMINI_API_KEY is missing. Cannot run visual OCR for image uploads.');
     }
 
-    try {
-      // Use gemini-3.6-flash as it is extremely fast and optimized for multimodal transcription/OCR tasks
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
-      const imagePart = fileToGenerativePart(filePath, mimeType);
-      
-      const prompt = `
-        Perform Optical Character Recognition (OCR) on this textbook image. 
-        Transcribe all visible printed and handwritten text word-for-word. 
-        Do not add any headings, intros, summaries, or explanations. 
-        Return only the plain transcribed text.
-      `;
+    // Use gemini-3.8-flash and gemini-3.6-flash with retry and fallback
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.6-flash'];
+    const imagePart = fileToGenerativePart(filePath, mimeType);
+    const prompt = `
+      Perform Optical Character Recognition (OCR) on this textbook image. 
+      Transcribe all visible printed and handwritten text word-for-word. 
+      Do not add any headings, intros, summaries, or explanations. 
+      Return only the plain transcribed text.
+    `;
 
-      const result = await model.generateContent([prompt, imagePart]);
-      const response = await result.response;
-      return response.text() || '';
-      
-    } catch (error) {
-      console.error('Error performing visual OCR via Gemini:', error);
-      throw new Error(`Failed to extract text from image: ${error.message}`);
+    let lastError = null;
+    for (const modelName of candidateModels) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`📸 Running visual OCR via ${modelName} (attempt ${attempt})...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent([prompt, imagePart]);
+          const response = await result.response;
+          const extractedText = response.text() || '';
+          if (extractedText.trim()) {
+            console.log(`✅ Visual OCR succeeded via ${modelName}! Extracted ${extractedText.trim().length} characters.`);
+            return extractedText;
+          }
+        } catch (err) {
+          lastError = err;
+          console.warn(`⚠️ Visual OCR via ${modelName} attempt ${attempt} failed: ${err.message}`);
+          if (err.message && (err.message.includes('503') || err.message.includes('high demand') || err.message.includes('429'))) {
+            // Wait 1.5 seconds before retrying next attempt/model
+            await new Promise(r => setTimeout(r, 1500));
+          }
+        }
+      }
     }
+
+    console.error('Error performing visual OCR via Gemini:', lastError);
+    throw new Error(`Failed to extract text from image: ${lastError ? lastError.message : 'Unknown OCR error'}`);
   }
 
   throw new Error(`Unsupported file type: ${mimeType}. We only support text, PDF, and textbook images.`);

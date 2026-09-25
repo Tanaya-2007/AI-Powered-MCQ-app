@@ -10,7 +10,8 @@ function SoloMode() {
   // States
   const [activeTab, setActiveTab] = useState('text');
   const [textInput, setTextInput] = useState('');
-  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [uploadedPdf, setUploadedPdf] = useState(null);
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const [numQuestions, setNumQuestions] = useState(10);
@@ -117,15 +118,13 @@ function SoloMode() {
     if (SpeechRecognition) {
       const rec = new SpeechRecognition();
       rec.continuous = true;
-      rec.interimResults = false;
+      rec.interimResults = true;
       rec.lang = 'en-US';
 
       rec.onresult = (event) => {
         let resultText = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            resultText += event.results[i][0].transcript;
-          }
+          resultText += event.results[i][0].transcript;
         }
         if (resultText) {
           setTextInput(prev => {
@@ -142,7 +141,6 @@ function SoloMode() {
 
       rec.onend = () => {
         setIsRecording(false);
-        setActiveTab('text');
       };
 
       setRecognition(rec);
@@ -156,7 +154,13 @@ function SoloMode() {
     }
 
     if (isRecording) {
-      recognition.stop();
+      setIsRecording(false);
+      try {
+        recognition.stop();
+      } catch (e) {
+        console.warn('Error stopping speech recognition:', e);
+      }
+      setActiveTab('text');
     } else {
       try {
         recognition.start();
@@ -167,14 +171,32 @@ function SoloMode() {
     }
   };
 
-
   const handleFileUpload = (file) => {
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        triggerAlert('File size must be less than 10MB', 'warning');
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      triggerAlert('File size must be less than 10MB', 'warning');
+      return;
+    }
+    if (activeTab === 'image') {
+      if (!file.type.startsWith('image/')) {
+        triggerAlert('Please upload a valid image file (.jpg, .png, etc.) on the Image tab.', 'warning');
         return;
       }
-      setUploadedFile(file);
+      setUploadedImage(file);
+    } else if (activeTab === 'pdf') {
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        triggerAlert('Please upload a valid PDF document (.pdf) on the PDF tab.', 'warning');
+        return;
+      }
+      setUploadedPdf(file);
+    }
+  };
+
+  const removeFile = () => {
+    if (activeTab === 'image') {
+      setUploadedImage(null);
+    } else if (activeTab === 'pdf') {
+      setUploadedPdf(null);
     }
   };
 
@@ -215,12 +237,15 @@ function SoloMode() {
       return;
     }
     if (activeTab === 'text' || activeTab === 'voice') {
-      if (!textInput || textInput.trim().length < 30) {
-        triggerAlert('Please enter valid study material notes or record a voice note of at least 30 characters. Single words or short sentences (like "hey", "hii") are not sufficient for generating a quiz.', 'warning');
+      if (!textInput || textInput.trim().length < 2) {
+        triggerAlert('Please enter topic notes or concepts to generate your quiz.', 'warning');
         return;
       }
-    } else if ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile) {
-      triggerAlert('Please upload a PDF or textbook image file first.', 'warning');
+    } else if (activeTab === 'image' && !uploadedImage) {
+      triggerAlert('Please upload a textbook image file first.', 'warning');
+      return;
+    } else if (activeTab === 'pdf' && !uploadedPdf) {
+      triggerAlert('Please upload a PDF document file first.', 'warning');
       return;
     }
 
@@ -270,16 +295,17 @@ function SoloMode() {
           if (data.errorType === 'TOPIC_MISMATCH') {
             triggerAlert(data.message || `Topic mismatch: Your uploaded content is not related to "${topic}".`, 'warning');
           } else if (data.errorType === 'INSUFFICIENT_CONTENT') {
-            triggerAlert(data.message || "Your study material is too short or doesn't contain enough information to generate a quiz.", 'warning');
+            triggerAlert(data.message || "Please provide a little more detail or concepts to generate your quiz.", 'warning');
           } else {
             triggerAlert(data.message || 'Ingestion pipeline failed.', 'error');
           }
           setIsGenerating(false);
           return;
         }
-      } else if ((activeTab === 'image' || activeTab === 'pdf') && uploadedFile) {
+      } else if ((activeTab === 'image' && uploadedImage) || (activeTab === 'pdf' && uploadedPdf)) {
+        const fileToUpload = activeTab === 'image' ? uploadedImage : uploadedPdf;
         const formData = new FormData();
-        formData.append('file', uploadedFile);
+        formData.append('file', fileToUpload);
         formData.append('topic', topic);
 
         const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
@@ -293,9 +319,9 @@ function SoloMode() {
           if (data.errorType === 'TOPIC_MISMATCH') {
             triggerAlert(data.message || `Topic mismatch: Your uploaded content is not related to "${topic}".`, 'warning');
           } else if (data.errorType === 'INSUFFICIENT_CONTENT') {
-            triggerAlert(data.message || "Your study material is too short or doesn't contain enough information to generate a quiz.", 'warning');
+            triggerAlert(data.message || "Your study material does not contain enough readable content to generate a quiz.", 'warning');
           } else {
-            triggerAlert(data.message || 'Ingestion pipeline failed.', 'error');
+            triggerAlert(data.message || 'Failed to process file. Please ensure the file contains clear readable text.', 'error');
           }
           setIsGenerating(false);
           return;
@@ -653,7 +679,7 @@ function SoloMode() {
                 {/* IMAGE/PDF UPLOAD */}
                 {(activeTab === 'image' || activeTab === 'pdf') && (
                   <div className="space-y-4">
-                    {!uploadedFile ? (
+                    {!(activeTab === 'image' ? uploadedImage : uploadedPdf) ? (
                       <div
                         onDrop={isGenerating ? undefined : handleDrop}
                         onDragOver={isGenerating ? undefined : handleDragOver}
@@ -695,8 +721,8 @@ function SoloMode() {
                               </svg>
                             </div>
                             <div>
-                              <p className="font-bold text-gray-905">{uploadedFile.name}</p>
-                              <p className="text-sm text-gray-600">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
+                              <p className="font-bold text-gray-905">{(activeTab === 'image' ? uploadedImage : uploadedPdf)?.name}</p>
+                              <p className="text-sm text-gray-600">{(((activeTab === 'image' ? uploadedImage : uploadedPdf)?.size || 0) / 1024).toFixed(2)} KB</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -890,7 +916,7 @@ function SoloMode() {
               {!quizReady && (
                 <button
                   onClick={handleGenerateQuiz}
-                  disabled={isGenerating || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || ((activeTab === 'pdf' || activeTab === 'image') && !uploadedFile)}
+                  disabled={isGenerating || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || (activeTab === 'image' && !uploadedImage) || (activeTab === 'pdf' && !uploadedPdf)}
                   className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
                   {isGenerating ? (
