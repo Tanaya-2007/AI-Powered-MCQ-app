@@ -1,0 +1,20 @@
+name: Keep Supabase & Backend Alive
+
+on:
+  schedule:
+    # Runs every 3 days at 00:00 UTC (well within Supabase's 7-day inactivity limit)
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # Allows manual trigger anytime from the GitHub Actions tab
+
+jobs:
+  ping-keep-alive:
+    name: Ping Database Health Endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend DB-Check
+        run: |
+          echo "🔄 Sending keep-alive ping to backend database health check..."
+          HTTP_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" --max-time 60 "https://ai-powered-mcq-app.onrender.com/api/db-check" || true)
+          echo "📥 Response received:"
+          echo "$HTTP_RESPONSE"
+          echo "✅ Keep-alive ping executed successfully. Supabase inactivity timer reset!"
