@@ -365,7 +365,11 @@ function CreateQuiz() {
           id: idx + 1,
           question: q.question,
           options: q.options,
-          correctAnswer: q.correctAnswer
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation || 'No explanation provided.',
+          difficulty: q.difficulty || difficulty,
+          topic: q.topic || topic || genData.metadata?.detectedTopic || 'Study Quiz',
+          sourceReference: q.sourceReference || 'User study material'
         }));
         
         setQuizCode(generateQuizCode());
