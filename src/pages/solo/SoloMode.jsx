@@ -216,10 +216,6 @@ function SoloMode() {
     setIsDragging(false);
   };
 
-  const removeFile = () => {
-    setUploadedFile(null);
-  };
-
   const handleGenerateQuiz = async () => {
     const questionsCount = parseInt(numQuestions) || 0;
     if (questionsCount === 0) {
