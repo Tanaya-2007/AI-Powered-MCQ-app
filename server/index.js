@@ -17,6 +17,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { generateGroqContent } from './utils/groq.js';
 import { generateOpenAIContent } from './utils/openai.js';
 import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
+import { requireAuth, verifySocketToken, isAuthEnforced } from './middleware/requireAuth.js';
 
 // Load environment variables
 dotenv.config();
@@ -25,12 +26,31 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 
 // Wrap Express app inside HTTP server to support WebSockets (Socket.io)
+// CORS locked to explicit frontend allowlist (no wildcard in production).
+const defaultOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+];
+const envOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
+
+function isOriginAllowed(origin) {
+  if (!origin) return true; // curl / mobile / server-to-server
+  return allowedOrigins.includes(origin);
+}
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+    origin: isOriginAllowed,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
 });
 
 // In-memory state for tracking active multiplayer quiz rooms
@@ -49,11 +69,12 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure CORS to allow connections from Vercel production frontend and local dev
+// Configure CORS to allow only known frontend origins (local dev + FRONTEND_URL)
 app.use(cors({
-  origin: '*',
+  origin: isOriginAllowed,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
 app.use(express.json());
@@ -84,7 +105,8 @@ app.get('/api/status', (req, res) => {
     message: 'QuizMaster backend server is running successfully.',
     timestamp: new Date().toISOString(),
     geminiKeyConfigured: !!process.env.GEMINI_API_KEY,
-    oracleConfigured: !!(process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_CONNECTION_STRING)
+    dbConfigured: !!(process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING),
+    authEnforced: isAuthEnforced()
   });
 });
 
@@ -129,7 +151,7 @@ app.get('/api/db-check', async (req, res) => {
 });
 
 // 3. Document Ingestion Endpoint (Extract -> Chunk -> Embed -> Oracle Vector DB)
-app.post('/api/ingest', upload.single('file'), async (req, res) => {
+app.post('/api/ingest', requireAuth, upload.single('file'), async (req, res) => {
   let filePath = null;
   try {
     let filename;
@@ -362,7 +384,7 @@ function computeJaccard(setA, setB) {
 }
 
 // 4. AI Quiz Generation Endpoint (Semantic Search + Gemini MCQ Creator)
-app.post('/api/generate-quiz', async (req, res) => {
+app.post('/api/generate-quiz', requireAuth, async (req, res) => {
   let { topic, materialId, count = 5, difficulty = 'medium' } = req.body;
 
   // Make topic focus optional
@@ -666,7 +688,7 @@ function generateAppsScript(quizTitle, questions) {
 }
 
 // 5. Google Forms Export Endpoint (Creates a graded Quiz in Google Forms)
-app.post('/api/export-quiz', async (req, res) => {
+app.post('/api/export-quiz', requireAuth, async (req, res) => {
   const { title, questions } = req.body;
 
   if (!title || title.trim() === '') {
@@ -721,8 +743,19 @@ app.post('/api/export-quiz', async (req, res) => {
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected to WebSocket: ${socket.id}`);
 
-  // A. Host Creates a Room
-  socket.on('create-room', ({ roomCode, quizTitle, questions, difficulty, timePerQuestion }) => {
+  // A. Host Creates a Room (host must be authenticated when auth is enforced;
+  // players joining via code stay public so classrooms can join without accounts)
+  socket.on('create-room', async ({ roomCode, quizTitle, questions, difficulty, timePerQuestion }) => {
+    if (isAuthEnforced()) {
+      const token = socket.handshake?.auth?.token;
+      const user = await verifySocketToken(token);
+      if (!user) {
+        socket.emit('join-error', { message: 'Host authentication required. Please log in again.' });
+        console.warn(`🚫 Rejected unauthenticated create-room from socket ${socket.id}`);
+        return;
+      }
+      socket.data.user = user;
+    }
     const actualRoomCode = (roomCode || Math.random().toString(36).substring(2, 8).toUpperCase()).toUpperCase();
     
     // Check if the room already exists (host reconnect/refresh case)

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
+import { getAuthHeaders } from '../../services/authFetch';
 
 function SoloMode() {
   const navigate = useNavigate();
@@ -63,16 +64,22 @@ function SoloMode() {
     }
     setIsExporting(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/export-quiz`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeaders
         },
         body: JSON.stringify({
           title: topic || 'Gemini AI Quiz',
           questions: generatedQuestions
         })
       });
+      if (response.status === 401) {
+        triggerAlert('Session expired. Please log in again.', 'warning');
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         setExportUrl(data.formUrl);
@@ -250,11 +257,17 @@ function SoloMode() {
 
     // Helper for resilient fetches (automatically switches to cloud backend if localhost:5001 is offline)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
+      const authHeaders = await getAuthHeaders();
+      const authedOptions = {
+        ...options,
+        headers: { ...(options.headers || {}), ...authHeaders },
+      };
       let currentUrl = url;
+      let currentOptions = authedOptions;
       for (let i = 0; i < retries; i++) {
         try {
-          const res = await fetch(currentUrl, options);
-          if (res.ok || res.status === 400 || res.status === 429 || res.status === 500 || res.status === 503) return res;
+          const res = await fetch(currentUrl, currentOptions);
+          if (res.ok || res.status === 400 || res.status === 401 || res.status === 429 || res.status === 500 || res.status === 503) return res;
         } catch (err) {
           // If local connection fails, switch to production URL ONLY if we are not testing on localhost
           const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -268,7 +281,7 @@ function SoloMode() {
           await new Promise(r => setTimeout(r, 2000));
         }
       }
-      return fetch(currentUrl, options);
+      return fetch(currentUrl, currentOptions);
     };
 
     try {
@@ -284,6 +297,11 @@ function SoloMode() {
             topic: topic
           })
         });
+        if (response.status === 401) {
+          triggerAlert('Session expired. Please log in again.', 'warning');
+          setIsGenerating(false);
+          return;
+        }
         const data = await response.json();
         if (data.success) {
           materialId = data.materialId;
@@ -308,6 +326,11 @@ function SoloMode() {
           method: 'POST',
           body: formData
         });
+        if (response.status === 401) {
+          triggerAlert('Session expired. Please log in again.', 'warning');
+          setIsGenerating(false);
+          return;
+        }
         const data = await response.json();
         if (data.success) {
           materialId = data.materialId;
@@ -337,6 +360,11 @@ function SoloMode() {
         })
       });
 
+      if (genResponse.status === 401) {
+        triggerAlert('Session expired. Please log in again.', 'warning');
+        setIsGenerating(false);
+        return;
+      }
       const genData = await genResponse.json();
       const questionsToParse = genData.questions || genData.quiz?.questions;
       if (genData.success && questionsToParse) {
