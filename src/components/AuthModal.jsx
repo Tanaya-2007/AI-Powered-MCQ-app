@@ -21,120 +21,76 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     setLoading(true);
 
     try {
+      // Production-only: Supabase is the sole identity provider.
+      // No localStorage password fallback (previously plaintext in quizmaster_local_users).
+      // One-time migration: wipe any legacy plaintext store left by older builds.
+      try {
+        localStorage.removeItem('quizmaster_local_users');
+      } catch {
+        // storage blocked — ignore
+      }
+
       if (isSignUp) {
-        // 1. Try real Supabase signup first if available
-        let signUpError = null;
-        let data = null;
-
-        try {
-          const res = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { name }
-            }
-          });
-          data = res.data;
-          signUpError = res.error;
-
-          if (!signUpError && data?.user) {
-            const userSession = {
-              name: name || email.split('@')[0],
-              email: data.user.email || email,
-              isLoggedIn: true
-            };
-            localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
-            onLoginSuccess(userSession);
-            onClose();
-            return;
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name }
           }
-        } catch (err) {
-          // Fall through to local auth if anon key is invalid/unconfigured
-          if (!err.message?.includes('Invalid API key') && !err.message?.includes('dummy')) {
-            throw err;
-          }
-        }
+        });
 
-        if (signUpError && !signUpError.message?.includes('Invalid API key') && !signUpError.message?.includes('dummy')) {
+        if (signUpError) {
+          const msg = signUpError.message || '';
+          if (msg.includes('Invalid API key') || msg.includes('dummy') || msg.includes('apikey')) {
+            throw new Error('Authentication service not configured. Please contact administrator.');
+          }
           throw signUpError;
         }
 
-        // 2. Local Database Signup Fallback
-        const localUsers = JSON.parse(localStorage.getItem('quizmaster_local_users') || '[]');
-        const userExists = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-        if (userExists) {
-          throw new Error('An account with this email address already exists. Please log in instead.');
+        if (data?.user) {
+          const userSession = {
+            name: name || email.split('@')[0],
+            email: data.user.email || email,
+            isLoggedIn: true,
+            provider: 'supabase',
+            id: data.user.id
+          };
+          localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
+          onLoginSuccess(userSession);
+          onClose();
+          return;
         }
 
-        // Save new user locally
-        const newLocalUser = { name, email: email.toLowerCase(), password };
-        localUsers.push(newLocalUser);
-        localStorage.setItem('quizmaster_local_users', JSON.stringify(localUsers));
-
-        const userSession = {
-          name,
-          email: email.toLowerCase(),
-          isLoggedIn: true
-        };
-        localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
-        onLoginSuccess(userSession);
-        onClose();
+        throw new Error('Signup failed. Please try again.');
       } else {
-        // Log In flow
-        let signInError = null;
-        let data = null;
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-        try {
-          const res = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-          data = res.data;
-          signInError = res.error;
-
-          if (!signInError && data?.user) {
-            const userSession = {
-              name: data.user.user_metadata?.name || email.split('@')[0],
-              email: data.user.email || email,
-              isLoggedIn: true
-            };
-            localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
-            onLoginSuccess(userSession);
-            onClose();
-            return;
+        if (signInError) {
+          const msg = signInError.message || '';
+          if (msg.includes('Invalid API key') || msg.includes('dummy') || msg.includes('apikey')) {
+            throw new Error('Authentication service not configured. Please contact administrator.');
           }
-        } catch (err) {
-          // Fall through to local auth if anon key is invalid/unconfigured
-          if (!err.message?.includes('Invalid API key') && !err.message?.includes('dummy')) {
-            throw err;
-          }
-        }
-
-        if (signInError && !signInError.message?.includes('Invalid API key') && !signInError.message?.includes('dummy')) {
           throw signInError;
         }
 
-        // Local Database Login Fallback
-        const localUsers = JSON.parse(localStorage.getItem('quizmaster_local_users') || '[]');
-        const user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-        if (!user) {
-          throw new Error('No account found with this email address. Please sign up first.');
+        if (data?.user) {
+          const userSession = {
+            name: data.user.user_metadata?.name || email.split('@')[0],
+            email: data.user.email || email,
+            isLoggedIn: true,
+            provider: 'supabase',
+            id: data.user.id
+          };
+          localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
+          onLoginSuccess(userSession);
+          onClose();
+          return;
         }
 
-        if (user.password !== password) {
-          throw new Error('Incorrect password. Please verify your credentials.');
-        }
-
-        const userSession = {
-          name: user.name || email.split('@')[0],
-          email: user.email,
-          isLoggedIn: true
-        };
-        localStorage.setItem('quizmaster_user', JSON.stringify(userSession));
-        onLoginSuccess(userSession);
-        onClose();
+        throw new Error('Login failed. Please verify your credentials.');
       }
     } catch (err) {
       console.error('Authentication error:', err);

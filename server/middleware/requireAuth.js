@@ -5,14 +5,15 @@ dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const authDisabled = !supabaseUrl || !supabaseAnonKey;
 
+// PRODUCTION-ONLY: auth is always enforced. Missing env = fail-closed (deny all),
+// never dev-open. Server must have these vars set on Render.
 let supabase = null;
-if (!authDisabled) {
+if (supabaseUrl && supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
 } else {
-  console.warn(
-    '⚠️ SUPABASE_URL / SUPABASE_ANON_KEY missing — auth middleware running in DEV-OPEN mode (all requests allowed). Set them in server/.env for production.'
+  console.error(
+    '❌ SUPABASE_URL / SUPABASE_ANON_KEY missing — auth middleware is FAIL-CLOSED. All protected requests will be rejected until server/.env is configured.'
   );
 }
 
@@ -28,7 +29,7 @@ function extractBearerToken(reqOrToken) {
 }
 
 export async function verifySupabaseToken(token) {
-  if (authDisabled) return { id: 'dev-open-mode', email: null };
+  if (!supabase) throw new Error('Server auth misconfigured. Set SUPABASE_URL and SUPABASE_ANON_KEY.');
   if (!token) throw new Error('Missing auth token');
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) {
@@ -38,13 +39,14 @@ export async function verifySupabaseToken(token) {
 }
 
 /**
- * Express middleware: requires valid Supabase JWT.
- * Public when Supabase env missing (dev), enforced in production.
+ * Express middleware: requires valid Supabase JWT. Always enforced.
  */
 export async function requireAuth(req, res, next) {
-  if (authDisabled) {
-    req.user = null;
-    return next();
+  if (!supabase) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server auth misconfigured. Contact administrator.',
+    });
   }
   try {
     const token = extractBearerToken(req);
@@ -66,11 +68,12 @@ export async function requireAuth(req, res, next) {
 }
 
 /**
- * Socket helper: verify token from handshake.auth.token (optional for players).
+ * Socket helper: verify token from handshake.auth.token.
  * Returns user or null (does not throw for missing token — caller decides).
+ * Fail-closed: returns null when server misconfigured.
  */
 export async function verifySocketToken(token) {
-  if (authDisabled) return { id: 'dev-open-mode' };
+  if (!supabase) return null;
   if (!token) return null;
   try {
     return await verifySupabaseToken(token);
@@ -80,5 +83,5 @@ export async function verifySocketToken(token) {
 }
 
 export function isAuthEnforced() {
-  return !authDisabled;
+  return true;
 }
