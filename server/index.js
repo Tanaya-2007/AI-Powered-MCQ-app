@@ -2,6 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import multer from 'multer';
@@ -77,8 +79,78 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(helmet());
+
+// Rate limiting (fail-closed abuse protection for LLM/costly endpoints)
+const isProd = process.env.NODE_ENV === 'production';
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 30 : 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests. Please try again later.' },
+});
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isProd ? 10 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many messages. Please try again later.' },
+});
+const dbCheckLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 20 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests. Please try again later.' },
+});
+
+// Shared validation helpers (allowlist, never interpolate raw input)
+const ALLOWED_DIFFICULTIES = new Set(['easy', 'medium', 'hard']);
+const MAX_QUESTIONS_PER_REQUEST = 20;
+const MAX_ROOMS = 500;
+const MAX_PLAYERS_PER_ROOM = 200;
+
+function sanitizeRoomCode(code) {
+  return String(code || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 8);
+}
+
+function sanitizePlayerName(name) {
+  return String(name || '').trim().slice(0, 20);
+}
+
+function sanitizeAvatar(avatar) {
+  return String(avatar || '🧑').slice(0, 8);
+}
+
+function clampTimePerQuestion(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 60;
+  return Math.min(300, Math.max(5, Math.floor(n)));
+}
+
+function sanitizeQuestionsForRoom(questions) {
+  if (!Array.isArray(questions)) return [];
+  return questions.slice(0, 100).map((q, idx) => ({
+    id: q?.id || idx + 1,
+    question: String(q?.question || '').slice(0, 1000),
+    options: Array.isArray(q?.options) ? q.options.slice(0, 4).map((o) => String(o).slice(0, 500)) : [],
+    correctAnswer:
+      typeof q?.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer <= 3
+        ? q.correctAnswer
+        : 0,
+    explanation: String(q?.explanation || '').slice(0, 2000),
+  }));
+}
+
+function prodMessage(message) {
+  return isProd ? 'Request failed. Please try again later.' : message;
+}
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -93,25 +165,36 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB Limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB Limit
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/pdf', 'text/plain'];
+    const isImage = file.mimetype && file.mimetype.startsWith('image/');
+    const isPdfName = file.originalname && file.originalname.toLowerCase().endsWith('.pdf');
+    if (allowed.includes(file.mimetype) || isImage || isPdfName) return cb(null, true);
+    cb(new Error('Unsupported file type. Upload PDF, image, or text only.'));
+  },
 });
 
 // --- API ROUTES ---
 
-// 1. Status Check Endpoint
+// 1. Status Check Endpoint (minimal fingerprint in production)
 app.get('/api/status', (req, res) => {
-  res.json({
+  const base = {
     status: 'OK',
     message: 'QuizMaster backend server is running successfully.',
     timestamp: new Date().toISOString(),
+  };
+  if (isProd) return res.json(base);
+  res.json({
+    ...base,
     geminiKeyConfigured: !!process.env.GEMINI_API_KEY,
     dbConfigured: !!(process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING),
     authEnforced: isAuthEnforced()
   });
 });
 
-// 2. Oracle Database Connectivity Check Endpoint
-app.get('/api/db-check', async (req, res) => {
+// 2. Database Connectivity Check Endpoint (authenticated + rate-limited)
+app.get('/api/db-check', dbCheckLimiter, requireAuth, async (req, res) => {
   let connection;
   try {
     const pool = await initDbPool();
@@ -134,10 +217,10 @@ app.get('/api/db-check', async (req, res) => {
     });
 
   } catch (error) {
+    console.error('❌ Database check failed.');
     res.status(500).json({
       success: false,
-      message: 'Failed to connect to PostgreSQL Database.',
-      error: error.message
+      message: 'Failed to connect to PostgreSQL Database.'
     });
   } finally {
     if (connection) {
@@ -150,8 +233,8 @@ app.get('/api/db-check', async (req, res) => {
   }
 });
 
-// 3. Document Ingestion Endpoint (Extract -> Chunk -> Embed -> Oracle Vector DB)
-app.post('/api/ingest', requireAuth, upload.single('file'), async (req, res) => {
+// 3. Document Ingestion Endpoint (Extract -> Chunk -> Embed -> Vector DB)
+app.post('/api/ingest', writeLimiter, requireAuth, upload.single('file'), async (req, res) => {
   let filePath = null;
   try {
     let filename;
@@ -161,17 +244,17 @@ app.post('/api/ingest', requireAuth, upload.single('file'), async (req, res) => 
     // Check if user uploaded a file OR sent plain text in request body
     if (req.file) {
       filePath = req.file.path;
-      filename = req.file.originalname;
+      filename = String(req.file.originalname || 'upload').slice(0, 255);
       mimeType = req.file.mimetype;
 
       console.log(`📥 Ingesting file: ${filename} (${mimeType})`);
-      
+
       // Step A: Extract text from file (Handles plain text, PDF, and Image OCR)
       rawText = await extractTextFromFile(filePath, mimeType);
     } else if (req.body.text && req.body.filename) {
-      filename = req.body.filename;
+      filename = String(req.body.filename).slice(0, 255);
       mimeType = 'text/plain';
-      rawText = req.body.text;
+      rawText = String(req.body.text).slice(0, 200000); // bound embedding cost per request
 
       console.log(`📥 Ingesting copy-pasted text: ${filename}`);
     } else {
@@ -196,7 +279,7 @@ app.post('/api/ingest', requireAuth, upload.single('file'), async (req, res) => 
       });
     }
 
-    const topic = req.body.topic;
+    const topic = typeof req.body.topic === 'string' ? req.body.topic.slice(0, 200) : req.body.topic;
     if (topic && topic.trim().length >= 2) {
       console.log(`🔍 Running semantic validation for topic focus: "${topic}"`);
       const model = genAI.getGenerativeModel({
@@ -320,8 +403,8 @@ app.post('/api/ingest', requireAuth, upload.single('file'), async (req, res) => 
       }
     }
 
-    // Step B: Partition extracted text into semantic overlapping chunks
-    const chunks = splitText(rawText);
+    // Step B: Partition extracted text into semantic overlapping chunks (capped per request)
+    const chunks = splitText(rawText).slice(0, 60);
     console.log(`✂️ Text partitioned into ${chunks.length} chunks.`);
 
     // Step C: Save parent material metadata and retrieve generated ID
@@ -351,11 +434,10 @@ app.post('/api/ingest', requireAuth, upload.single('file'), async (req, res) => 
     });
 
   } catch (error) {
-    console.error('❌ Ingestion pipeline failed:', error);
+    console.error('❌ Ingestion pipeline failed.');
     res.status(500).json({
       success: false,
-      message: 'Ingestion pipeline failed.',
-      error: error.message
+      message: prodMessage(`Ingestion pipeline failed: ${error.message}`)
     });
   } finally {
     // Step E: Clean up temporary file from disk uploads folder
@@ -384,13 +466,19 @@ function computeJaccard(setA, setB) {
 }
 
 // 4. AI Quiz Generation Endpoint (Semantic Search + Gemini MCQ Creator)
-app.post('/api/generate-quiz', requireAuth, async (req, res) => {
+app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
   let { topic, materialId, count = 5, difficulty = 'medium' } = req.body;
 
   // Make topic focus optional
+  topic = typeof topic === 'string' ? topic.slice(0, 200) : '';
   if (!topic) {
     topic = '';
   }
+
+  // Clamp count to bound LLM cost per request (frontend allows up to 100 via repeats)
+  count = Math.min(MAX_QUESTIONS_PER_REQUEST, Math.max(1, Math.floor(Number(count) || 5)));
+  if (!ALLOWED_DIFFICULTIES.has(difficulty)) difficulty = 'medium';
+  if (materialId !== undefined && materialId !== null) materialId = Number(materialId);
 
   let contextText = '';
 
@@ -450,10 +538,10 @@ app.post('/api/generate-quiz', requireAuth, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('❌ Context retrieval failed:', error.message);
+    console.error('❌ Context retrieval failed.');
     return res.status(500).json({
       success: false,
-      message: `Failed to retrieve study material context: ${error.message}`
+      message: prodMessage(`Failed to retrieve study material context: ${error.message}`)
     });
   }
 
@@ -648,7 +736,7 @@ app.post('/api/generate-quiz', requireAuth, async (req, res) => {
     // Return the actual failure error to prevent silently falling back to mock questions
     res.status(500).json({
       success: false,
-      message: `Failed to generate quiz: ${error.message}`
+      message: prodMessage(`Failed to generate quiz: ${error.message}`)
     });
   }
 });
@@ -688,8 +776,9 @@ function generateAppsScript(quizTitle, questions) {
 }
 
 // 5. Google Forms Export Endpoint (Creates a graded Quiz in Google Forms)
-app.post('/api/export-quiz', requireAuth, async (req, res) => {
-  const { title, questions } = req.body;
+app.post('/api/export-quiz', writeLimiter, requireAuth, async (req, res) => {
+  const title = typeof req.body.title === 'string' ? req.body.title.slice(0, 200) : req.body.title;
+  const questions = Array.isArray(req.body.questions) ? req.body.questions.slice(0, 100) : req.body.questions;
 
   if (!title || title.trim() === '') {
     return res.status(400).json({ success: false, message: 'Quiz title is required.' });
@@ -756,7 +845,14 @@ io.on('connection', (socket) => {
       }
       socket.data.user = user;
     }
-    const actualRoomCode = (roomCode || Math.random().toString(36).substring(2, 8).toUpperCase()).toUpperCase();
+    if (rooms.size >= MAX_ROOMS) {
+      socket.emit('join-error', { message: 'Server is at room capacity. Please try again later.' });
+      return;
+    }
+    const actualRoomCode = sanitizeRoomCode(roomCode) ||
+      Math.random().toString(36).substring(2, 8).toUpperCase();
+    const safeQuestions = sanitizeQuestionsForRoom(questions);
+    const safeDifficulty = ALLOWED_DIFFICULTIES.has(difficulty) ? difficulty : 'medium';
     
     // Check if the room already exists (host reconnect/refresh case)
     if (rooms.has(actualRoomCode)) {
@@ -774,13 +870,13 @@ io.on('connection', (socket) => {
 
     rooms.set(actualRoomCode, {
       hostId: socket.id,
-      quizTitle,
-      questions: questions || [],
+      quizTitle: String(quizTitle || 'AI Generated Multiplayer Quiz').slice(0, 120),
+      questions: safeQuestions,
       players: [],
       status: 'LOBBY',
       currentQuestionIndex: 0,
-      difficulty: difficulty || 'medium',
-      timePerQuestion: timePerQuestion || 60
+      difficulty: safeDifficulty,
+      timePerQuestion: clampTimePerQuestion(timePerQuestion)
     });
 
     socket.join(actualRoomCode);
@@ -790,7 +886,8 @@ io.on('connection', (socket) => {
 
   // B. Player Joins a Room (Handles new joins, late joins, and reconnects)
   socket.on('join-room', ({ roomCode, playerName, avatar }) => {
-    const room = rooms.get(roomCode);
+    const safeRoomCode = sanitizeRoomCode(roomCode);
+    const room = rooms.get(safeRoomCode);
 
     if (!room) {
       return socket.emit('join-error', { message: 'Room not found. Please verify the code.' });
@@ -800,32 +897,43 @@ io.on('connection', (socket) => {
       return socket.emit('join-error', { message: 'This quiz has already finished.' });
     }
 
+    if (!sanitizePlayerName(playerName)) {
+      return socket.emit('join-error', { message: 'Please enter your name.' });
+    }
+
+    if (room.players.length >= MAX_PLAYERS_PER_ROOM) {
+      return socket.emit('join-error', { message: 'Room is full. Please try another quiz.' });
+    }
+
+    const safeName = sanitizePlayerName(playerName);
+    const safeAvatar = sanitizeAvatar(avatar);
+
     // Check if player is rejoining (reconnecting after a network error)
-    let player = room.players.find(p => p.name === playerName);
+    let player = room.players.find(p => p.name === safeName);
     if (player) {
       // Update socket ID and avatar to the new connection
       player.id = socket.id;
-      player.avatar = avatar || player.avatar || '🧑';
+      player.avatar = safeAvatar;
       player.online = true;
-      console.log(`👤 Player "${playerName}" reconnected. Updated socket ID.`);
+      console.log(`👤 Player "${safeName}" reconnected. Updated socket ID.`);
     } else {
       // New player joining
       player = {
         id: socket.id,
-        name: playerName,
-        avatar: avatar || '🧑', // Save the player's chosen emoji avatar
+        name: safeName,
+        avatar: safeAvatar,
         score: 0,
         online: true
       };
       room.players.push(player);
-      console.log(`👤 Player "${playerName}" (${socket.id}) joined room: ${roomCode} with avatar: ${avatar}`);
+      console.log(`👤 Player "${safeName}" (${socket.id}) joined room: ${safeRoomCode} with avatar: ${safeAvatar}`);
     }
 
-    socket.join(roomCode);
-    
+    socket.join(safeRoomCode);
+
     // Notify player of successful join
     socket.emit('join-success', {
-      roomCode,
+      roomCode: safeRoomCode,
       quizTitle: room.quizTitle,
       players: room.players,
       status: room.status,
@@ -835,12 +943,12 @@ io.on('connection', (socket) => {
     });
 
     // Broadcast updated player list to everyone in the room (so leaderboard updates)
-    io.to(roomCode).emit('player-joined', { players: room.players });
+    io.to(safeRoomCode).emit('player-joined', { players: room.players });
   });
 
   // C. Start Quiz (Triggered by Host)
   socket.on('start-quiz', ({ roomCode }) => {
-    const room = rooms.get(roomCode);
+    const room = rooms.get(sanitizeRoomCode(roomCode));
     if (room && room.hostId === socket.id) {
       room.status = 'PLAYING';
       io.to(roomCode).emit('quiz-started', {
@@ -853,18 +961,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // D. Submit Answer (Triggered by Player)
-  socket.on('submit-answer', ({ roomCode, questionIndex, isCorrect, timeTaken, selectedOption }) => {
-    const room = rooms.get(roomCode);
+  // D. Submit Answer (Triggered by Player) — server is authoritative for correctness.
+  // Client sends selectedOption; server compares against room questions. Client isCorrect is ignored.
+  socket.on('submit-answer', ({ roomCode, questionIndex, timeTaken, selectedOption }) => {
+    const safeRoomCode = sanitizeRoomCode(roomCode);
+    const room = rooms.get(safeRoomCode);
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
       if (player) {
         if (player.totalTimeTaken === undefined) player.totalTimeTaken = 0;
         if (player.correctAnswersCount === undefined) player.correctAnswersCount = 0;
 
-        const secsTaken = Number(timeTaken) || 0;
+        const qIdx = Number(questionIndex);
+        const sel = Number(selectedOption);
+        const question = Number.isInteger(qIdx) ? room.questions[qIdx] : undefined;
+        const isCorrect =
+          question &&
+          Number.isInteger(sel) && sel >= 0 && sel <= 3 &&
+          sel === question.correctAnswer;
+
+        const secsTaken = Math.min(86400, Math.max(0, Number(timeTaken) || 0));
         player.totalTimeTaken += secsTaken;
-        player.selectedOption = selectedOption; // Save selectedOption!
+        player.selectedOption = Number.isInteger(sel) && sel >= 0 && sel <= 3 ? sel : undefined;
 
         if (isCorrect) {
           player.score += 10; // Simple, clean 10 points per correct answer
@@ -872,56 +990,63 @@ io.on('connection', (socket) => {
         }
 
         // Broadcast updated scores to everyone in the room (displays on real-time Leaderboard)
-        io.to(roomCode).emit('scores-updated', { players: room.players });
-        
+        io.to(safeRoomCode).emit('scores-updated', { players: room.players });
+
         // Notify host that this player has answered the current question
-        io.to(roomCode).emit('player-answered', { 
-          playerId: socket.id, 
-          playerName: player.name, 
-          questionIndex 
+        io.to(safeRoomCode).emit('player-answered', {
+          playerId: socket.id,
+          playerName: player.name,
+          questionIndex: Number.isInteger(qIdx) ? qIdx : 0
         });
-        console.log(`📝 Player "${player.name}" submitted answer for Q${questionIndex} (Correct: ${isCorrect}, Time: ${secsTaken}s). Score: ${player.score}, Total Time: ${player.totalTimeTaken}s`);
+        console.log(`📝 Player "${player.name}" submitted answer for Q${Number.isInteger(qIdx) ? qIdx : '?'} (Correct: ${!!isCorrect}, Time: ${secsTaken}s). Score: ${player.score}, Total Time: ${player.totalTimeTaken}s`);
       }
     }
   });
 
   // E. Next Question (Triggered by Host)
   socket.on('next-question', ({ roomCode, nextIndex }) => {
-    const room = rooms.get(roomCode);
+    const room = rooms.get(sanitizeRoomCode(roomCode));
     if (room && room.hostId === socket.id) {
-      room.currentQuestionIndex = nextIndex; // Track current index in room state for late joiners
-      
+      const safeNext = Math.min(
+        Math.max(0, Math.floor(Number(nextIndex) || 0)),
+        Math.max(0, room.questions.length - 1)
+      );
+      room.currentQuestionIndex = safeNext; // Track current index in room state for late joiners
+
       // Reset selectedOption for all players for the new question
       room.players.forEach(p => {
         p.selectedOption = undefined;
       });
 
-      io.to(roomCode).emit('show-question', { questionIndex: nextIndex });
-      console.log(`➡️ Host progressed room ${roomCode} to question index ${nextIndex}`);
+      io.to(sanitizeRoomCode(roomCode)).emit('show-question', { questionIndex: safeNext });
+      console.log(`➡️ Host progressed room ${sanitizeRoomCode(roomCode)} to question index ${safeNext}`);
     }
   });
 
   // E2. Reveal Results Early (Triggered by Host)
   socket.on('reveal-results', ({ roomCode }) => {
-    const room = rooms.get(roomCode);
+    const safe = sanitizeRoomCode(roomCode);
+    const room = rooms.get(safe);
     if (room && room.hostId === socket.id) {
-      io.to(roomCode).emit('results-revealed');
-      console.log(`👁️ Host revealed results early in room ${roomCode}`);
+      io.to(safe).emit('results-revealed');
+      console.log(`👁️ Host revealed results early in room ${safe}`);
     }
   });
 
   // E3. Reveal Mid-Quiz Leaderboard (Triggered by Host)
   socket.on('reveal-mid-leaderboard', ({ roomCode }) => {
-    const room = rooms.get(roomCode);
+    const safe = sanitizeRoomCode(roomCode);
+    const room = rooms.get(safe);
     if (room && room.hostId === socket.id) {
-      io.to(roomCode).emit('mid-leaderboard-revealed');
-      console.log(`📊 Host revealed mid-quiz leaderboard in room ${roomCode}`);
+      io.to(safe).emit('mid-leaderboard-revealed');
+      console.log(`📊 Host revealed mid-quiz leaderboard in room ${safe}`);
     }
   });
 
   // F. End Quiz (Triggered by Host)
   socket.on('end-quiz', ({ roomCode }) => {
-    const room = rooms.get(roomCode);
+    const safe = sanitizeRoomCode(roomCode);
+    const room = rooms.get(safe);
     if (room && room.hostId === socket.id) {
       room.status = 'FINISHED';
 
@@ -933,10 +1058,10 @@ io.on('connection', (socket) => {
         return (a.totalTimeTaken || 0) - (b.totalTimeTaken || 0);
       });
 
-      io.to(roomCode).emit('quiz-finished', {
+      io.to(safe).emit('quiz-finished', {
         leaderboard: sortedLeaderboard
       });
-      console.log(`🏁 Quiz ended in room ${roomCode} by host.`);
+      console.log(`🏁 Quiz ended in room ${safe} by host.`);
     }
   });
 
@@ -971,46 +1096,48 @@ io.on('connection', (socket) => {
   });
 });
 
-// Contact Form Mail Route
-app.post('/api/contact', async (req, res) => {
-  const { email, message } = req.body;
+// Contact Form Mail Route (rate-limited, validated)
+app.post('/api/contact', contactLimiter, async (req, res) => {
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().slice(0, 254) : '';
+  const message = typeof req.body.message === 'string' ? req.body.message.trim().slice(0, 2000) : '';
 
-  if (!email || !message) {
-    return res.status(400).json({ success: false, message: 'Email and message are required.' });
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailOk || !message) {
+    return res.status(400).json({ success: false, message: 'Valid email and message are required.' });
   }
 
   try {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.SMTP_TO) {
+      console.warn('⚠️ SMTP not configured. Message rejected to avoid silent success.');
+      return res.status(503).json({
+        success: false,
+        message: 'Contact service is not configured. Please try again later.'
+      });
+    }
+
+    const safeEmail = email.replace(/[\r\n]/g, '');
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.SMTP_USER || 'pawartanaya02@gmail.com',
-        pass: process.env.SMTP_PASS || ''
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
       }
     });
 
     const mailOptions = {
-      from: process.env.SMTP_USER || 'pawartanaya02@gmail.com',
-      to: 'pawartanaya02@gmail.com',
-      subject: `QuizMaster Contact Message from ${email}`,
-      text: `You received a new contact message:\n\nSender Email: ${email}\n\nMessage:\n${message}`,
-      replyTo: email
+      from: process.env.SMTP_USER,
+      to: process.env.SMTP_TO,
+      subject: `QuizMaster Contact Message from ${safeEmail}`.slice(0, 200),
+      text: `You received a new contact message:\n\nSender Email: ${safeEmail}\n\nMessage:\n${message}`,
+      replyTo: safeEmail
     };
 
-    if (process.env.SMTP_PASS) {
-      await transporter.sendMail(mailOptions);
-      console.log(`✉️ Email successfully sent via SMTP to pawartanaya02@gmail.com from ${email}`);
-      return res.json({ success: true, message: 'Message sent successfully!' });
-    } else {
-      console.warn(`⚠️ SMTP Credentials not configured in server/.env. Message logged to console:`);
-      console.log(`✉️ SENDER: ${email}\n✉️ MESSAGE: ${message}`);
-      return res.json({ 
-        success: true, 
-        message: 'Message captured! (Configure SMTP_PASS in your server/.env file to enable actual email delivery)' 
-      });
-    }
+    await transporter.sendMail(mailOptions);
+    console.log('✉️ Contact message sent via SMTP.');
+    return res.json({ success: true, message: 'Message sent successfully!' });
   } catch (error) {
-    console.error('Error sending contact message email:', error);
-    res.status(500).json({ success: false, message: 'Failed to send message.', error: error.message });
+    console.error('Error sending contact message email.');
+    res.status(500).json({ success: false, message: prodMessage(`Failed to send message: ${error.message}`) });
   }
 });
 
