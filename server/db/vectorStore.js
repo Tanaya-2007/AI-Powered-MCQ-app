@@ -42,6 +42,10 @@ export async function initializeSchema() {
       USING hnsw (embedding vector_cosine_ops);
     `);
 
+    // 5. Enable RLS + deny-all PostgREST access (backend uses privileged pool role which bypasses RLS)
+    await connection.query(`ALTER TABLE IF EXISTS study_materials ENABLE ROW LEVEL SECURITY;`);
+    await connection.query(`ALTER TABLE IF EXISTS document_chunks ENABLE ROW LEVEL SECURITY;`);
+
     console.log('✅ PostgreSQL Schema initialized successfully (Tables & Vector indexes ready).');
 
   } catch (error) {
