@@ -4,48 +4,9 @@ function SoloQuizSession() {
   const navigate = useNavigate();
   const location = useLocation();
   const quizConfig = location.state || {};
-  
-  const defaultQuestions = [
-    {
-      id: 1,
-      question: "Which protocol is used for secure web communication?",
-      options: ["HTTP", "HTTPS", "FTP", "SMTP"],
-      correctAnswer: 1,
-      explanation: "HTTPS (Hypertext Transfer Protocol Secure) uses SSL/TLS encryption to secure data transmission between client and server."
-    },
-    {
-      id: 2,
-      question: "What does CPU stand for?",
-      options: ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Computer Processing User"],
-      correctAnswer: 0,
-      explanation: "CPU stands for Central Processing Unit, which is the primary component of a computer that performs most of the processing."
-    },
-    {
-      id: 3,
-      question: "What is the purpose of RAM in a computer?",
-      options: ["Long-term storage", "Temporary data storage", "Processing calculations", "Display graphics"],
-      correctAnswer: 1,
-      explanation: "RAM (Random Access Memory) is used for temporary storage of data that the CPU needs quick access to while running programs."
-    },
-    {
-      id: 4,
-      question: "Which programming language is known as the 'language of the web'?",
-      options: ["Python", "JavaScript", "Java", "C++"],
-      correctAnswer: 1,
-      explanation: "JavaScript is primarily used for web development and runs in web browsers, making it the language of the web."
-    },
-    {
-      id: 5,
-      question: "What does HTML stand for?",
-      options: ["Hyper Text Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language"],
-      correctAnswer: 0,
-      explanation: "HTML stands for Hyper Text Markup Language, which is the standard markup language for creating web pages."
-    }
-  ];
 
-  const questionsSource = quizConfig.questions && quizConfig.questions.length > 0
-    ? quizConfig.questions
-    : defaultQuestions;
+  // Fail-loud: never silently substitute mock questions (previously mislabeled as AI-generated).
+  const questionsSource = Array.isArray(quizConfig.questions) ? quizConfig.questions : [];
 
   const quizData = {
     title: quizConfig.title || "AI Generated Quiz",
@@ -302,6 +263,28 @@ function SoloQuizSession() {
   };
 
 // MAIN QUIZ SESSION
+if (questionsSource.length === 0) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 px-4">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 mb-2">No quiz loaded</h2>
+        <p className="text-gray-600 mb-6">Quiz generation failed or no questions were passed. Please generate a quiz again.</p>
+        <button
+          onClick={() => navigate('/solo-mode', { replace: true })}
+          className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all"
+        >
+          Back to Quiz Setup
+        </button>
+      </div>
+    </div>
+  );
+}
+
 return (
   <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative overflow-hidden ${pageTransition === 'fade-in' ? 'animate-page-enter' : 'animate-page-exit'}`}>
 {/* Finish Quiz Confirmation Popup */}
