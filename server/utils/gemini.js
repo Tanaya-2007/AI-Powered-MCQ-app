@@ -16,8 +16,8 @@ const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key');
 
 /**
  * Generates a 768-dimensional vector embedding for a given text chunk using Gemini's text-embedding-004 model.
- * Includes a robust fallback mechanism to guarantee database storage succeeds even if Gemini API key is unconfigured.
- * 
+ * Fail-loud: throws on provider failure so callers never store meaningless vectors.
+ *
  * @param {string} text - The text content to embed.
  * @returns {Promise<number[]>} The vector embedding as an array of floats.
  */
@@ -46,17 +46,9 @@ export async function generateEmbedding(text) {
     if (result && result.embedding && result.embedding.values) {
       return result.embedding.values;
     }
+    throw new Error('Embedding provider returned an empty result.');
   } catch (error) {
-    console.warn('⚠️ Gemini embedding API call skipped/failed, generating 768-dim deterministic vector:', error.message);
-    if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('fetch failed') || error.message.includes('ECONNRESET')) {
-      throw error;
-    }
+    console.error('❌ Embedding generation failed:', error.message);
+    throw error;
   }
-
-  // Fallback: Generate a 768-dimensional float array from text char codes to guarantee vector DB storage succeeds
-  const fallbackVector = new Array(768).fill(0).map((_, i) => {
-    const charCode = text.charCodeAt(i % text.length) || 65;
-    return Math.sin(i * 0.1 + charCode);
-  });
-  return fallbackVector;
 }
