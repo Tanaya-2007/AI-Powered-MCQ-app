@@ -25,21 +25,29 @@ function CollabQuizSession() {
   const [timeLeft, setTimeLeft] = useState(timePerQuestion || 60);
   const [participantAnswers, setParticipantAnswers] = useState([]);
   const [currentParticipants, setCurrentParticipants] = useState(() => {
-    const finishedQuizCache = sessionStorage.getItem(`collab_finished_${quizCode}`);
-    if (finishedQuizCache) {
-      try {
-        const parsed = JSON.parse(finishedQuizCache);
-        return parsed.leaderboard;
-      } catch (e) {
-        console.error('Error parsing collab finished cache:', e);
+    try {
+      const finishedQuizCache = sessionStorage.getItem(`collab_finished_${quizCode}`);
+      if (finishedQuizCache) {
+        try {
+          const parsed = JSON.parse(finishedQuizCache);
+          if (Array.isArray(parsed.leaderboard)) return parsed.leaderboard;
+        } catch (e) {
+          console.error('Error parsing collab finished cache:', e);
+        }
       }
+    } catch {
+      // sessionStorage blocked/full — fall through to live participants
     }
     return participants || [];
   });
   const [showQuestionResult, setShowQuestionResult] = useState(false);
   const [showMidLeaderboard, setShowMidLeaderboard] = useState(false);
   const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(() => {
-    return sessionStorage.getItem(`collab_finished_${quizCode}`) !== null;
+    try {
+      return sessionStorage.getItem(`collab_finished_${quizCode}`) !== null;
+    } catch {
+      return false;
+    }
   });
 
   const question = quizData.questions[currentQuestion];
@@ -130,8 +138,12 @@ function CollabQuizSession() {
 
     // C. Host & Player Listen: Quiz finished
     socket.on('quiz-finished', ({ leaderboard }) => {
-      // Cache final results to survive page refresh
-      sessionStorage.setItem(`collab_finished_${quizCode}`, JSON.stringify({ leaderboard }));
+      // Cache final results to survive page refresh (best-effort; quota-guarded)
+      try {
+        sessionStorage.setItem(`collab_finished_${quizCode}`, JSON.stringify({ leaderboard }));
+      } catch (e) {
+        console.warn('Could not cache collab results:', e?.message || e);
+      }
       
       setCurrentParticipants(prev => {
         const updated = prev.map(p => {
