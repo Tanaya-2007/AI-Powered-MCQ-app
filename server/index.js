@@ -20,6 +20,19 @@ import { generateGroqContent } from './utils/groq.js';
 import { generateOpenAIContent } from './utils/openai.js';
 import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
 import { requireAuth, verifySocketToken, isAuthEnforced } from './middleware/requireAuth.js';
+import {
+  ALLOWED_DIFFICULTIES,
+  MAX_ROOMS,
+  MAX_PLAYERS_PER_ROOM,
+  sanitizeRoomCode,
+  sanitizePlayerName,
+  sanitizeAvatar,
+  clampTimePerQuestion,
+  clampQuestionCount,
+  normalizeDifficulty,
+  sanitizeQuestionsForRoom,
+  isValidEmail,
+} from './utils/validation.js';
 
 // Load environment variables
 dotenv.config();
@@ -107,46 +120,8 @@ const dbCheckLimiter = rateLimit({
   message: { success: false, message: 'Too many requests. Please try again later.' },
 });
 
-// Shared validation helpers (allowlist, never interpolate raw input)
-const ALLOWED_DIFFICULTIES = new Set(['easy', 'medium', 'hard']);
-const MAX_QUESTIONS_PER_REQUEST = 20;
-const MAX_ROOMS = 500;
-const MAX_PLAYERS_PER_ROOM = 200;
-
-function sanitizeRoomCode(code) {
-  return String(code || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, 8);
-}
-
-function sanitizePlayerName(name) {
-  return String(name || '').trim().slice(0, 20);
-}
-
-function sanitizeAvatar(avatar) {
-  return String(avatar || '🧑').slice(0, 8);
-}
-
-function clampTimePerQuestion(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 60;
-  return Math.min(300, Math.max(5, Math.floor(n)));
-}
-
-function sanitizeQuestionsForRoom(questions) {
-  if (!Array.isArray(questions)) return [];
-  return questions.slice(0, 100).map((q, idx) => ({
-    id: q?.id || idx + 1,
-    question: String(q?.question || '').slice(0, 1000),
-    options: Array.isArray(q?.options) ? q.options.slice(0, 4).map((o) => String(o).slice(0, 500)) : [],
-    correctAnswer:
-      typeof q?.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer <= 3
-        ? q.correctAnswer
-        : 0,
-    explanation: String(q?.explanation || '').slice(0, 2000),
-  }));
-}
+// Shared validation helpers live in utils/validation.js (imported above; unit-tested).
+// Room/question caps: MAX_ROOMS, MAX_PLAYERS_PER_ROOM, MAX_QUESTIONS_PER_REQUEST.
 
 function prodMessage(message) {
   return isProd ? 'Request failed. Please try again later.' : message;
@@ -476,8 +451,8 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
   }
 
   // Clamp count to bound LLM cost per request (frontend allows up to 100 via repeats)
-  count = Math.min(MAX_QUESTIONS_PER_REQUEST, Math.max(1, Math.floor(Number(count) || 5)));
-  if (!ALLOWED_DIFFICULTIES.has(difficulty)) difficulty = 'medium';
+  count = clampQuestionCount(count);
+  difficulty = normalizeDifficulty(difficulty);
   if (materialId !== undefined && materialId !== null) materialId = Number(materialId);
 
   let contextText = '';
@@ -1101,7 +1076,7 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
   const email = typeof req.body.email === 'string' ? req.body.email.trim().slice(0, 254) : '';
   const message = typeof req.body.message === 'string' ? req.body.message.trim().slice(0, 2000) : '';
 
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailOk = isValidEmail(email);
   if (!emailOk || !message) {
     return res.status(400).json({ success: false, message: 'Valid email and message are required.' });
   }
