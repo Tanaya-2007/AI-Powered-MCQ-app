@@ -241,8 +241,8 @@ function CreateQuiz() {
       triggerAlert('Please enter number of questions', 'warning');
       return;
     }
-    if (questionsCount > 100) {
-      triggerAlert('Maximum 100 questions allowed! Please reduce the number.', 'warning');
+    if (questionsCount > 50) {
+      triggerAlert('Maximum 50 questions allowed! Please reduce the number.', 'warning');
       return;
     }
   
@@ -982,14 +982,14 @@ function CreateQuiz() {
                   value={numQuestions}
                   onChange={(e) => setNumQuestions(e.target.value)}
                   disabled={isGenerating}
-                  placeholder="Enter number (max 100)"
+                  placeholder="Enter number (max 50)"
                   min="1"
-                  max="100"
+                  max="50"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-center text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-550 mt-2 text-center">Maximum 100 questions</p>
-                {(numQuestions && parseInt(numQuestions) > 100) && (
-                  <p className="text-xs text-red-655 mt-2 text-center font-semibold">⚠️ Maximum 100 questions allowed!</p>
+                <p className="text-xs text-gray-550 mt-2 text-center">Maximum 50 questions</p>
+                {(numQuestions && parseInt(numQuestions) > 50) && (
+                  <p className="text-xs text-red-655 mt-2 text-center font-semibold">⚠️ Maximum 50 questions allowed!</p>
                 )}
               </div>
 

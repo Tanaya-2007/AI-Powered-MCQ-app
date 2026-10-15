@@ -4,7 +4,7 @@
  */
 
 export const ALLOWED_DIFFICULTIES = new Set(['easy', 'medium', 'hard']);
-export const MAX_QUESTIONS_PER_REQUEST = 20;
+export const MAX_QUESTIONS_PER_REQUEST = 50;
 export const MAX_ROOMS = 500;
 export const MAX_PLAYERS_PER_ROOM = 200;
 
