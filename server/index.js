@@ -33,6 +33,14 @@ import {
   sanitizeQuestionsForRoom,
   isValidEmail,
 } from './utils/validation.js';
+import {
+  getRoom,
+  setRoom,
+  hasRoom,
+  deleteRoom,
+  getRoomCount,
+  getAllRooms,
+} from './db/roomStore.js';
 
 // Load environment variables
 dotenv.config();
@@ -68,8 +76,7 @@ const io = new Server(httpServer, {
   },
 });
 
-// In-memory state for tracking active multiplayer quiz rooms
-const rooms = new Map();
+// Active multiplayer quiz rooms are managed by roomStore (Upstash Redis + Resilient In-Memory Fallback)
 
 // Initialize Gemini Client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
@@ -820,7 +827,8 @@ io.on('connection', (socket) => {
       }
       socket.data.user = user;
     }
-    if (rooms.size >= MAX_ROOMS) {
+    const currentCount = await getRoomCount();
+    if (currentCount >= MAX_ROOMS) {
       socket.emit('join-error', { message: 'Server is at room capacity. Please try again later.' });
       return;
     }
@@ -830,20 +838,23 @@ io.on('connection', (socket) => {
     const safeDifficulty = ALLOWED_DIFFICULTIES.has(difficulty) ? difficulty : 'medium';
     
     // Check if the room already exists (host reconnect/refresh case)
-    if (rooms.has(actualRoomCode)) {
-      const existingRoom = rooms.get(actualRoomCode);
-      if (existingRoom.deleteTimeout) {
-        clearTimeout(existingRoom.deleteTimeout);
-        existingRoom.deleteTimeout = null;
+    if (await hasRoom(actualRoomCode)) {
+      const existingRoom = await getRoom(actualRoomCode);
+      if (existingRoom) {
+        if (existingRoom.deleteTimeout) {
+          clearTimeout(existingRoom.deleteTimeout);
+          existingRoom.deleteTimeout = null;
+        }
+        existingRoom.hostId = socket.id; // update host socket id
+        await setRoom(actualRoomCode, existingRoom);
+        socket.join(actualRoomCode);
+        socket.emit('room-created', { roomCode: actualRoomCode, quizTitle: existingRoom.quizTitle });
+        console.log(`🔄 Host reconnected to existing room ${actualRoomCode}. Cleared delete timeout.`);
+        return;
       }
-      existingRoom.hostId = socket.id; // update host socket id
-      socket.join(actualRoomCode);
-      socket.emit('room-created', { roomCode: actualRoomCode, quizTitle: existingRoom.quizTitle });
-      console.log(`🔄 Host reconnected to existing room ${actualRoomCode}. Cleared delete timeout.`);
-      return;
     }
 
-    rooms.set(actualRoomCode, {
+    const newRoom = {
       hostId: socket.id,
       quizTitle: String(quizTitle || 'AI Generated Multiplayer Quiz').slice(0, 120),
       questions: safeQuestions,
@@ -852,7 +863,8 @@ io.on('connection', (socket) => {
       currentQuestionIndex: 0,
       difficulty: safeDifficulty,
       timePerQuestion: clampTimePerQuestion(timePerQuestion)
-    });
+    };
+    await setRoom(actualRoomCode, newRoom);
 
     socket.join(actualRoomCode);
     socket.emit('room-created', { roomCode: actualRoomCode, quizTitle });
@@ -860,9 +872,9 @@ io.on('connection', (socket) => {
   });
 
   // B. Player Joins a Room (Handles new joins, late joins, and reconnects)
-  socket.on('join-room', ({ roomCode, playerName, avatar }) => {
+  socket.on('join-room', async ({ roomCode, playerName, avatar }) => {
     const safeRoomCode = sanitizeRoomCode(roomCode);
-    const room = rooms.get(safeRoomCode);
+    const room = await getRoom(safeRoomCode);
 
     if (!room) {
       return socket.emit('join-error', { message: 'Room not found. Please verify the code.' });
@@ -904,6 +916,7 @@ io.on('connection', (socket) => {
       console.log(`👤 Player "${safeName}" (${socket.id}) joined room: ${safeRoomCode} with avatar: ${safeAvatar}`);
     }
 
+    await setRoom(safeRoomCode, room);
     socket.join(safeRoomCode);
 
     // Notify player of successful join
@@ -922,25 +935,27 @@ io.on('connection', (socket) => {
   });
 
   // C. Start Quiz (Triggered by Host)
-  socket.on('start-quiz', ({ roomCode }) => {
-    const room = rooms.get(sanitizeRoomCode(roomCode));
+  socket.on('start-quiz', async ({ roomCode }) => {
+    const safe = sanitizeRoomCode(roomCode);
+    const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
       room.status = 'PLAYING';
-      io.to(roomCode).emit('quiz-started', {
+      await setRoom(safe, room);
+      io.to(safe).emit('quiz-started', {
         questions: room.questions,
         questionsCount: room.questions.length,
         difficulty: room.difficulty,
         timePerQuestion: room.timePerQuestion
       });
-      console.log(`🎮 Quiz started in room ${roomCode} by host.`);
+      console.log(`🎮 Quiz started in room ${safe} by host.`);
     }
   });
 
   // D. Submit Answer (Triggered by Player) — server is authoritative for correctness.
   // Client sends selectedOption; server compares against room questions. Client isCorrect is ignored.
-  socket.on('submit-answer', ({ roomCode, questionIndex, timeTaken, selectedOption }) => {
+  socket.on('submit-answer', async ({ roomCode, questionIndex, timeTaken, selectedOption }) => {
     const safeRoomCode = sanitizeRoomCode(roomCode);
-    const room = rooms.get(safeRoomCode);
+    const room = await getRoom(safeRoomCode);
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
       if (player) {
@@ -964,23 +979,20 @@ io.on('connection', (socket) => {
           player.correctAnswersCount += 1;
         }
 
+        await setRoom(safeRoomCode, room);
+
         // Broadcast updated scores to everyone in the room (displays on real-time Leaderboard)
         io.to(safeRoomCode).emit('scores-updated', { players: room.players });
 
-        // Notify host that this player has answered the current question
-        io.to(safeRoomCode).emit('player-answered', {
-          playerId: socket.id,
-          playerName: player.name,
-          questionIndex: Number.isInteger(qIdx) ? qIdx : 0
-        });
         console.log(`📝 Player "${player.name}" submitted answer for Q${Number.isInteger(qIdx) ? qIdx : '?'} (Correct: ${!!isCorrect}, Time: ${secsTaken}s). Score: ${player.score}, Total Time: ${player.totalTimeTaken}s`);
       }
     }
   });
 
   // E. Next Question (Triggered by Host)
-  socket.on('next-question', ({ roomCode, nextIndex }) => {
-    const room = rooms.get(sanitizeRoomCode(roomCode));
+  socket.on('next-question', async ({ roomCode, nextIndex }) => {
+    const safe = sanitizeRoomCode(roomCode);
+    const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
       const safeNext = Math.min(
         Math.max(0, Math.floor(Number(nextIndex) || 0)),
@@ -993,15 +1005,17 @@ io.on('connection', (socket) => {
         p.selectedOption = undefined;
       });
 
-      io.to(sanitizeRoomCode(roomCode)).emit('show-question', { questionIndex: safeNext });
-      console.log(`➡️ Host progressed room ${sanitizeRoomCode(roomCode)} to question index ${safeNext}`);
+      await setRoom(safe, room);
+
+      io.to(safe).emit('show-question', { questionIndex: safeNext });
+      console.log(`➡️ Host progressed room ${safe} to question index ${safeNext}`);
     }
   });
 
   // E2. Reveal Results Early (Triggered by Host)
-  socket.on('reveal-results', ({ roomCode }) => {
+  socket.on('reveal-results', async ({ roomCode }) => {
     const safe = sanitizeRoomCode(roomCode);
-    const room = rooms.get(safe);
+    const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
       io.to(safe).emit('results-revealed');
       console.log(`👁️ Host revealed results early in room ${safe}`);
@@ -1009,9 +1023,9 @@ io.on('connection', (socket) => {
   });
 
   // E3. Reveal Mid-Quiz Leaderboard (Triggered by Host)
-  socket.on('reveal-mid-leaderboard', ({ roomCode }) => {
+  socket.on('reveal-mid-leaderboard', async ({ roomCode }) => {
     const safe = sanitizeRoomCode(roomCode);
-    const room = rooms.get(safe);
+    const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
       io.to(safe).emit('mid-leaderboard-revealed');
       console.log(`📊 Host revealed mid-quiz leaderboard in room ${safe}`);
@@ -1019,11 +1033,12 @@ io.on('connection', (socket) => {
   });
 
   // F. End Quiz (Triggered by Host)
-  socket.on('end-quiz', ({ roomCode }) => {
+  socket.on('end-quiz', async ({ roomCode }) => {
     const safe = sanitizeRoomCode(roomCode);
-    const room = rooms.get(safe);
+    const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
       room.status = 'FINISHED';
+      await setRoom(safe, room);
 
       // Sort: 1. Higher score/correct answers. 2. Less time taken (totalTimeTaken).
       const sortedLeaderboard = [...room.players].sort((a, b) => {
@@ -1041,28 +1056,31 @@ io.on('connection', (socket) => {
   });
 
   // G. Disconnect Handler
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`🔌 Client disconnected from WebSocket: ${socket.id}`);
 
     // Check if the disconnected client belongs to any room
-    for (const [roomCode, room] of rooms.entries()) {
+    const allRooms = await getAllRooms();
+    for (const [roomCode, room] of allRooms) {
       // If Host disconnects -> close the room completely after a grace period to support reconnections
       if (room.hostId === socket.id) {
         console.log(`⚠️ Host disconnected from room ${roomCode}. Starting 20-second room delete grace period...`);
         io.to(roomCode).emit('host-disconnected', { message: 'Host disconnected. Waiting for reconnection...' });
         
-        room.deleteTimeout = setTimeout(() => {
+        room.deleteTimeout = setTimeout(async () => {
           io.to(roomCode).emit('room-closed', { message: 'Host connection lost. Room closed.' });
-          rooms.delete(roomCode);
+          await deleteRoom(roomCode);
           console.log(`🗑️ Room ${roomCode} deleted after 20-second host reconnect grace period expired.`);
         }, 20000); 
+        await setRoom(roomCode, room);
         break;
       }
 
       // If Player disconnects -> mark as offline and notify other clients
-      const player = room.players.find(p => p.id === socket.id);
+      const player = room.players?.find(p => p.id === socket.id);
       if (player) {
         player.online = false;
+        await setRoom(roomCode, room);
         io.to(roomCode).emit('player-left', { players: room.players });
         console.log(`👤 Player "${player.name}" went offline in room ${roomCode} (disconnected).`);
         break;
