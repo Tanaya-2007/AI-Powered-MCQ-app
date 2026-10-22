@@ -41,6 +41,7 @@ import {
   getRoomCount,
   getAllRooms,
 } from './db/roomStore.js';
+import { logger, httpLogger } from './utils/logger.js';
 
 // Load environment variables
 dotenv.config();
@@ -102,6 +103,7 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(helmet());
+app.use(httpLogger);
 
 // Rate limiting (fail-closed abuse protection for LLM/costly endpoints)
 const isProd = process.env.NODE_ENV === 'production';
@@ -1138,25 +1140,25 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
 registerSchemaInitializer(initializeSchema);
 
 httpServer.listen(PORT, async () => {
-  console.log(`🚀 QuizMaster server (with Socket.io) listening on port ${PORT}`);
-  console.log(`🔗 Status endpoint: http://localhost:${PORT}/api/status`);
-  console.log(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-check`);
+  logger.info({ port: PORT }, `🚀 QuizMaster server (with Socket.io) listening on port ${PORT}`);
+  logger.info(`🔗 Status endpoint: http://localhost:${PORT}/api/status`);
+  logger.info(`🔗 Database test endpoint: http://localhost:${PORT}/api/db-check`);
   
   // Initialize PostgreSQL DB Connection Pool & Schema on boot
   try {
     const pool = await initDbPool();
     if (pool) {
-      console.log('📦 Database pool ready, running schema setup...');
+      logger.info('📦 Database pool ready, running schema setup...');
       await initializeSchema();
     }
   } catch (error) {
-    console.error('⚠️ Could not initialize PostgreSQL DB Pool on startup. Connection will automatically retry when a request is made.');
+    logger.warn('⚠️ Could not initialize PostgreSQL DB Pool on startup. Connection will automatically retry when a request is made.');
   }
 });
 
 // Global Error Handler Middleware (Production-grade safety)
 app.use((err, req, res, next) => {
-  console.error('💥 Uncaught System Error:', err);
+  logger.error({ err }, '💥 Uncaught System Error');
   res.status(500).json({
     success: false,
     message: 'An unexpected system error occurred.',
@@ -1166,16 +1168,16 @@ app.use((err, req, res, next) => {
 
 // Process-level handlers for uncaught issues to prevent process crashes
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('💥 Unhandled Promise Rejection:', reason);
+  logger.error({ reason }, '💥 Unhandled Promise Rejection');
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('💥 Uncaught Exception:', error);
+  logger.error({ error }, '💥 Uncaught Exception');
 });
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-  console.log('\nStopping server gracefully...');
+  logger.info('Stopping server gracefully...');
   await closeDbPool();
   process.exit(0);
 };
