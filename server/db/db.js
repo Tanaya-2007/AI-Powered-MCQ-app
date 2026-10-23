@@ -37,12 +37,15 @@ export async function initDbPool() {
 
   try {
     // Instantiate Postgres connection pool.
-    // We add SSL settings, which are mandatory for cloud hosting providers like Supabase and Neon.
+    // SSL is mandatory for cloud hosting providers like Supabase and Neon.
+    // Defaults to rejectUnauthorized=true (secure). Set PGSSL_REJECT_UNAUTHORIZED=false
+    // in server/.env only for local dev with self-signed certificates.
+    const sslMode = process.env.PGSSLMODE || 'require';
+    const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false';
+
     pool = new Pool({
       connectionString,
-      ssl: {
-        rejectUnauthorized: false // allows connection to hosted databases without installing local SSL certificates
-      }
+      ssl: sslMode === 'disable' ? false : { rejectUnauthorized },
     });
 
     // Test checkout a connection to verify credentials with retries (production grade resilience)
