@@ -699,7 +699,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Quiz generation error:', error.message);
+    console.error('❌ Quiz generation error.');
     
     // If the error is a quota/rate limit error, return a clear error
     if (error.message.includes('429') || error.message.includes('quota') || error.message.toLowerCase().includes('quota exceeded') || error.message.includes('QuotaFailure')) {
@@ -720,7 +720,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     // Return the actual failure error to prevent silently falling back to mock questions
     res.status(500).json({
       success: false,
-      message: prodMessage(`Failed to generate quiz: ${error.message}`)
+      message: prodMessage('Failed to generate quiz.')
     });
   }
 });
@@ -807,7 +807,7 @@ app.post('/api/export-quiz', writeLimiter, requireAuth, async (req, res) => {
       appsScriptFallback: true,
       appsScriptCode,
       message: 'Failed to export to Google Forms automatically. Use the One-Click Google Apps Script code below to generate it instantly without any Cloud setup!',
-      error: error.message
+      error: prodMessage('Export failed.')
     });
   }
 });
@@ -1148,7 +1148,7 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     return res.json({ success: true, message: 'Message sent successfully!' });
   } catch (error) {
     console.error('Error sending contact message email.');
-    res.status(500).json({ success: false, message: prodMessage(`Failed to send message: ${error.message}`) });
+    res.status(500).json({ success: false, message: prodMessage('Failed to send message.') });
   }
 });
 
