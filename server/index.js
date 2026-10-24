@@ -1082,9 +1082,25 @@ io.on('connection', (socket) => {
       const player = room.players?.find(p => p.id === socket.id);
       if (player) {
         player.online = false;
+        player.disconnectedAt = Date.now();
         await setRoom(roomCode, room);
         io.to(roomCode).emit('player-left', { players: room.players });
         console.log(`👤 Player "${player.name}" went offline in room ${roomCode} (disconnected).`);
+
+        // Clean up players who have been offline for more than 30 seconds
+        const OFFLINE_GRACE_MS = 30 * 1000;
+        const beforeCount = room.players.length;
+        room.players = room.players.filter(p => {
+          if (p.online) return true;
+          if (!p.disconnectedAt) return true; // never disconnect-marked, keep safe
+          return Date.now() - p.disconnectedAt < OFFLINE_GRACE_MS;
+        });
+        const removedCount = beforeCount - room.players.length;
+        if (removedCount > 0) {
+          await setRoom(roomCode, room);
+          io.to(roomCode).emit('player-left', { players: room.players });
+          console.log(`🧹 Removed ${removedCount} offline player(s) from room ${roomCode} after grace period.`);
+        }
         break;
       }
     }
