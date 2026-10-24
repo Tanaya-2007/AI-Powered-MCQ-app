@@ -170,14 +170,6 @@ function CollabQuizSession() {
       navigate('/');
     });
 
-    // E. Player Answered Listener (for Host progress tracking)
-    socket.on('player-answered', ({ playerId, playerName }) => {
-      setParticipantAnswers(prev => {
-        if (prev.some(p => p.id === playerId)) return prev;
-        return [...prev, { id: playerId, name: playerName }];
-      });
-    });
-
     // F. Player Listens: Host revealed results early
     if (!isHost) {
       socket.on('results-revealed', () => {
@@ -197,7 +189,6 @@ function CollabQuizSession() {
       socket.off('show-question');
       socket.off('quiz-finished');
       socket.off('room-closed');
-      socket.off('player-answered');
       socket.off('results-revealed');
       socket.off('mid-leaderboard-revealed');
     };
