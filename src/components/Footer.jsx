@@ -7,6 +7,11 @@ function Footer() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   
+  // Backend API URL (localhost in dev, VITE_BACKEND_URL or Render in prod)
+  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5001'
+    : (import.meta.env.VITE_BACKEND_URL || 'https://ai-powered-mcq-app.onrender.com');
+  
   // Custom styled inline alert state (prevents ugly browser alert popup)
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
@@ -47,32 +52,30 @@ function Footer() {
     setLoading(true);
 
     try {
-      // Direct clientless background email submission to FormSubmit.co
-      const response = await fetch("https://formsubmit.co/ajax/pawartanaya02@gmail.com", {
+      // Send contact message via our hardened backend API (rate-limited, validated)
+      const response = await fetch(`${API_BASE_URL}/api/contact`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           email: email,
-          message: message,
-          _subject: `QuizMaster Contact Message from ${email}`
+          message: message
         })
       });
       
       const data = await response.json();
-      if (data.success || response.ok) {
+      if (response.ok && data.success) {
         // Record timestamp of successful submission
         localStorage.setItem("quizmaster_last_contact_submit", Date.now().toString());
         
-        showToast("✅ Message sent successfully! We will get back to you shortly.", "success");
+        showToast(data.message || '✅ Message sent successfully! We will get back to you shortly.', "success");
         setSubmitted(true);
         setEmail("");
         setMessage("");
         setTimeout(() => setSubmitted(false), 5000);
       } else {
-        showToast("❌ Failed to send message. Please try again later.", "error");
+        showToast(data.message || '❌ Failed to send message. Please try again later.', "error");
       }
     } catch (err) {
       console.error('Contact submission error:', err);
