@@ -46,6 +46,27 @@ export async function initializeSchema() {
     await connection.query(`ALTER TABLE IF EXISTS study_materials ENABLE ROW LEVEL SECURITY;`);
     await connection.query(`ALTER TABLE IF EXISTS document_chunks ENABLE ROW LEVEL SECURITY;`);
 
+    // 6. Create quiz_results table to persist final leaderboards across restarts
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS quiz_results (
+        id SERIAL PRIMARY KEY,
+        room_code VARCHAR(50) NOT NULL,
+        quiz_title VARCHAR(255) NOT NULL,
+        difficulty VARCHAR(50) NOT NULL DEFAULT 'medium',
+        total_questions INT NOT NULL DEFAULT 0,
+        leaderboard JSONB NOT NULL DEFAULT '[]',
+        finished_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Index for fast lookup by room_code
+    await connection.query(`
+      CREATE INDEX IF NOT EXISTS quiz_results_room_code_idx ON quiz_results (room_code);
+    `);
+
+    // Enable RLS on quiz_results
+    await connection.query(`ALTER TABLE IF EXISTS quiz_results ENABLE ROW LEVEL SECURITY;`);
+
     console.log('✅ PostgreSQL Schema initialized successfully (Tables & Vector indexes ready).');
 
   } catch (error) {
@@ -117,6 +138,39 @@ export async function saveChunk(materialId, chunkIndex, content, embedding, page
 
   } catch (error) {
     console.error('Error in saveChunk DB operation:', error);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Persists a finished quiz result (leaderboard) to the database.
+ * 
+ * @param {string} roomCode - The room code.
+ * @param {string} quizTitle - Title of the quiz.
+ * @param {string} difficulty - Quiz difficulty level.
+ * @param {number} totalQuestions - Total number of questions.
+ * @param {Array} leaderboard - Sorted array of player results.
+ * @returns {Promise<number>} The inserted result ID.
+ */
+export async function saveQuizResult(roomCode, quizTitle, difficulty, totalQuestions, leaderboard) {
+  let connection;
+  try {
+    connection = await getConnection();
+
+    const query = `
+      INSERT INTO quiz_results (room_code, quiz_title, difficulty, total_questions, leaderboard)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id;
+    `;
+
+    const result = await connection.query(query, [roomCode, quizTitle, difficulty, totalQuestions, JSON.stringify(leaderboard)]);
+    const resultId = result.rows[0].id;
+    return resultId;
+
+  } catch (error) {
+    console.error('Error in saveQuizResult DB operation:', error);
     throw error;
   } finally {
     if (connection) connection.release();

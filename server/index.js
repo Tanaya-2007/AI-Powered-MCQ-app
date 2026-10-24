@@ -14,7 +14,7 @@ import { initDbPool, closeDbPool, registerSchemaInitializer } from './db/db.js';
 import { extractTextFromFile } from './utils/parser.js';
 import { splitText } from './utils/textSplitter.js';
 import { generateEmbedding } from './utils/gemini.js';
-import { saveMaterial, saveChunk, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
+import { saveMaterial, saveChunk, saveQuizResult, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { generateGroqContent } from './utils/groq.js';
 import { generateOpenAIContent } from './utils/openai.js';
@@ -1053,6 +1053,21 @@ io.on('connection', (socket) => {
       io.to(safe).emit('quiz-finished', {
         leaderboard: sortedLeaderboard
       });
+
+      // Persist final results to the database
+      try {
+        await saveQuizResult(
+          safe,
+          room.quizTitle || 'AI Generated Multiplayer Quiz',
+          room.difficulty || 'medium',
+          room.questions?.length || 0,
+          sortedLeaderboard
+        );
+        console.log(`💾 Quiz results persisted for room ${safe}.`);
+      } catch (err) {
+        console.error(`❌ Failed to persist quiz results for room ${safe}:`, err.message);
+      }
+
       console.log(`🏁 Quiz ended in room ${safe} by host.`);
     }
   });
