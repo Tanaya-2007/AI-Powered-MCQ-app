@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 
 function MidQuizLeaderboardPage({ 
   participants, 
@@ -8,8 +8,6 @@ function MidQuizLeaderboardPage({
   questionIndex,
   totalQuestions
 }) {
-  const [searchQuery, setSearchQuery] = useState('');
-
   const playersOnly = participants.filter(p => !p.isHost);
   
   const sortedParticipants = [...playersOnly]

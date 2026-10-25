@@ -8,7 +8,7 @@ function QuizLobby() {
   const { quizCode, difficulty, numQuestions, timePerQuestion, questions } = location.state || {};
 
   // States
-  const [participants, setParticipants] = useState([
+  const [participants, setParticipants] = useState(() => [
     { id: 'host', name: 'You (Host)', avatar: '👑', isHost: true, joinedAt: Date.now() }
   ]);
   const [recentActivity, setRecentActivity] = useState([]);

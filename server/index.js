@@ -200,7 +200,7 @@ app.get('/api/db-check', dbCheckLimiter, requireAuth, async (req, res) => {
       }
     });
 
-  } catch (error) {
+  } catch {
     console.error('❌ Database check failed.');
     res.status(500).json({
       success: false,
@@ -1161,7 +1161,7 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     await transporter.sendMail(mailOptions);
     console.log('✉️ Contact message sent via SMTP.');
     return res.json({ success: true, message: 'Message sent successfully!' });
-  } catch (error) {
+  } catch {
     console.error('Error sending contact message email.');
     res.status(500).json({ success: false, message: prodMessage('Failed to send message.') });
   }
@@ -1182,13 +1182,13 @@ httpServer.listen(PORT, async () => {
       logger.info('📦 Database pool ready, running schema setup...');
       await initializeSchema();
     }
-  } catch (error) {
+  } catch {
     logger.warn('⚠️ Could not initialize PostgreSQL DB Pool on startup. Connection will automatically retry when a request is made.');
   }
 });
 
 // Global Error Handler Middleware (Production-grade safety)
-app.use((err, req, res, next) => {
+app.use((err, _req, res) => {
   logger.error({ err }, '💥 Uncaught System Error');
   res.status(500).json({
     success: false,
@@ -1198,8 +1198,12 @@ app.use((err, req, res, next) => {
 });
 
 // Process-level handlers for uncaught issues to prevent process crashes
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   logger.error({ reason }, '💥 Unhandled Promise Rejection');
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error({ error }, '💥 Uncaught Exception');
 });
 
 process.on('uncaughtException', (error) => {

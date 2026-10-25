@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import LiveLeaderboardMini from '../../components/collab/LiveLeaderboardMini';
 
 function QuestionResultPage({ 
@@ -7,12 +7,9 @@ function QuestionResultPage({
   participants,
   currentUserId, 
   onNextQuestion,
-  isLastQuestion,
   isHost, 
-  autoRedirectTime = 5 
 }) {
   const isCorrect = selectedAnswer === question.correctAnswer;
-  const correctOption = question.options[question.correctAnswer];
 
   const playersOnly = participants.filter(p => !p.isHost);
   const sortedPlayers = [...playersOnly].sort((a, b) => (b.score || 0) - (a.score || 0));

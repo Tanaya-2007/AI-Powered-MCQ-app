@@ -62,7 +62,7 @@ function CollabQuizSession() {
       }, 1000);
       return () => clearTimeout(timer);
     }  else if (timeLeft === 0 && !showQuestionResult) {
-      setShowQuestionResult(true);
+      setTimeout(() => setShowQuestionResult(true), 0);
     }
   }, [timeLeft, showQuestionResult]);
 

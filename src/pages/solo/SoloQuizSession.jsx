@@ -38,7 +38,6 @@ function SoloQuizSession() {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false); 
   const [showReviewBoard, setShowReviewBoard] = useState(false); 
   const [quizComplete, setQuizComplete] = useState(false);
-  const [showReview, setShowReview] = useState(false);
   const [showInvalidKeyToast, setShowInvalidKeyToast] = useState(false);
 
   const question = quizData.questions[currentQuestion];
@@ -115,7 +114,7 @@ function SoloQuizSession() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (quizComplete || showReview || isAnswered) return;
+      if (quizComplete || showReviewBoard || isAnswered) return;
       
       // Prevent shortcut trigger if user is focused on an input/textarea
       const activeEl = document.activeElement;
@@ -140,7 +139,7 @@ function SoloQuizSession() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isAnswered, currentQuestion, quizComplete, showReview, question, handleSelectAnswer]);
+  }, [isAnswered, currentQuestion, quizComplete, showReviewBoard, question, handleSelectAnswer]);
 
   const handleNextQuestion = () => {
     if (currentQuestion < quizData.questions.length - 1) {

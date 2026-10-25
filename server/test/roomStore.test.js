@@ -5,7 +5,6 @@ import {
   getRoom,
   hasRoom,
   deleteRoom,
-  getRoomCount,
   getAllRooms,
 } from '../db/roomStore.js';
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 
 function LiveLeaderboardMini({ participants, maxShow = 5 }) {
   
@@ -12,36 +12,6 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
     })
     .slice(0, maxShow);
     
-  const [prevRankings, setPrevRankings] = useState({});
-  const [rankChanges, setRankChanges] = useState({});
-  
-  useEffect(() => {
-    const newRankings = {};
-    const changes = {};
-    
-    sortedParticipants.forEach((p, index) => {
-      newRankings[p.id] = index;
-      
-      if (prevRankings[p.id] !== undefined) {
-        const change = prevRankings[p.id] - index;
-        if (change !== 0) {
-          changes[p.id] = change;
-        }
-      }
-    });
-    
-    setRankChanges(changes);
-    setPrevRankings(newRankings);
-    
-    if (Object.keys(changes).length > 0) {
-      setTimeout(() => setRankChanges({}), 2000);
-    }
-  }, [
-    sortedParticipants.map(p => p.id).join(','), 
-    sortedParticipants.map(p => p.score).join(','),
-    sortedParticipants.map(p => p.totalTimeTaken || 0).join(',')
-  ]);
- 
   const maxScore = Math.max(...playersOnly.map(p => p.score || 0), 1);
 
   const getRankColor = (rank) => {
@@ -87,17 +57,9 @@ function LiveLeaderboardMini({ participants, maxShow = 5 }) {
                   <p className="text-sm font-bold text-gray-900 truncate">{participant.name}</p>
                 </div>
 
-                {/* Score with rank change indicator */}
-                <div className="text-right flex-shrink-0 relative flex flex-col items-end">
-                  {rankChanges[participant.id] && (
-                    <div className={`absolute -top-2 -right-2 text-sm animate-bounce ${
-                      rankChanges[participant.id] > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {rankChanges[participant.id] > 0 ? '↑' : '↓'}
-                    </div>
-                  )}
+                <div className="text-right flex-shrink-0 flex flex-col items-end">
                   <div className="flex items-baseline gap-1">
-                    <span className={`text-xl font-black ${rank === 0 ? 'text-green-600' : 'text-gray-900'} ${rankChanges[participant.id] ? 'scale-110' : ''} transition-all`}>
+                    <span className={`text-xl font-black ${rank === 0 ? 'text-green-600' : 'text-gray-900'} transition-all`}>
                       {participant.score || 0}
                     </span>
                     <span className="text-[10px] text-gray-500 font-semibold">pts</span>

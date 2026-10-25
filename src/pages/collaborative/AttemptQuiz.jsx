@@ -7,14 +7,12 @@ function AttemptQuiz() {
   const [searchParams] = useSearchParams();
   
   // States
-  const [quizCode, setQuizCode] = useState('');
+  const [quizCode, setQuizCode] = useState(() => {
+    const codeFromUrl = searchParams.get('code');
+    return codeFromUrl ? codeFromUrl.toUpperCase() : '';
+  });
   const [playerName, setPlayerName] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState('');
-  const [isJoining, setIsJoining] = useState(false);
-  const [error, setError] = useState('');
-  const [joinedLobby, setJoinedLobby] = useState(false);
-  const [lobbyInfo, setLobbyInfo] = useState(null);
-
+  
   // Simple, fun avatar collection
   const avatars = [
     
@@ -28,21 +26,16 @@ function AttemptQuiz() {
     '🍔','🍩','🌈','🌺','🌸','🌻','🌹','💐','🍁','🌊','🌷'
   ];
   
-
-  // Auto-fill code from URL
-  useEffect(() => {
-    const codeFromUrl = searchParams.get('code');
-    if (codeFromUrl) {
-      setQuizCode(codeFromUrl.toUpperCase());
-    }
-  }, [searchParams]);
-
-  // Auto-select random avatar on mount
-  useEffect(() => {
+  const [selectedAvatar, setSelectedAvatar] = useState(() => {
     const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
-    setSelectedAvatar(randomAvatar);
-  }, []);
+    return randomAvatar;
+  });
+  const [isJoining, setIsJoining] = useState(false);
+  const [error, setError] = useState('');
+  const [joinedLobby, setJoinedLobby] = useState(false);
+  const [lobbyInfo, setLobbyInfo] = useState(null);
 
+  
   // Listen for socket events when player joins the lobby
   useEffect(() => {
     if (!joinedLobby) return;
@@ -131,7 +124,7 @@ function AttemptQuiz() {
     socket.emit('join-room', { roomCode: quizCode, playerName, avatar: selectedAvatar });
 
     // Listen for successful join
-    socket.once('join-success', ({ roomCode, quizTitle, players }) => {
+    socket.once('join-success', ({ quizTitle, players }) => {
       setIsJoining(false);
       setJoinedLobby(true);
       setLobbyInfo({

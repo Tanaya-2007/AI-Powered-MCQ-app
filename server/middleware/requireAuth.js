@@ -59,7 +59,7 @@ export async function requireAuth(req, res, next) {
     const user = await verifySupabaseToken(token);
     req.user = user;
     return next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({
       success: false,
       message: 'Invalid or expired session. Please log in again.',

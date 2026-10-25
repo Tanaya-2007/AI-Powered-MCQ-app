@@ -8,9 +8,7 @@ import { supabase } from '../services/supabaseClient';
 function Home() {
   const navigate = useNavigate();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
+  const [user, setUser] = useState(() => {
     // Completely remove dark mode and restore previous premium light design
     document.documentElement.classList.remove('dark');
     localStorage.removeItem('theme');
@@ -18,16 +16,19 @@ function Home() {
     const savedUser = localStorage.getItem('quizmaster_user');
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        return JSON.parse(savedUser);
       } catch (e) {
         console.error(e);
       }
     }
+    return null;
+  });
 
+  useEffect(() => {
     // Trigger auth prompt if directed by route guard redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get('requireAuth') === 'true') {
-      setIsAuthOpen(true);
+      setTimeout(() => setIsAuthOpen(true), 0);
     }
 
     // Check active session immediately on mount (fixes OAuth redirects timing)

@@ -18,20 +18,28 @@ function FinalLeaderboardPage({ participants, onExit }) {
   // Top 3
   const top3 = sortedParticipants.slice(0, 3);
 
-
   const restOfPlayers = useMemo(() => {
-    const afterTop3 = top3[0]?.score === 0 ? sortedParticipants : sortedParticipants.slice(3);
+    const sorted = [...playersOnly]
+      .sort((a, b) => {
+        if ((b.score || 0) !== (a.score || 0)) {
+          return (b.score || 0) - (a.score || 0);
+        }
+        return (a.totalTimeTaken || 0) - (b.totalTimeTaken || 0);
+      });
+
+    const top3 = sorted.slice(0, 3);
+    const afterTop3 = top3[0]?.score === 0 ? sorted : sorted.slice(3);
     if (!searchQuery.trim()) return afterTop3;
     
     return afterTop3.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [sortedParticipants, searchQuery]);
+  }, [playersOnly, searchQuery]);
 
   const maxScore = Math.max(...playersOnly.map(p => p.score || 0), 1);
 
   
-  const confettiDots = useMemo(() => {
+  const confettiDots = useState(() => {
     return Array.from({ length: 50 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
@@ -40,7 +48,7 @@ function FinalLeaderboardPage({ participants, onExit }) {
       size: 6 + Math.random() * 6,
       color: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][Math.floor(Math.random() * 6)]
     }));
-  }, []);
+  })[0];
 
   const getRankColor = (rank) => {
     if (rank === 0) return 'from-yellow-400 to-orange-500';

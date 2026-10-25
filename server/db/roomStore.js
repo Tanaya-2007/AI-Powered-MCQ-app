@@ -56,8 +56,8 @@ export async function getRoom(roomCode) {
       const data = await redis.get(key);
       if (!data) return null;
       return typeof data === 'string' ? JSON.parse(data) : data;
-    } catch (err) {
-      console.warn(`[RoomStore] Redis get error for ${roomCode}, falling back to memory:`, err.message);
+    } catch {
+      console.warn(`[RoomStore] Redis get error for ${roomCode}, falling back to memory`);
       return memoryRooms.get(roomCode) || null;
     }
   }
@@ -178,7 +178,7 @@ export async function getRoomCount() {
     try {
       const keys = await redis.keys(`${ROOM_KEY_PREFIX}*`);
       return keys ? keys.length : memoryRooms.size;
-    } catch (err) {
+    } catch {
       return memoryRooms.size;
     }
   }

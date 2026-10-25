@@ -15,7 +15,7 @@ async function runTest() {
     console.log('✅ Gemini API Connection: SUCCESS!');
     console.log(`📊 Vector Dimensions: ${testVector.length} (Expected: 768)`);
     console.log(`🔍 Sample Vector Values (First 5): [ ${testVector.slice(0, 5).join(', ')}, ... ]\n`);
-  } catch (error) {
+  } catch {
     console.error('❌ Gemini API Connection FAILED.');
     console.error('👉 Make sure you have set GEMINI_API_KEY inside server/.env\n');
     process.exit(1);
