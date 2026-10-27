@@ -38,7 +38,7 @@ jobs:
 
       - name: Lint backend
         working-directory: ./server
-        run: npx eslint src/
+        run: npx eslint .
 
       - name: Run backend tests
         working-directory: ./server
