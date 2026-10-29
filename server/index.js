@@ -472,11 +472,13 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     // If materialId is not provided, fallback to the latest uploaded study material ID
     if (!materialId) {
       console.log('⚠️ materialId was not supplied. Querying the latest uploaded material ID...');
-      const pool = initDbPool();
-      const latestRes = await pool.query('SELECT id FROM study_materials ORDER BY created_at DESC LIMIT 1');
-      if (latestRes.rows.length > 0) {
-        materialId = latestRes.rows[0].id;
-        console.log(`✅ Using latest material ID: ${materialId}`);
+      const pool = await initDbPool();
+      if (pool) {
+        const latestRes = await pool.query('SELECT id FROM study_materials ORDER BY created_at DESC LIMIT 1');
+        if (latestRes.rows.length > 0) {
+          materialId = latestRes.rows[0].id;
+          console.log(`✅ Using latest material ID: ${materialId}`);
+        }
       }
     }
 
@@ -492,7 +494,10 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     } else {
       // B. Retrieve sequential chunks for the material ID directly
       console.log(`🔍 Querying all sequential chunks for materialId: ${materialId}...`);
-      const pool = initDbPool();
+      const pool = await initDbPool();
+      if (!pool) {
+        throw new Error('Database pool unavailable to query chunks.');
+      }
       const result = await pool.query(
         `SELECT c.id, c.content, c.page_number, c.chunk_index, m.filename 
          FROM document_chunks c 

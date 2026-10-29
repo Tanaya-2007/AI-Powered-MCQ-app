@@ -41,7 +41,12 @@ export async function initDbPool() {
     // Defaults to rejectUnauthorized=true (secure). Set PGSSL_REJECT_UNAUTHORIZED=false
     // in server/.env only for local dev with self-signed certificates.
     const sslMode = process.env.PGSSLMODE || 'require';
-    const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false';
+    const isCloudDb = /supabase\.co|pooler\.supabase\.com|neon\.tech/i.test(connectionString || '');
+    // For cloud providers (like Supabase connection poolers), self-signed certificate chains
+    // require rejectUnauthorized: false unless explicitly set to 'true'.
+    const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === 'true'
+      ? true
+      : (process.env.PGSSL_REJECT_UNAUTHORIZED === 'false' ? false : !isCloudDb);
 
     pool = new Pool({
       connectionString,
