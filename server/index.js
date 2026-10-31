@@ -65,7 +65,10 @@ const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
 
 function isOriginAllowed(origin) {
   if (!origin) return true; // curl / mobile / server-to-server
-  return allowedOrigins.includes(origin);
+  if (allowedOrigins.includes(origin)) return true;
+  // Automatically allow any Vercel deployment of this app
+  if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return true;
+  return false;
 }
 
 const httpServer = createServer(app);
@@ -92,17 +95,21 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure CORS to allow only known frontend origins (local dev + FRONTEND_URL)
-app.use(cors({
+// Configure CORS to allow only known frontend origins (local dev + FRONTEND_URL + *.vercel.app)
+const corsOptions = {
   origin: isOriginAllowed,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-}));
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(httpLogger);
 
 // Rate limiting (fail-closed abuse protection for LLM/costly endpoints)

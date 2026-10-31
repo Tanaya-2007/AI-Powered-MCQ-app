@@ -408,7 +408,7 @@ function CreateQuiz() {
       }
     } catch (error) {
       console.error('Failed to communicate with backend API:', error);
-      triggerAlert('The server is spinning up. Please click "Generate Quiz" again in 5 seconds!', 'warning');
+      triggerAlert(error?.message && error.message !== 'Failed to fetch' ? error.message : 'Unable to connect to the quiz service. Please check your connection and try again.', 'error');
     } finally {
       setIsGenerating(false);
     }
