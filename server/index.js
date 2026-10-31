@@ -1200,7 +1200,8 @@ httpServer.listen(PORT, async () => {
 });
 
 // Global Error Handler Middleware (Production-grade safety)
-app.use((err, _req, res) => {
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
   logger.error({ err }, '💥 Uncaught System Error');
   res.status(500).json({
     success: false,
@@ -1212,10 +1213,6 @@ app.use((err, _req, res) => {
 // Process-level handlers for uncaught issues to prevent process crashes
 process.on('unhandledRejection', (reason) => {
   logger.error({ reason }, '💥 Unhandled Promise Rejection');
-});
-
-process.on('uncaughtException', (error) => {
-  logger.error({ error }, '💥 Uncaught Exception');
 });
 
 process.on('uncaughtException', (error) => {
