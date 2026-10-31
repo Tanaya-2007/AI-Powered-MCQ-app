@@ -32,6 +32,7 @@ import {
   normalizeDifficulty,
   sanitizeQuestionsForRoom,
   isValidEmail,
+  validateStudyText,
 } from './utils/validation.js';
 import {
   getRoom,
@@ -261,12 +262,23 @@ app.post('/api/ingest', writeLimiter, requireAuth, upload.single('file'), async 
         message: 'Text extraction returned empty content. Ensure the file has readable text.'
       });
     }
-    // A quick local length check to avoid calling APIs on completely empty/useless input
-    if (!rawText || rawText.trim().length < 5) {
+
+    // Comprehensive content and concept validation for direct text input
+    if (!req.file) {
+      const textCheck = validateStudyText(rawText);
+      if (!textCheck.isValid) {
+        console.warn(`❌ Rejected study material: [${textCheck.reason}] ${textCheck.message}`);
+        return res.status(400).json({
+          success: false,
+          errorType: textCheck.reason,
+          message: textCheck.message
+        });
+      }
+    } else if (rawText.trim().length < 15) {
       return res.status(400).json({
         success: false,
         errorType: 'INSUFFICIENT_CONTENT',
-        message: 'Please provide some study material first.'
+        message: 'The uploaded file does not contain enough readable study material (minimum 15 characters required).'
       });
     }
 

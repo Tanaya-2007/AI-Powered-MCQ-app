@@ -9,6 +9,7 @@ import {
   normalizeDifficulty,
   sanitizeQuestionsForRoom,
   isValidEmail,
+  validateStudyText,
   MAX_QUESTIONS_PER_REQUEST,
   MAX_ROOMS,
   MAX_PLAYERS_PER_ROOM,
@@ -109,5 +110,57 @@ describe('isValidEmail', () => {
 describe('caps', () => {
   it('room/player caps are sane', () => {
     assert.ok(MAX_ROOMS > 0 && MAX_PLAYERS_PER_ROOM > 0);
+  });
+});
+
+describe('validateStudyText', () => {
+  it('rejects empty and whitespace inputs', () => {
+    assert.equal(validateStudyText('').isValid, false);
+    assert.equal(validateStudyText('   ').isValid, false);
+    assert.equal(validateStudyText(null).isValid, false);
+  });
+
+  it('rejects conversational greetings and filler (hi, hello, etc.)', () => {
+    assert.equal(validateStudyText('hi').isValid, false);
+    assert.equal(validateStudyText('hello').isValid, false);
+    assert.equal(validateStudyText('Hello!').isValid, false);
+    assert.equal(validateStudyText('good morning').isValid, false);
+    assert.equal(validateStudyText('hi hello hey').isValid, false);
+    assert.equal(validateStudyText('thanks').isValid, false);
+  });
+
+  it('rejects testing placeholders and commands without topic', () => {
+    assert.equal(validateStudyText('test').isValid, false);
+    assert.equal(validateStudyText('make a quiz').isValid, false);
+    assert.equal(validateStudyText('create test').isValid, false);
+    assert.equal(validateStudyText('quiz').isValid, false);
+  });
+
+  it('rejects gibberish, repetitive chars and keyboard mash', () => {
+    assert.equal(validateStudyText('aaaaaa').isValid, false);
+    assert.equal(validateStudyText('asdfghjkl').isValid, false);
+    assert.equal(validateStudyText('qwertyuiop').isValid, false);
+    assert.equal(validateStudyText('12345678').isValid, false);
+  });
+
+  it('accepts valid academic topics', () => {
+    const res1 = validateStudyText('Photosynthesis');
+    assert.equal(res1.isValid, true);
+    assert.equal(res1.type, 'TOPIC');
+
+    const res2 = validateStudyText('Newton laws of motion');
+    assert.equal(res2.isValid, true);
+    assert.equal(res2.type, 'TOPIC');
+
+    const res3 = validateStudyText('Binary Search Trees in C++');
+    assert.equal(res3.isValid, true);
+    assert.equal(res3.type, 'TOPIC');
+  });
+
+  it('accepts comprehensive lecture notes', () => {
+    const notes = 'Photosynthesis is a process used by plants and other organisms to convert light energy into chemical energy that, through cellular respiration, can later be released to fuel the organism activities.';
+    const res = validateStudyText(notes);
+    assert.equal(res.isValid, true);
+    assert.equal(res.type, 'NOTES');
   });
 });

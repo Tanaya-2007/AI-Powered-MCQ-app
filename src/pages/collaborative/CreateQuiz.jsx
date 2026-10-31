@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders } from '../../services/authFetch';
+import { validateStudyText } from '../../utils/textValidation';
 
 function CreateQuiz() {
   const navigate = useNavigate();
@@ -42,6 +43,11 @@ function CreateQuiz() {
   // Google Forms Export States
   const [isExporting, setIsExporting] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  // Real-time concept validation for study text
+  const textValidationStatus = (activeTab === 'text' || activeTab === 'voice') && textInput.trim().length > 0
+    ? validateStudyText(textInput)
+    : null;
   const [exportUrl, setExportUrl] = useState('');
   const [exportSetupRequired, setExportSetupRequired] = useState(false);
   const [exportSetupSteps, setExportSetupSteps] = useState([]);
@@ -257,8 +263,9 @@ function CreateQuiz() {
     }
   
     if (activeTab === 'text' || activeTab === 'voice') {
-      if (!textInput || textInput.trim().length < 2) {
-        triggerAlert('Please enter topic notes or concepts to generate your quiz.', 'warning');
+      const validation = validateStudyText(textInput);
+      if (!validation.isValid) {
+        triggerAlert(validation.message, 'warning');
         return;
       }
     } else if (activeTab === 'image' && !uploadedImage) {
@@ -811,12 +818,41 @@ function CreateQuiz() {
                         <button
                           onClick={() => !isGenerating && setTextInput('')}
                           disabled={isGenerating}
-                          className="text-red-655 hover:text-red-750 font-semibold disabled:opacity-55 disabled:cursor-not-allowed"
+                          className="text-red-500 hover:text-red-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Clear
                         </button>
                       )}
                     </div>
+
+                    {textValidationStatus && !textValidationStatus.isValid && (
+                      <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5 transition-all">
+                        <span className="text-base leading-none mt-0.5">⚠️</span>
+                        <div className="flex-1">
+                          <p className="font-bold text-amber-950">
+                            {textValidationStatus.reason === 'GREETING' || textValidationStatus.reason === 'GREETING_PHRASE'
+                              ? 'Conversational greeting detected'
+                              : textValidationStatus.reason === 'PLACEHOLDER'
+                              ? 'Placeholder text detected'
+                              : textValidationStatus.reason === 'KEYBOARD_MASH' || textValidationStatus.reason === 'REPEATED_CHARS'
+                              ? 'Invalid character pattern'
+                              : 'Substantive topic or notes required'}
+                          </p>
+                          <p className="mt-1 text-amber-800 leading-relaxed">{textValidationStatus.message}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {textValidationStatus && textValidationStatus.isValid && (
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2.5 transition-all">
+                        <span className="text-sm font-bold text-emerald-600 bg-emerald-100 rounded-full w-5 h-5 flex items-center justify-center">✓</span>
+                        <span className="font-semibold text-emerald-800">
+                          {textValidationStatus.type === 'NOTES'
+                            ? `Comprehensive study material ready (${textValidationStatus.wordCount} words)`
+                            : `Valid academic topic ready: "${textInput.trim()}"`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1037,7 +1073,12 @@ function CreateQuiz() {
               {!quizReady && (
                 <button
                   onClick={handleGenerateQuiz}
-                  disabled={isGenerating || ((activeTab === 'text' || activeTab === 'voice') && !textInput.trim()) || (activeTab === 'image' && !uploadedImage) || (activeTab === 'pdf' && !uploadedPdf)}
+                  disabled={
+                    isGenerating ||
+                    ((activeTab === 'text' || activeTab === 'voice') && (!textInput.trim() || (textValidationStatus && !textValidationStatus.isValid))) ||
+                    (activeTab === 'image' && !uploadedImage) ||
+                    (activeTab === 'pdf' && !uploadedPdf)
+                  }
                   className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-2xl hover:shadow-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
                   {isGenerating ? (
