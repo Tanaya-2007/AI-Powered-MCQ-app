@@ -163,4 +163,39 @@ describe('validateStudyText', () => {
     assert.equal(res.isValid, true);
     assert.equal(res.type, 'NOTES');
   });
+
+  it('rejects vague single words like "world", "life", "things"', () => {
+    const res1 = validateStudyText('world');
+    assert.equal(res1.isValid, false);
+    assert.equal(res1.reason, 'VAGUE_GENERIC_WORD');
+
+    const res2 = validateStudyText('life');
+    assert.equal(res2.isValid, false);
+    assert.equal(res2.reason, 'VAGUE_GENERIC_WORD');
+
+    const res3 = validateStudyText('things');
+    assert.equal(res3.isValid, false);
+    assert.equal(res3.reason, 'VAGUE_GENERIC_WORD');
+  });
+
+  it('accepts educational concepts containing generic words like "World War II" or "World History"', () => {
+    const res1 = validateStudyText('World War II');
+    assert.equal(res1.isValid, true);
+
+    const res2 = validateStudyText('World History');
+    assert.equal(res2.isValid, true);
+  });
+
+  it('rejects vague phrases composed only of generic words', () => {
+    const res = validateStudyText('good bad things');
+    assert.equal(res.isValid, false);
+    assert.equal(res.reason, 'VAGUE_PHRASE');
+  });
+
+  it('rejects text that exceeds the maximum character limit (25,000 chars)', () => {
+    const hugeText = 'Photosynthesis '.repeat(2000); // 30,000 chars
+    const res = validateStudyText(hugeText);
+    assert.equal(res.isValid, false);
+    assert.equal(res.reason, 'TOO_LONG');
+  });
 });

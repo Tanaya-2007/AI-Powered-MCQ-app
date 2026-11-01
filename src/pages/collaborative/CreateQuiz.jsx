@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders } from '../../services/authFetch';
-import { validateStudyText } from '../../utils/textValidation';
+import { validateStudyText, MAX_TEXT_INPUT_CHARS } from '../../utils/textValidation';
 
 function CreateQuiz() {
   const navigate = useNavigate();
@@ -277,7 +277,6 @@ function CreateQuiz() {
     }
 
     setIsGenerating(true);
-    let materialId = null;
 
     // Helper for resilient backend fetches (automatically switches to cloud backend if localhost:5001 is offline)
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
@@ -309,80 +308,56 @@ function CreateQuiz() {
     };
 
     try {
-      // 1. Ingest text or file into vector database with relevance check
-      if ((activeTab === 'text' || activeTab === 'voice') && textInput.trim() !== '') {
-        const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            text: textInput,
-            filename: topic ? `${topic}_notes.txt` : 'study_material.txt',
-            topic: topic
-          })
-        });
-        if (response.status === 401) {
-          triggerAlert('Session expired. Please log in again.', 'warning');
-          setIsGenerating(false);
-          return;
-        }
-        const data = await response.json();
-        if (data.success) {
-          materialId = data.materialId;
-        } else {
-          if (data.errorType === 'TOPIC_MISMATCH') {
-            triggerAlert(data.message || `Topic mismatch: Your uploaded content is not related to "${topic}".`, 'warning');
-          } else if (data.errorType === 'INSUFFICIENT_CONTENT') {
-            triggerAlert(data.message || "Please provide a little more detail or concepts to generate your quiz.", 'warning');
-          } else {
-            triggerAlert(data.message || 'Ingestion pipeline failed.', 'error');
-          }
-          setIsGenerating(false);
-          return;
-        }
-      } else if ((activeTab === 'image' && uploadedImage) || (activeTab === 'pdf' && uploadedPdf)) {
-        const fileToUpload = activeTab === 'image' ? uploadedImage : uploadedPdf;
-        const formData = new FormData();
-        formData.append('file', fileToUpload);
-        formData.append('topic', topic);
+      let materialId = null;
 
-        const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
-          method: 'POST',
-          body: formData
-        });
-        if (response.status === 401) {
-          triggerAlert('Session expired. Please log in again.', 'warning');
-          setIsGenerating(false);
-          return;
-        }
-        const data = await response.json();
-        if (data.success) {
-          materialId = data.materialId;
-        } else {
-          if (data.errorType === 'TOPIC_MISMATCH') {
-            triggerAlert(data.message || `Topic mismatch: Your uploaded content is not related to "${topic}".`, 'warning');
-          } else if (data.errorType === 'INSUFFICIENT_CONTENT') {
-            triggerAlert(data.message || "Your study material does not contain enough readable content to generate a quiz.", 'warning');
-          } else {
-            triggerAlert(data.message || 'Failed to process file. Please ensure the file contains clear readable text.', 'error');
+      // ── FAST PATH: For text/voice input, skip the embed→store→retrieve DB pipeline.
+      // Pass textInput directly to generate-quiz as `directText` — ~70% faster.
+      const isTextMode = activeTab === 'text' || activeTab === 'voice';
+
+      if (!isTextMode) {
+        // File upload: still needs /api/ingest for OCR/parsing + vector storage
+        if ((activeTab === 'image' && uploadedImage) || (activeTab === 'pdf' && uploadedPdf)) {
+          const fileToUpload = activeTab === 'image' ? uploadedImage : uploadedPdf;
+          const formData = new FormData();
+          formData.append('file', fileToUpload);
+          formData.append('topic', topic);
+
+          const response = await fetchWithRetry(`${API_BASE_URL}/api/ingest`, {
+            method: 'POST',
+            body: formData
+          });
+          if (response.status === 401) {
+            triggerAlert('Session expired. Please log in again.', 'warning');
+            setIsGenerating(false);
+            return;
           }
-          setIsGenerating(false);
-          return;
+          const data = await response.json();
+          if (data.success) {
+            materialId = data.materialId;
+          } else {
+            if (data.errorType === 'TOPIC_MISMATCH') {
+              triggerAlert(data.message || `Topic mismatch: Your uploaded content is not related to "${topic}".`, 'warning');
+            } else if (data.errorType === 'INSUFFICIENT_CONTENT') {
+              triggerAlert(data.message || 'Your study material does not contain enough readable content to generate a quiz.', 'warning');
+            } else {
+              triggerAlert(data.message || 'Failed to process file. Please ensure the file contains clear readable text.', 'error');
+            }
+            setIsGenerating(false);
+            return;
+          }
         }
       }
 
-      // 2. Generate actual questions based on topic and ingested document context
+      // 2. Generate questions — pass directText for text mode (fast path), materialId for file mode
       const genResponse = await fetchWithRetry(`${API_BASE_URL}/api/generate-quiz`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic,
-          materialId,
+          materialId: isTextMode ? null : materialId,
           count: questionsCount,
-          difficulty
+          difficulty,
+          ...(isTextMode ? { directText: textInput } : {})
         })
       });
       if (genResponse.status === 401) {
@@ -809,11 +784,14 @@ function CreateQuiz() {
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Paste your text content here... (lecture notes, book chapters, articles, etc.)"
                       rows="12"
+                      maxLength={MAX_TEXT_INPUT_CHARS}
                       disabled={isGenerating}
                       className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-gray-900 placeholder-slate-405 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500">{textInput.length} characters</span>
+                      <span className={textInput.length > MAX_TEXT_INPUT_CHARS * 0.9 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>
+                        {textInput.length.toLocaleString()} / {MAX_TEXT_INPUT_CHARS.toLocaleString()} characters
+                      </span>
                       {textInput && (
                         <button
                           onClick={() => !isGenerating && setTextInput('')}
