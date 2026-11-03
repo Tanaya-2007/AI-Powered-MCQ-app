@@ -35,6 +35,27 @@ function SoloMode() {
   // Google Forms Export States
   const [isExporting, setIsExporting] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  // Progressive generation status
+  const [generatingStep, setGeneratingStep] = useState(0);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      setGeneratingStep(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setGeneratingStep((prev) => (prev + 1) % 4);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
+
+  const generatingStepLabels = [
+    'Connecting to AI engine...',
+    'Crafting high-quality questions...',
+    'Validating options & explanations...',
+    'Finalizing your quiz...'
+  ];
   const [exportUrl, setExportUrl] = useState('');
   const [exportSetupRequired, setExportSetupRequired] = useState(false);
   const [exportSetupSteps, setExportSetupSteps] = useState([]);

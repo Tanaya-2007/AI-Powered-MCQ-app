@@ -87,6 +87,30 @@ const io = new Server(httpServer, {
 // Initialize Gemini Client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
 
+/**
+ * Resilient Gemini generation with automatic fallback across official production models.
+ * Prevents 404 model-not-found errors and minimizes generation latency.
+ */
+async function callGeminiResilient(prompt, responseMimeType = 'application/json') {
+  const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
+  let lastError;
+  for (const modelName of modelNames) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: responseMimeType ? { responseMimeType } : undefined
+      });
+      const result = await model.generateContent(prompt);
+      const text = result?.response?.text();
+      if (text) return text;
+    } catch (err) {
+      lastError = err;
+      console.warn(`⚠️ Gemini model ${modelName} failed (${err.message}), trying next fallback...`);
+    }
+  }
+  throw lastError || new Error('All Gemini models failed to generate content.');
+}
+
 // Resolve __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -286,10 +310,6 @@ app.post('/api/ingest', writeLimiter, requireAuth, upload.single('file'), async 
     const topic = typeof req.body.topic === 'string' ? req.body.topic.slice(0, 200) : req.body.topic;
     if (topic && topic.trim().length >= 2) {
       console.log(`🔍 Running semantic validation for topic focus: "${topic}"`);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-3.8-flash',
-        generationConfig: { responseMimeType: 'application/json' }
-      });
 
       const checkPrompt = `
         You are an advanced academic content analyzer and validation assistant.
@@ -335,16 +355,14 @@ app.post('/api/ingest', writeLimiter, requireAuth, upload.single('file'), async 
           } catch (groqError) {
             console.warn('⚠️ Groq validation failed, falling back to Gemini API:', groqError.message);
             console.log('🛰️ Running validation via Gemini API...');
-            const checkResult = await model.generateContent(checkPrompt);
-            responseText = checkResult.response.text();
+            responseText = await callGeminiResilient(checkPrompt, 'application/json');
           }
         } else if (process.env.OPENAI_API_KEY) {
           console.log('🤖 Running validation via OpenAI API (gpt-4o-mini)...');
           responseText = await generateOpenAIContent(checkPrompt, 'application/json');
         } else {
           console.log('🛰️ Running validation via Gemini API...');
-          const checkResult = await model.generateContent(checkPrompt);
-          responseText = checkResult.response.text();
+          responseText = await callGeminiResilient(checkPrompt, 'application/json');
         }
 
         const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
@@ -579,17 +597,12 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
   let detectedTopic = topic || '';
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-3.8-flash',
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    });
-
     while (validQuestions.length < targetCount && attempts < 3) {
       attempts++;
       const needed = targetCount - validQuestions.length;
-      console.log(`🤖 MCQ generation loop: attempt ${attempts}/3, currently have ${validQuestions.length}/${targetCount} questions, need ${needed} more.`);
+      // Request a slight buffer (e.g. needed + 2) on attempt 1 so a single LLM round-trip fulfills the target
+      const batchNeeded = attempts === 1 ? Math.min(needed + 2, 50) : needed;
+      console.log(`🤖 MCQ generation loop: attempt ${attempts}/3, currently have ${validQuestions.length}/${targetCount} questions, requesting ${batchNeeded} in batch.`);
 
       const avoidPromptText = questionTexts.length > 0
         ? `You MUST avoid generating questions similar or duplicate to these already generated questions:\n${questionTexts.map((qText, idx) => `${idx + 1}. ${qText}`).join('\n')}`
@@ -600,7 +613,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
         
         Topic to focus on: "${topic || 'Auto-detect'}"
         Difficulty level: "${difficulty}"
-        Number of questions required in this batch: ${needed}
+        Number of questions required in this batch: ${batchNeeded}
         
         ${avoidPromptText}
         
@@ -610,7 +623,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
         ===
         
         INSTRUCTIONS:
-        1. Analyze the context segments. You MUST generate exactly ${needed} unique, high-quality, non-overlapping questions. If the text is short or limited, expand your questions by covering different aspects, details, scenarios, applications, variations, or implications of the concepts mentioned in the text. Always set "insufficient" to false. Do not set it to true under any circumstances.
+        1. Analyze the context segments. You MUST generate exactly ${batchNeeded} unique, high-quality, non-overlapping questions. If the text is short or limited, expand your questions by covering different aspects, details, scenarios, applications, variations, or implications of the concepts mentioned in the text. Always set "insufficient" to false. Do not set it to true under any circumstances.
         
         2. Ensure every question:
            - is directly and factually grounded in the provided context segments.
@@ -618,10 +631,10 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
            - aligns with the "${difficulty}" difficulty level.
            - has no duplicate options and no ambiguous answers.
         
-        3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text). You must list all ${needed} generated questions inside the "questions" array, and auto-detect a suitable specific topic title for the "detectedTopic" field:
+        3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text). You must list all ${batchNeeded} generated questions inside the "questions" array, and auto-detect a suitable specific topic title for the "detectedTopic" field:
         {
           "insufficient": false,
-          "maxPossibleQuestions": ${needed},
+          "maxPossibleQuestions": ${batchNeeded},
           "detectedTopic": "Auto-detected specific quiz topic name",
           "reason": "Successfully generated the requested questions.",
           "questions": [
@@ -641,21 +654,19 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
       let responseText;
       if (process.env.GROQ_API_KEY) {
         try {
-          console.log(`🤖 Attempting to generate ${needed} questions via Groq API...`);
+          console.log(`🤖 Attempting to generate ${batchNeeded} questions via Groq API...`);
           responseText = await generateGroqContent(prompt, 'application/json');
         } catch (groqError) {
           console.warn('⚠️ Groq quiz generation failed, falling back to Gemini API:', groqError.message);
-          console.log(`🛰️ Attempting to generate ${needed} questions via Gemini API...`);
-          const result = await model.generateContent(prompt);
-          responseText = result.response.text();
+          console.log(`🛰️ Attempting to generate ${batchNeeded} questions via Gemini API...`);
+          responseText = await callGeminiResilient(prompt, 'application/json');
         }
       } else if (process.env.OPENAI_API_KEY) {
-        console.log(`🤖 Attempting to generate ${needed} questions via OpenAI API (gpt-4o-mini)...`);
+        console.log(`🤖 Attempting to generate ${batchNeeded} questions via OpenAI API (gpt-4o-mini)...`);
         responseText = await generateOpenAIContent(prompt, 'application/json');
       } else {
-        console.log(`🛰️ Attempting to generate ${needed} questions via Gemini API...`);
-        const result = await model.generateContent(prompt);
-        responseText = result.response.text();
+        console.log(`🛰️ Attempting to generate ${batchNeeded} questions via Gemini API...`);
+        responseText = await callGeminiResilient(prompt, 'application/json');
       }
 
       // Parse JSON payload
