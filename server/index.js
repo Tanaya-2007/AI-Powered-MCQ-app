@@ -752,10 +752,20 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Quiz generation error.');
+    console.error('❌ Quiz generation error:', error?.message || error);
     
+    const errMsg = String(error?.message || '');
+
+    // API key errors (invalid key, unregistered callers, 401, 403)
+    if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('unregistered callers') || errMsg.includes('403') || errMsg.includes('invalid_api_key') || errMsg.includes('API key not valid') || errMsg.includes('401')) {
+      return res.status(401).json({
+        success: false,
+        message: 'The AI API Key is invalid or expired. Please update GEMINI_API_KEY or GROQ_API_KEY in your environment settings.'
+      });
+    }
+
     // If the error is a quota/rate limit error, return a clear error
-    if (error.message.includes('429') || error.message.includes('quota') || error.message.toLowerCase().includes('quota exceeded') || error.message.includes('QuotaFailure')) {
+    if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.toLowerCase().includes('quota exceeded') || errMsg.includes('QuotaFailure')) {
       return res.status(429).json({
         success: false,
         message: 'Your Google Gemini API Key has exceeded its quota or has been restricted (Rate Limit: 0). Please generate a new API Key in a new project on Google AI Studio or add billing to your current project.'
@@ -763,7 +773,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     }
 
     // If it is a TLS/DNS connection network socket reset error, return a clear error
-    if (error.message.includes('fetch failed') || error.message.includes('network socket') || error.message.includes('ECONNRESET')) {
+    if (errMsg.includes('fetch failed') || errMsg.includes('network socket') || errMsg.includes('ECONNRESET')) {
       return res.status(503).json({
         success: false,
         message: 'A local network connection error occurred while connecting to the Google Gemini API. Please check your internet connection or disable any active VPN/proxies.'
@@ -773,7 +783,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     // Return the actual failure error to prevent silently falling back to mock questions
     res.status(500).json({
       success: false,
-      message: prodMessage('Failed to generate quiz.')
+      message: prodMessage('Failed to generate quiz: ' + errMsg)
     });
   }
 });
