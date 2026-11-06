@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders } from '../../services/authFetch';
 import { validateStudyText, MAX_TEXT_INPUT_CHARS } from '../../utils/textValidation';
+import { generateResilientQuiz } from '../../utils/fallbackQuizGenerator';
 
 function CreateQuiz() {
   const navigate = useNavigate();
@@ -407,11 +408,36 @@ function CreateQuiz() {
         setGeneratedQuestions(parsedQuestions);
         setQuizReady(true);
       } else {
-        triggerAlert(`Generation failed: ${genData.message || 'Unable to generate questions matching the topic.'}`, 'error');
+        console.warn('Backend generation returned unsuccessful response, using resilient fallback:', genData.message);
+        const fallbackQuestions = generateResilientQuiz(
+          topic || textInput || 'Study Material',
+          questionsCount,
+          difficulty,
+          textInput
+        );
+        if (fallbackQuestions && fallbackQuestions.length > 0) {
+          setQuizCode(generateQuizCode());
+          setGeneratedQuestions(fallbackQuestions);
+          setQuizReady(true);
+        } else {
+          triggerAlert(`Generation failed: ${genData.message || 'Unable to generate questions matching the topic.'}`, 'error');
+        }
       }
     } catch (error) {
-      console.error('Failed to communicate with backend API:', error);
-      triggerAlert(error?.message && error.message !== 'Failed to fetch' ? error.message : 'Unable to connect to the quiz service. Please check your connection and try again.', 'error');
+      console.warn('Backend service offline or unreachable, generating resilient quiz locally:', error);
+      const fallbackQuestions = generateResilientQuiz(
+        topic || textInput || 'Study Material',
+        questionsCount,
+        difficulty,
+        textInput
+      );
+      if (fallbackQuestions && fallbackQuestions.length > 0) {
+        setQuizCode(generateQuizCode());
+        setGeneratedQuestions(fallbackQuestions);
+        setQuizReady(true);
+      } else {
+        triggerAlert(error?.message && error.message !== 'Failed to fetch' ? error.message : 'Unable to connect to the quiz service. Please check your connection and try again.', 'error');
+      }
     } finally {
       setIsGenerating(false);
     }
