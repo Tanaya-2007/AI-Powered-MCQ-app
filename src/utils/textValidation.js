@@ -55,6 +55,16 @@ const VAGUE_GENERIC_WORDS = new Set([
   'part', 'parts', 'type', 'types', 'kind', 'kinds', 'form', 'forms',
   'idea', 'ideas', 'fact', 'facts', 'point', 'points', 'case', 'cases',
   'it', 'this', 'that', 'these', 'those', 'here', 'there',
+  // Broad umbrella domain words requiring a specific qualifier (e.g. "design", "system")
+  'design', 'designs', 'system', 'systems', 'structure', 'structures',
+  'code', 'coding', 'program', 'programs', 'programming',
+  'app', 'apps', 'application', 'applications', 'software', 'hardware',
+  'science', 'sciences', 'art', 'arts', 'study', 'studies',
+  'concept', 'concepts', 'theory', 'theories', 'principle', 'principles',
+  'project', 'projects', 'model', 'models', 'method', 'methods', 'process', 'processes',
+  'lesson', 'lessons', 'chapter', 'chapters', 'course', 'courses', 'class', 'classes',
+  'topic', 'topics', 'subject', 'subjects', 'content', 'contents',
+  'management', 'business', 'tech', 'technology', 'technologies',
   // Generic action verbs as a noun
   'work', 'works', 'use', 'used', 'know', 'make', 'get', 'go', 'come',
   // Common English filler / linking words used as nouns
@@ -85,7 +95,9 @@ const ACADEMIC_PATTERNS = [
   /\b(photosynthesis|mitosis|meiosis|osmosis|diffusion|evolution|respiration)\b/i,
   /\b(calculus|algebra|geometry|trigonometry|statistics|probability)\b/i,
   /\b(physics|chemistry|biology|ecology|astronomy|geology|genetics|botany|zoology)\b/i,
-  /\b(programming|algorithm|database|networking|operating\s+system|machine\s+learning|ai|neural\s+network)\b/i,
+  /\b(system\s+design|compiler\s+design|database\s+design|software\s+engineering|computer\s+architecture)\b/i,
+  /\b(distributed\s+systems|operating\s+system|machine\s+learning|deep\s+learning|ai|neural\s+network|data\s+structures)\b/i,
+  /\b(cyber\s*security|cryptography|cloud\s+computing|computer\s+networks)\b/i,
   /\b(history|geography|economics|sociology|psychology|philosophy|anthropology)\b/i,
   /\b(french|american|industrial|world\s+war|cold\s+war|civil\s+war|revolution)\b/i,
   /\b(newton|einstein|darwin|freud|plato|socrates|aristotle|shakespeare)\b/i,
