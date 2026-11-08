@@ -101,6 +101,16 @@ const VAGUE_GENERIC_WORDS = new Set([
   'part', 'parts', 'type', 'types', 'kind', 'kinds', 'form', 'forms',
   'idea', 'ideas', 'fact', 'facts', 'point', 'points', 'case', 'cases',
   'it', 'this', 'that', 'these', 'those', 'here', 'there',
+  // Broad umbrella domain words requiring a specific qualifier
+  'design', 'designs', 'system', 'systems', 'structure', 'structures',
+  'code', 'coding', 'program', 'programs', 'programming',
+  'app', 'apps', 'application', 'applications', 'software', 'hardware',
+  'science', 'sciences', 'art', 'arts', 'study', 'studies',
+  'concept', 'concepts', 'theory', 'theories', 'principle', 'principles',
+  'project', 'projects', 'model', 'models', 'method', 'methods', 'process', 'processes',
+  'lesson', 'lessons', 'chapter', 'chapters', 'course', 'courses', 'class', 'classes',
+  'topic', 'topics', 'subject', 'subjects', 'content', 'contents',
+  'management', 'business', 'tech', 'technology', 'technologies',
   'work', 'works', 'use', 'used', 'know', 'make', 'get', 'go', 'come',
   'information', 'data', 'details', 'general', 'specific', 'various', 'different',
   'important', 'useful', 'common', 'basic', 'simple', 'complex',
@@ -119,7 +129,9 @@ const ACADEMIC_PATTERNS = [
   /\b(photosynthesis|mitosis|meiosis|osmosis|diffusion|evolution|respiration)\b/i,
   /\b(calculus|algebra|geometry|trigonometry|statistics|probability)\b/i,
   /\b(physics|chemistry|biology|ecology|astronomy|geology|genetics|botany|zoology)\b/i,
-  /\b(programming|algorithm|database|networking|operating\s+system|machine\s+learning|ai|neural\s+network)\b/i,
+  /\b(system\s+design|compiler\s+design|database\s+design|software\s+engineering|computer\s+architecture)\b/i,
+  /\b(distributed\s+systems|operating\s+system|machine\s+learning|deep\s+learning|ai|neural\s+network|data\s+structures)\b/i,
+  /\b(cyber\s*security|cryptography|cloud\s+computing|computer\s+networks)\b/i,
   /\b(history|geography|economics|sociology|psychology|philosophy|anthropology)\b/i,
   /\b(french|american|industrial|world\s+war|cold\s+war|civil\s+war|revolution)\b/i,
   /\b(newton|einstein|darwin|freud|plato|socrates|aristotle|shakespeare)\b/i,
@@ -251,14 +263,22 @@ export function validateStudyText(text) {
     };
   }
 
-  // Single vague generic word check (e.g. "world")
+  // Single vague generic word check (e.g. "world", "design", "system")
   if (words.length === 1) {
     const singleWord = lower.replace(/[^a-z]/g, '');
     if (VAGUE_GENERIC_WORDS.has(singleWord)) {
+      let suggestion = 'Please be more specific — for example, enter "World War II", "World History", or paste your study notes.';
+      if (singleWord === 'design') {
+        suggestion = 'Please specify a focused subject (e.g. "System Design", "Compiler Design", "Graphic Design Principles", "Database Design").';
+      } else if (singleWord === 'system' || singleWord === 'systems') {
+        suggestion = 'Please specify a focused topic (e.g. "Operating Systems", "Distributed Systems", "Nervous System", "Solar System").';
+      } else if (singleWord === 'code' || singleWord === 'coding' || singleWord === 'program') {
+        suggestion = 'Please specify a programming domain or language (e.g. "Object-Oriented Programming in Java", "Python Data Structures", "C++ Algorithms").';
+      }
       return {
         isValid: false,
         reason: 'VAGUE_GENERIC_WORD',
-        message: `"${trimmed}" is too vague to generate a quiz on. It has no specific academic or educational domain. Please be more specific — for example, enter "World War II", "World History", "World Geography", or paste your actual study notes.`
+        message: `"${trimmed}" is too vague and ambiguous to generate a quiz on. ${suggestion}`
       };
     }
   }

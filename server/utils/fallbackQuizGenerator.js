@@ -217,7 +217,8 @@ export function generateResilientQuiz(topic, count = 10, difficulty = 'medium', 
   const normalizedTopic = String(topic || '').trim().toLowerCase();
 
   for (const [key, bank] of Object.entries(TOPIC_KNOWLEDGE_BASE)) {
-    if (normalizedTopic.includes(key) || key.includes(normalizedTopic)) {
+    const isMatch = normalizedTopic === key || new RegExp(`(^|\\b)${key}(\\b|$)`, 'i').test(normalizedTopic);
+    if (isMatch) {
       const selected = bank.slice(0, targetCount).map((q) => ({
         question: q.question,
         options: [...q.options],

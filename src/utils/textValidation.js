@@ -227,9 +227,17 @@ export function validateStudyText(text) {
   if (words.length === 1) {
     const singleWord = lower.replace(/[^a-z]/g, '');
     if (VAGUE_GENERIC_WORDS.has(singleWord)) {
+      let suggestion = 'Please be more specific — for example, enter "World War II", "World History", or paste your study notes.';
+      if (singleWord === 'design') {
+        suggestion = 'Please specify a focused subject (e.g. "System Design", "Compiler Design", "Graphic Design Principles", "Database Design").';
+      } else if (singleWord === 'system' || singleWord === 'systems') {
+        suggestion = 'Please specify a focused topic (e.g. "Operating Systems", "Distributed Systems", "Nervous System", "Solar System").';
+      } else if (singleWord === 'code' || singleWord === 'coding' || singleWord === 'program') {
+        suggestion = 'Please specify a programming domain or language (e.g. "Object-Oriented Programming in Java", "Python Data Structures", "C++ Algorithms").';
+      }
       return {
         isValid: false, reason: 'VAGUE_GENERIC_WORD',
-        message: `"${trimmed}" is too vague to generate a quiz on. It has no specific academic or educational domain. Please be more specific — for example, enter "World War II", "World History", "World Geography", or paste your actual study notes.`
+        message: `"${trimmed}" is too vague and ambiguous to generate a quiz on. ${suggestion}`
       };
     }
   }

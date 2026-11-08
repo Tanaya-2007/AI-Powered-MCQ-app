@@ -164,7 +164,7 @@ describe('validateStudyText', () => {
     assert.equal(res.type, 'NOTES');
   });
 
-  it('rejects vague single words like "world", "life", "things"', () => {
+  it('rejects vague single words like "world", "life", "things", "design", "system"', () => {
     const res1 = validateStudyText('world');
     assert.equal(res1.isValid, false);
     assert.equal(res1.reason, 'VAGUE_GENERIC_WORD');
@@ -176,14 +176,25 @@ describe('validateStudyText', () => {
     const res3 = validateStudyText('things');
     assert.equal(res3.isValid, false);
     assert.equal(res3.reason, 'VAGUE_GENERIC_WORD');
+
+    const res4 = validateStudyText('design');
+    assert.equal(res4.isValid, false);
+    assert.equal(res4.reason, 'VAGUE_GENERIC_WORD');
+
+    const res5 = validateStudyText('system');
+    assert.equal(res5.isValid, false);
+    assert.equal(res5.reason, 'VAGUE_GENERIC_WORD');
   });
 
-  it('accepts educational concepts containing generic words like "World War II" or "World History"', () => {
+  it('accepts specific academic concepts like "System Design", "Operating Systems", "World War II"', () => {
     const res1 = validateStudyText('World War II');
     assert.equal(res1.isValid, true);
 
-    const res2 = validateStudyText('World History');
+    const res2 = validateStudyText('System Design');
     assert.equal(res2.isValid, true);
+
+    const res3 = validateStudyText('Operating Systems');
+    assert.equal(res3.isValid, true);
   });
 
   it('rejects vague phrases composed only of generic words', () => {

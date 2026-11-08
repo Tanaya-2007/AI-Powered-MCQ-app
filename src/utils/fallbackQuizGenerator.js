@@ -243,9 +243,10 @@ export function generateResilientQuiz(topic, count = 10, difficulty = 'medium', 
   const targetCount = Math.min(50, Math.max(1, Number(count) || 10));
   const normalizedTopic = String(topic || '').trim().toLowerCase();
 
-  // Check if we have pre-built knowledge questions for this exact or related topic
+  // Check if we have pre-built knowledge questions for this exact or related topic (strict phrase match, never loose substring)
   for (const [key, bank] of Object.entries(TOPIC_KNOWLEDGE_BASE)) {
-    if (normalizedTopic.includes(key) || key.includes(normalizedTopic)) {
+    const isMatch = normalizedTopic === key || new RegExp(`(^|\\b)${key}(\\b|$)`, 'i').test(normalizedTopic);
+    if (isMatch) {
       const selected = bank.slice(0, targetCount).map((q, idx) => ({
         id: idx + 1,
         question: q.question,
