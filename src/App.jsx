@@ -1,5 +1,5 @@
 import Home from './pages/home';
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ModeSelection from './pages/ModeSelection';
 import SoloMode from './pages/solo/SoloMode';
 import SoloQuizSession from './pages/solo/SoloQuizSession';
@@ -15,8 +15,13 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes */}
         <Route path="/" element={<Home />} />
+        {/* Join & Attempt Collaborative Quiz - Accessible directly via share link or room code */}
+        <Route path="/collab/join" element={<AttemptQuiz />} />
+        <Route path="/collab/attempt-quiz" element={<AttemptQuiz />} />
+        <Route path="/join" element={<AttemptQuiz />} />
+        <Route path="/collab/quiz-session" element={<CollabQuizSession />} />
 
         {/* Protected Private Routes wrapped in AuthGuard */}
         <Route path="/mode-selection" element={<AuthGuard><ModeSelection /></AuthGuard>} />
@@ -26,8 +31,9 @@ function App() {
         <Route path="/collaborative" element={<AuthGuard><CollabLanding /></AuthGuard>} />
         <Route path="/collab/create-quiz" element={<AuthGuard><CreateQuiz /></AuthGuard>} />
         <Route path="/collab/quiz-lobby" element={<AuthGuard><QuizLobby /></AuthGuard>} />
-        <Route path="/collab/quiz-session" element={<AuthGuard><CollabQuizSession /></AuthGuard>} />
-        <Route path="/collab/attempt-quiz" element={<AuthGuard><AttemptQuiz /></AuthGuard>} />
+
+        {/* Catch-all fallback to Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

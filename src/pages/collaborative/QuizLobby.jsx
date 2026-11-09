@@ -13,6 +13,7 @@ function QuizLobby() {
   ]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [showActivityToast, setShowActivityToast] = useState(null);
 
   // Connect and set up WebSocket lobby rooms
@@ -98,11 +99,16 @@ function QuizLobby() {
   const handleShareLink = () => {
     const shareUrl = `${window.location.origin}/collab/join?code=${quizCode}`;
     if (navigator.share) {
-      navigator.share({ title: 'Join Quiz', text: `Join my quiz with code: ${quizCode}`, url: shareUrl });
+      navigator.share({ title: 'Join Quiz', text: `Join my quiz with code: ${quizCode}`, url: shareUrl })
+        .catch(() => {
+          navigator.clipboard.writeText(shareUrl);
+          setCopiedLink(true);
+          setTimeout(() => setCopiedLink(false), 2000);
+        });
     } else {
       navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
     }
   };
 
@@ -268,12 +274,27 @@ function QuizLobby() {
 
                 <button
                   onClick={handleShareLink}
-                  className="w-full py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all duration-300 flex items-center justify-center gap-2"
+                  className={`w-full py-3 border-2 font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+                    copiedLink
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                      : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                  Share Link
+                  {copiedLink ? (
+                    <>
+                      <svg className="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Link Copied!
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      Share Link
+                    </>
+                  )}
                 </button>
               </div>
             </div>

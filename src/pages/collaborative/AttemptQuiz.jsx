@@ -9,9 +9,22 @@ function AttemptQuiz() {
   // States
   const [quizCode, setQuizCode] = useState(() => {
     const codeFromUrl = searchParams.get('code');
-    return codeFromUrl ? codeFromUrl.toUpperCase() : '';
+    return codeFromUrl ? codeFromUrl.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) : '';
   });
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('quizmaster_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        return parsed.name || '';
+      }
+    } catch {
+      // ignore
+    }
+    return '';
+  });
+
+
   
   // Simple, fun avatar collection
   const avatars = [
