@@ -81,6 +81,9 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 30000,
+  pingInterval: 25000,
 });
 
 // Active multiplayer quiz rooms are managed by roomStore (Upstash Redis + Resilient In-Memory Fallback)

@@ -1,3 +1,4 @@
+import { validateStudyText } from './textValidation.js';
 /**
  * Resilient Fallback Quiz Generator
  * 
@@ -242,6 +243,12 @@ function generateDynamicQuestionsFromText(rawText, count, difficulty, topicTitle
 export function generateResilientQuiz(topic, count = 10, difficulty = 'medium', contextText = '') {
   const targetCount = Math.min(50, Math.max(1, Number(count) || 10));
   const normalizedTopic = String(topic || '').trim().toLowerCase();
+
+  // Validate topic/notes: never generate questions for non-academic queries
+  const validation = validateStudyText(contextText || topic);
+  if (!validation.isValid) {
+    throw new Error(validation.message);
+  }
 
   // Check if we have pre-built knowledge questions for this exact or related topic (strict phrase match, never loose substring)
   for (const [key, bank] of Object.entries(TOPIC_KNOWLEDGE_BASE)) {

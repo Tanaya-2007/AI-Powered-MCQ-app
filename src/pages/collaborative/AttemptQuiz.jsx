@@ -133,26 +133,50 @@ function AttemptQuiz() {
     // Connect socket
     socket.connect();
 
-    // Join room code
-    socket.emit('join-room', { roomCode: quizCode, playerName, avatar: selectedAvatar });
+    // Safety timeout: prevents infinite "Joining Quiz..." hanging if backend is cold-starting
+    const joinTimeout = setTimeout(() => {
+      cleanup();
+      setIsJoining(false);
+      setError('Connection timed out. The game server is waking up — please click Join Quiz again in a moment.');
+    }, 12000);
 
-    // Listen for successful join
-    socket.once('join-success', ({ quizTitle, players }) => {
+    const onConnectErr = () => {
+      cleanup();
+      setIsJoining(false);
+      setError('Unable to reach game server. Please check your connection and try again.');
+    };
+
+    const onJoinSuccess = ({ quizTitle, players }) => {
+      cleanup();
       setIsJoining(false);
       setJoinedLobby(true);
       setLobbyInfo({
         quizTitle: quizTitle || 'AI Generated Quiz',
-        playersCount: players.length,
+        playersCount: players ? players.length : 1,
         status: 'waiting'
       });
-    });
+    };
 
-    // Listen for join errors
-    socket.once('join-error', ({ message }) => {
+    const onJoinError = ({ message }) => {
+      cleanup();
       setIsJoining(false);
       setError(message || 'Failed to join lobby.');
       socket.disconnect();
-    });
+    };
+
+    function cleanup() {
+      clearTimeout(joinTimeout);
+      socket.off('connect_error', onConnectErr);
+      socket.off('join-success', onJoinSuccess);
+      socket.off('join-error', onJoinError);
+    }
+
+    socket.once('connect_error', onConnectErr);
+    socket.once('join-success', onJoinSuccess);
+    socket.once('join-error', onJoinError);
+
+    // Join room code
+    socket.emit('join-room', { roomCode: quizCode, playerName, avatar: selectedAvatar });
   };
 
   // Waiting for Host Screen

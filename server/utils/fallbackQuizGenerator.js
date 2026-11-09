@@ -1,3 +1,4 @@
+import { validateStudyText } from './validation.js';
 /**
  * Resilient Fallback Quiz Generator (Backend Edition)
  * Used by /api/generate-quiz when third-party AI keys encounter quotas,
@@ -215,6 +216,12 @@ function generateDynamicQuestions(text, count, difficulty, topicTitle) {
 export function generateResilientQuiz(topic, count = 10, difficulty = 'medium', contextText = '') {
   const targetCount = Math.min(50, Math.max(1, Number(count) || 10));
   const normalizedTopic = String(topic || '').trim().toLowerCase();
+
+  // Validate topic/notes: never generate questions for non-academic queries
+  const validation = validateStudyText(contextText || topic);
+  if (!validation.isValid) {
+    throw new Error(validation.message);
+  }
 
   for (const [key, bank] of Object.entries(TOPIC_KNOWLEDGE_BASE)) {
     const isMatch = normalizedTopic === key || new RegExp(`(^|\\b)${key}(\\b|$)`, 'i').test(normalizedTopic);

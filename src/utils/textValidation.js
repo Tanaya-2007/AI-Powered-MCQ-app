@@ -2,14 +2,14 @@
  * Production-grade study material and quiz topic validation.
  * Uses NLP-like heuristics (no external packages required) to determine whether
  * user input is an actual substantive academic concept or study notes —
- * rather than conversational filler, vague meaningless words, or gibberish.
+ * rather than conversational filler, vague meaningless words, emotions, or gibberish.
  */
 
 // ─── Constants & Limits ─────────────────────────────────────────────────────
 
 export const MAX_TEXT_INPUT_CHARS = 25000;
 
-// ─── Blocklists ─────────────────────────────────────────────────────────────
+// ─── Blocklists & NLP Dictionaries ──────────────────────────────────────────
 
 const COMMON_GREETINGS = new Set([
   'hi', 'hello', 'hey', 'heyy', 'heyyy', 'hiya', 'hola', 'bonjour', 'namaste',
@@ -39,13 +39,50 @@ const VAGUE_SINGLE_WORDS = new Set([
 ]);
 
 /**
- * Non-academic, context-free words that are too vague to constitute an educational concept
- * on their own. A word is "non-academic" if a student could not be meaningfully tested on it
- * without additional context (e.g. "world" — which world? what aspect?).
- *
- * NLP heuristic: these are common English words with zero domain-specificity.
- * They belong to closed grammatical categories (prepositions, articles, conjunctions,
- * generic nouns) or are so broad they encompass all possible subjects simultaneously.
+ * NLP Emotion, Mood, and Affective terms.
+ * Bare emotions are not academic subjects unless qualified (e.g. "Positive Psychology").
+ */
+const EMOTION_AND_MOOD_WORDS = new Set([
+  'happy', 'happiness', 'sad', 'sadness', 'angry', 'anger', 'joy', 'joyful',
+  'fear', 'fearful', 'bored', 'boredom', 'love', 'loving', 'hate', 'hatred',
+  'excited', 'excitement', 'crazy', 'funny', 'fun', 'tired', 'tiredness',
+  'hungry', 'hunger', 'sleepy', 'pain', 'painful', 'feeling', 'feelings',
+  'mood', 'moods', 'pleasure', 'depressed', 'depression', 'anxiety', 'anxious',
+  'stress', 'stressed', 'lonely', 'loneliness', 'jealous', 'jealousy',
+  'guilt', 'guilty', 'proud', 'pride', 'shame', 'envy', 'hope', 'hopeful',
+  'calm', 'nervous', 'surprised', 'surprise', 'disgust', 'disgusted', 'grief',
+  'emotion', 'emotions', 'emotional', 'romantic', 'romance', 'passionate', 'passion'
+]);
+
+/**
+ * Common non-academic descriptive adjectives & adverbs that cannot stand alone as a curriculum topic.
+ */
+const NON_ACADEMIC_ADJECTIVES = new Set([
+  'good', 'better', 'best', 'bad', 'worse', 'worst', 'nice', 'cool', 'ugly',
+  'pretty', 'beautiful', 'fast', 'faster', 'fastest', 'slow', 'slower', 'slowest',
+  'sweet', 'bitter', 'sour', 'hot', 'cold', 'warm', 'bright', 'dark',
+  'heavy', 'light', 'soft', 'hard', 'loud', 'quiet', 'clean', 'dirty', 'rich',
+  'poor', 'young', 'old', 'smart', 'dumb', 'stupid', 'weird', 'busy', 'lazy',
+  'strong', 'weak', 'cheap', 'expensive', 'fresh', 'safe', 'dangerous', 'lucky',
+  'simple', 'easy', 'boring', 'great', 'super', 'awesome', 'huge', 'tiny',
+  'little', 'tall', 'short', 'fat', 'thin', 'thick', 'deep', 'shallow',
+  'empty', 'full', 'dry', 'wet', 'clear', 'rough', 'smooth', 'fine', 'okay'
+]);
+
+/**
+ * Everyday conversational nouns & verbs that are not educational subjects when entered as single words.
+ */
+const EVERYDAY_COMMON_WORDS = new Set([
+  'eat', 'eating', 'food', 'drink', 'drinking', 'sleep', 'sleeping', 'walk', 'walking',
+  'run', 'running', 'jump', 'jumping', 'play', 'playing', 'game', 'games',
+  'song', 'songs', 'movie', 'movies', 'car', 'cars', 'bus', 'bike', 'dog', 'dogs',
+  'cat', 'cats', 'bird', 'birds', 'fish', 'table', 'chair', 'bed', 'room',
+  'house', 'home', 'door', 'window', 'wall', 'clothes', 'shirt', 'pants', 'shoe', 'shoes',
+  'friend', 'friends', 'family', 'baby', 'kid', 'kids', 'boy', 'girl'
+]);
+
+/**
+ * Non-academic, context-free words that are too vague to constitute an educational concept on their own.
  */
 const VAGUE_GENERIC_WORDS = new Set([
   // Extremely broad / all-encompassing nouns
@@ -76,20 +113,31 @@ const VAGUE_GENERIC_WORDS = new Set([
   'random', 'anything', 'everything', 'something', 'nothing', 'all', 'any',
 ]);
 
-/**
- * Words that, while real English, have no subject-matter specificity.
- * If user enters a two-word phrase where BOTH words are vague, it is still rejected.
- * Example: "world things" → both are vague → rejected.
- * "world war" → "war" is a valid historical concept → accepted.
- */
 const VAGUE_ADJECTIVES = new Set([
   'good', 'bad', 'new', 'old', 'big', 'small', 'large', 'long', 'short',
   'high', 'low', 'hot', 'cold', 'fast', 'slow', 'hard', 'easy',
   'real', 'true', 'false', 'main', 'key', 'other', 'same', 'next', 'last'
 ]);
 
-// ─── Named-Entity Patterns (fast regex, no external NLP library) ──────────────
-// Words matching these patterns are almost always valid academic concepts.
+/**
+ * Recognized single-word academic disciplines that can stand alone as valid curriculum subjects.
+ */
+const RECOGNIZED_ACADEMIC_DISCIPLINES = new Set([
+  'physics', 'chemistry', 'biology', 'mathematics', 'math', 'algebra', 'calculus',
+  'geometry', 'trigonometry', 'statistics', 'probability', 'astronomy', 'geology',
+  'meteorology', 'ecology', 'genetics', 'biochemistry', 'thermodynamics',
+  'electromagnetism', 'optics', 'kinematics', 'neurology', 'neuroscience',
+  'immunology', 'microbiology', 'virology', 'botany', 'zoology', 'anatomy',
+  'physiology', 'pathology', 'pharmacology', 'cryptography', 'algorithms',
+  'microprocessors', 'robotics', 'cybersecurity', 'history', 'geography',
+  'economics', 'microeconomics', 'macroeconomics', 'sociology', 'psychology',
+  'philosophy', 'anthropology', 'linguistics', 'archaeology', 'jurisprudence',
+  'criminology', 'ethics', 'epistemology', 'metaphysics', 'literature',
+  'paleontology', 'histology', 'embryology', 'cytology', 'biomechanics',
+  'astrophysics', 'civics', 'politics', 'government', 'epidemiology'
+]);
+
+// ─── Named-Entity Patterns (fast regex, NLP pattern matcher) ──────────────────
 const ACADEMIC_PATTERNS = [
   /\b(theorem|lemma|algorithm|equation|formula|hypothesis|theory|principle|law|model)\b/i,
   /\b(photosynthesis|mitosis|meiosis|osmosis|diffusion|evolution|respiration)\b/i,
@@ -103,20 +151,13 @@ const ACADEMIC_PATTERNS = [
   /\b(newton|einstein|darwin|freud|plato|socrates|aristotle|shakespeare)\b/i,
   /\b(dna|rna|atp|nadh|mrna|trna|protein|enzyme|hormone|neuron|synapse|nucleus)\b/i,
   /\b(force|energy|momentum|velocity|acceleration|gravity|electromagnetism|quantum)\b/i,
-  /\b\d{4}\b/,         // Four-digit year (e.g. "World War 1939")
+  /\b\d{4}\b/,                // Four-digit year (e.g. "World War 1939")
   /[A-Z][a-z]+\s+[A-Z][a-z]+/,  // Proper noun phrase like "Charles Darwin"
-  /\b[A-Z]{2,}\b/,     // Acronym like "DNA", "CPU", "WWI"
+  /\b[A-Z]{2,}\b/,            // Acronym like "DNA", "CPU", "WWI"
 ];
 
 // ─── Main Validator ────────────────────────────────────────────────────────────
 
-/**
- * Validates whether text input has sufficient academic/topical substance
- * to generate a quiz. Returns a structured result with isValid, reason, and message.
- *
- * @param {string} text - Raw user input from textarea or voice.
- * @returns {{ isValid: boolean, reason: string, message: string, type?: 'TOPIC'|'NOTES', wordCount?: number, charCount?: number }}
- */
 export function validateStudyText(text) {
   if (!text || typeof text !== 'string') {
     return { isValid: false, reason: 'EMPTY', message: 'Please enter your study notes or a quiz topic.' };
@@ -210,9 +251,9 @@ export function validateStudyText(text) {
     };
   }
 
-  // ── 9. NLP heuristic: Detect academic patterns early (fast-pass) ──────────
-  //    If any known academic pattern matches, accept immediately
-  if (ACADEMIC_PATTERNS.some(pat => pat.test(trimmed))) {
+  // ── 9. NLP heuristic: Detect multi-word academic patterns early (fast-pass) ─
+  //    Only fast-pass if either words > 1 or single word is in recognized academic corpus
+  if (words.length > 1 && ACADEMIC_PATTERNS.some(pat => pat.test(trimmed))) {
     const isNotes = words.length >= 15 || trimmed.length >= 100;
     return {
       isValid: true, reason: 'VALID',
@@ -222,10 +263,38 @@ export function validateStudyText(text) {
     };
   }
 
-  // ── 10. NLP heuristic: Single vague generic word ─────────────────────────
-  //    A single word that is too broad to constitute a testable concept
+  // ── 10. NLP Single Word Analysis (Strict Semantic Categorization) ─────────
   if (words.length === 1) {
-    const singleWord = lower.replace(/[^a-z]/g, '');
+    const singleWord = lower.replace(/[^a-z0-9]/g, '');
+
+    // 10a. Emotion & Mood words (e.g. happy, sad, angry)
+    if (EMOTION_AND_MOOD_WORDS.has(singleWord)) {
+      return {
+        isValid: false,
+        reason: 'EMOTION_OR_MOOD_WORD',
+        message: `"${trimmed}" is an emotion or mood descriptor, not an educational subject. Please specify an academic concept (e.g. "Positive Psychology", "Cognitive Psychology", "Sociology of Emotion") or paste your study notes.`
+      };
+    }
+
+    // 10b. Non-academic adjectives (e.g. good, cool, hot, smart)
+    if (NON_ACADEMIC_ADJECTIVES.has(singleWord)) {
+      return {
+        isValid: false,
+        reason: 'NON_ACADEMIC_ADJECTIVE',
+        message: `"${trimmed}" is a general adjective and not a testable educational topic. Please enter a specific curriculum subject (e.g. "Thermodynamics", "French Revolution", "Linear Algebra") or paste your notes.`
+      };
+    }
+
+    // 10c. Everyday non-educational objects/actions (e.g. food, eat, car)
+    if (EVERYDAY_COMMON_WORDS.has(singleWord)) {
+      return {
+        isValid: false,
+        reason: 'EVERYDAY_COMMON_WORD',
+        message: `"${trimmed}" is a common everyday word. Please specify an educational discipline or subject (e.g. "Animal Physiology", "Nutrition and Metabolism", "Automotive Engineering") or paste your notes.`
+      };
+    }
+
+    // 10d. Vague generic nouns (e.g. design, system, code)
     if (VAGUE_GENERIC_WORDS.has(singleWord)) {
       let suggestion = 'Please be more specific — for example, enter "World War II", "World History", or paste your study notes.';
       if (singleWord === 'design') {
@@ -236,38 +305,73 @@ export function validateStudyText(text) {
         suggestion = 'Please specify a programming domain or language (e.g. "Object-Oriented Programming in Java", "Python Data Structures", "C++ Algorithms").';
       }
       return {
-        isValid: false, reason: 'VAGUE_GENERIC_WORD',
+        isValid: false,
+        reason: 'VAGUE_GENERIC_WORD',
         message: `"${trimmed}" is too vague and ambiguous to generate a quiz on. ${suggestion}`
       };
     }
+
+    // 10e. NLP Morphological & Entity Classifier for Isolated Words:
+    // Recognized academic disciplines (physics, biology, etc.)
+    const isRecognizedDiscipline = RECOGNIZED_ACADEMIC_DISCIPLINES.has(singleWord);
+
+    // Academic morphology suffixes: -ology, -onomy, -metry, -ics, -synthesis, -genesis, -lysis, -itis, -osis, -ism
+    const hasAcademicSuffix = /(?:ology|ologies|onomy|metry|ics|synthesis|genesis|lysis|itis|osis|ism)$/i.test(singleWord);
+
+    // Academic pattern match (e.g. mitosis, calculus, photosynthesis)
+    const matchesAcademicPattern = ACADEMIC_PATTERNS.some(pat => pat.test(singleWord));
+
+    if (!isRecognizedDiscipline && !hasAcademicSuffix && !matchesAcademicPattern) {
+      return {
+        isValid: false,
+        reason: 'SINGLE_NON_ACADEMIC_WORD',
+        message: `"${trimmed}" does not appear to be an educational or academic subject. Please enter a valid study topic (e.g. "Photosynthesis", "Operating Systems", "World History") or paste your study notes.`
+      };
+    }
+
+    return {
+      isValid: true,
+      reason: 'VALID',
+      type: 'TOPIC',
+      wordCount: 1,
+      charCount: trimmed.length,
+      message: `Valid academic topic ready: "${trimmed}".`
+    };
   }
 
   // ── 11. NLP heuristic: Short phrase (2–3 words) where all words are vague ─
   if (words.length >= 2 && words.length <= 3) {
     const cleanWords = words.map(w => w.toLowerCase().replace(/[^a-z]/g, ''));
     const allVague = cleanWords.every(w =>
-      VAGUE_GENERIC_WORDS.has(w) || VAGUE_ADJECTIVES.has(w) || VAGUE_SINGLE_WORDS.has(w) || COMMON_GREETINGS.has(w)
+      VAGUE_GENERIC_WORDS.has(w) ||
+      VAGUE_ADJECTIVES.has(w) ||
+      VAGUE_SINGLE_WORDS.has(w) ||
+      COMMON_GREETINGS.has(w) ||
+      EMOTION_AND_MOOD_WORDS.has(w) ||
+      NON_ACADEMIC_ADJECTIVES.has(w) ||
+      EVERYDAY_COMMON_WORDS.has(w)
     );
     if (allVague && cleanWords.every(w => w.length > 0)) {
       return {
         isValid: false, reason: 'VAGUE_PHRASE',
-        message: `"${trimmed}" is too vague to generate quiz questions on. Please provide a specific educational topic (e.g. "World War II", "Newton's Laws of Motion", "Data Structures") or paste your actual study notes.`
+        message: `"${trimmed}" is too generic or conversational to generate quiz questions on. Please provide a specific educational topic (e.g. "World War II", "Newton's Laws of Motion", "Data Structures") or paste your actual study notes.`
       };
     }
   }
 
-  // ── 12. Minimum information density check for very short inputs ───────────
-  //    Inputs under 40 chars with fewer than 3 words are borderline; a meaningful
-  //    academic topic must contain at least one non-trivial word.
+  // ── 12. Minimum information density check for short inputs ───────────────
   if (trimmed.length < 40 && words.length < 3) {
     const hasSubstantialWord = alphabeticWords.some(w => {
       const clean = w.toLowerCase().replace(/[^a-z]/g, '');
       return (
-        clean.length >= 5 &&
+        clean.length >= 4 &&
         !VAGUE_GENERIC_WORDS.has(clean) &&
         !VAGUE_ADJECTIVES.has(clean) &&
         !COMMON_GREETINGS.has(clean) &&
-        !PLACEHOLDER_WORDS.has(clean)
+        !PLACEHOLDER_WORDS.has(clean) &&
+        !EMOTION_AND_MOOD_WORDS.has(clean) &&
+        !NON_ACADEMIC_ADJECTIVES.has(clean) &&
+        !EVERYDAY_COMMON_WORDS.has(clean)
       );
     });
     if (!hasSubstantialWord) {

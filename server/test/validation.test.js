@@ -186,6 +186,45 @@ describe('validateStudyText', () => {
     assert.equal(res5.reason, 'VAGUE_GENERIC_WORD');
   });
 
+  it('rejects emotion and mood single words like "happy", "sad", "anger"', () => {
+    const res1 = validateStudyText('happy');
+    assert.equal(res1.isValid, false);
+    assert.equal(res1.reason, 'EMOTION_OR_MOOD_WORD');
+
+    const res2 = validateStudyText('sad');
+    assert.equal(res2.isValid, false);
+    assert.equal(res2.reason, 'EMOTION_OR_MOOD_WORD');
+
+    const res3 = validateStudyText('anger');
+    assert.equal(res3.isValid, false);
+    assert.equal(res3.reason, 'EMOTION_OR_MOOD_WORD');
+  });
+
+  it('rejects common non-academic adjectives and everyday common words', () => {
+    const res1 = validateStudyText('good');
+    assert.equal(res1.isValid, false);
+
+    const res2 = validateStudyText('food');
+    assert.equal(res2.isValid, false);
+
+    const res3 = validateStudyText('car');
+    assert.equal(res3.isValid, false);
+  });
+
+  it('accepts recognized academic single words like "Physics", "Calculus", "Photosynthesis", "Biology"', () => {
+    const res1 = validateStudyText('Physics');
+    assert.equal(res1.isValid, true);
+
+    const res2 = validateStudyText('Biology');
+    assert.equal(res2.isValid, true);
+
+    const res3 = validateStudyText('Calculus');
+    assert.equal(res3.isValid, true);
+
+    const res4 = validateStudyText('Photosynthesis');
+    assert.equal(res4.isValid, true);
+  });
+
   it('accepts specific academic concepts like "System Design", "Operating Systems", "World War II"', () => {
     const res1 = validateStudyText('World War II');
     assert.equal(res1.isValid, true);
