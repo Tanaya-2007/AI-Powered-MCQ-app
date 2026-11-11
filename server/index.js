@@ -46,7 +46,9 @@ import {
 } from './db/roomStore.js';
 import { logger, httpLogger } from './utils/logger.js';
 
-// Load environment variables
+// Load environment variables from server/.env and root .env
+const __serverDir = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__serverDir, '.env') });
 dotenv.config();
 
 const app = express();
@@ -96,7 +98,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
  * Prevents 404 model-not-found errors and minimizes generation latency.
  */
 async function callGeminiResilient(prompt, responseMimeType = 'application/json') {
-  const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
+  const modelNames = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
   let lastError;
   for (const modelName of modelNames) {
     try {

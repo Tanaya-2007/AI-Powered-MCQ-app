@@ -1,8 +1,15 @@
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure server/.env is loaded regardless of current working directory
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
-const groqApiKey = process.env.GROQ_API_KEY;
+const getGroqApiKey = () => process.env.GROQ_API_KEY;
 
 /**
  * Dynamically queries the Groq API to retrieve available models
@@ -23,14 +30,13 @@ async function getActiveGroqModel(apiKey) {
       const activeIds = (data.data || []).map(m => m.id);
       
       const preferences = [
-        'llama-3.3-70b-versatile',
-        'llama-3.3-70b-specdec',
-        'llama3-70b-8192',
-        'openai/gpt-oss-20b',
         'openai/gpt-oss-120b',
-        'qwen/qwen3.6-27b',
-        'groq/compound',
-        'groq/compound-mini'
+        'qwen/qwen3.8-27b',
+        'openai/gpt-oss-20b',
+        'llama-3.3-70b-versatile',
+        'llama-3.1-70b-versatile',
+        'llama3-70b-8192',
+        'allam-2-7b'
       ];
       
       for (const pref of preferences) {
@@ -46,7 +52,7 @@ async function getActiveGroqModel(apiKey) {
   } catch (err) {
     console.error('⚠️ Failed to retrieve active Groq models:', err.message);
   }
-  return 'llama-3.3-70b-versatile'; // fallback default
+  return 'openai/gpt-oss-120b'; // proven active default
 }
 
 /**
@@ -58,12 +64,13 @@ async function getActiveGroqModel(apiKey) {
  * @returns {Promise<string>} The generated content.
  */
 export async function generateGroqContent(prompt, responseMimeType = 'text/plain') {
-  if (!groqApiKey) {
+  const apiKey = getGroqApiKey();
+  if (!apiKey) {
     throw new Error('GROQ_API_KEY is not defined in server/.env');
   }
 
   // Auto-detect which model is supported by this API key
-  const selectedModel = await getActiveGroqModel(groqApiKey);
+  const selectedModel = await getActiveGroqModel(apiKey);
   console.log(`🤖 Utilizing Groq Model: ${selectedModel}`);
 
   const payload = {
@@ -84,7 +91,7 @@ export async function generateGroqContent(prompt, responseMimeType = 'text/plain
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${groqApiKey}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(payload)
@@ -100,5 +107,5 @@ export async function generateGroqContent(prompt, responseMimeType = 'text/plain
     return data.choices[0].message.content;
   }
 
-  throw new Error('Unexpected empty response structure from Groq API');
+  throw new Error('Groq API did not return valid content.');
 }
