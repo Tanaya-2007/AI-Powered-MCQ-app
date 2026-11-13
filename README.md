@@ -343,36 +343,6 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 
 ---
 
-## 🤖 AI Pipeline
-
-```
-User uploads material (text/PDF/image/voice)
-        │
-        ▼
-parser.js extracts text (pdf-parse / Gemini OCR / voice transcription)
-        │
-        ▼
-textSplitter.js chunks (800 chars, 150 overlap)
-        │
-        ▼
-gemini.js generates 768-dim embeddings per chunk
-        │
-        ▼
-pgvector stores chunks with cosine similarity index
-        │
-        ▼
-User requests quiz generation
-        │
-        ▼
-Gemini embeds topic query → pgvector similarity search
-        │
-        ▼
-Gemini/Groq/OpenAI generates grounded 4-option MCQs
-        │
-        ▼
-Jaccard dedup (similarity ≤ 0.6) → validated & trimmed to count
-```
-
 **Provider priority:** Groq → OpenAI → Gemini (for content generation); Gemini → OpenAI → fallback error (for embeddings — no silent fallback vectors).
 
 ---
