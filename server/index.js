@@ -35,7 +35,7 @@ import {
   validateStudyText,
   MAX_TEXT_INPUT_CHARS,
 } from './utils/validation.js';
-import { generateResilientQuiz } from './utils/fallbackQuizGenerator.js';
+import { generateQuiz, QuizGenerationError } from './utils/quizGenerator.js';
 import {
   getRoom,
   setRoom,
@@ -481,18 +481,6 @@ app.post('/api/ingest', writeLimiter, requireAuth, upload.single('file'), async 
 });
 
 // Helpers for semantic duplication check using Jaccard Similarity on tokenized words
-function getTokens(text) {
-  if (!text || typeof text !== 'string') return new Set();
-  return new Set(text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean));
-}
-
-function computeJaccard(setA, setB) {
-  if (setA.size === 0 || setB.size === 0) return 0;
-  const intersection = new Set([...setA].filter(x => setB.has(x)));
-  const union = new Set([...setA, ...setB]);
-  return intersection.size / union.size;
-}
-
 // 4. AI Quiz Generation Endpoint (Semantic Search + Gemini MCQ Creator)
 app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
   let { topic, materialId, count = 5, difficulty = 'medium', directText } = req.body;
@@ -536,7 +524,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
         console.log('⚠️ materialId was not supplied. Querying the latest uploaded material ID...');
         const pool = await initDbPool();
         if (pool) {
-          const latestRes = await pool.query('SELECT id FROM study_materials ORDER BY created_at DESC LIMIT 1');
+          const latestRes = await pool.query('SELECT id FROM study_materials ORDER BY uploaded_at DESC LIMIT 1');
           if (latestRes.rows.length > 0) {
             materialId = latestRes.rows[0].id;
             console.log(`✅ Using latest material ID: ${materialId}`);
@@ -595,230 +583,42 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     }
   }
 
-  // C. Run a loop to accumulate up to `count` questions, avoiding repeats
-  const validQuestions = [];
-  const questionTexts = [];
-  let attempts = 0;
-  const targetCount = Number(count);
-  let detectedTopic = topic || '';
-
+  // C. Generate with the production generator (provider chain, grounding + quality checks).
+  // It throws QuizGenerationError on failure — we NEVER return placeholder questions.
   try {
-    while (validQuestions.length < targetCount && attempts < 3) {
-      attempts++;
-      const needed = targetCount - validQuestions.length;
-      // Request a slight buffer (e.g. needed + 2) on attempt 1 so a single LLM round-trip fulfills the target
-      const batchNeeded = attempts === 1 ? Math.min(needed + 2, 50) : needed;
-      console.log(`🤖 MCQ generation loop: attempt ${attempts}/3, currently have ${validQuestions.length}/${targetCount} questions, requesting ${batchNeeded} in batch.`);
-
-      const avoidPromptText = questionTexts.length > 0
-        ? `You MUST avoid generating questions similar or duplicate to these already generated questions:\n${questionTexts.map((qText, idx) => `${idx + 1}. ${qText}`).join('\n')}`
-        : '';
-
-      const prompt = `
-        You are an expert educator. Your task is to generate a multiple-choice quiz based on the textbook segments provided below.
-        
-        Topic to focus on: "${topic || 'Auto-detect'}"
-        Difficulty level: "${difficulty}"
-        Number of questions required in this batch: ${batchNeeded}
-        
-        ${avoidPromptText}
-        
-        CONTEXT SEGMENTS FROM TEXTBOOK:
-        ===
-        ${contextText}
-        ===
-        
-        INSTRUCTIONS:
-        1. Analyze the context segments. You MUST generate exactly ${batchNeeded} unique, high-quality, non-overlapping questions. If the text is short or limited, expand your questions by covering different aspects, details, scenarios, applications, variations, or implications of the concepts mentioned in the text. Always set "insufficient" to false. Do not set it to true under any circumstances.
-        
-        2. Ensure every question:
-           - is directly and factually grounded in the provided context segments.
-           - has a "question" string, "options" array of exactly 4 strings, "correctAnswer" index (0, 1, 2, or 3), "explanation" string, and a "sourceReference" string referencing the specific concept or sentence from the context.
-           - aligns with the "${difficulty}" difficulty level.
-           - has no duplicate options and no ambiguous answers.
-        
-        3. Return ONLY a valid JSON object matching this schema (do not include any markdown, backticks, or extra text). You must list all ${batchNeeded} generated questions inside the "questions" array, and auto-detect a suitable specific topic title for the "detectedTopic" field:
-        {
-          "insufficient": false,
-          "maxPossibleQuestions": ${batchNeeded},
-          "detectedTopic": "Auto-detected specific quiz topic name",
-          "reason": "Successfully generated the requested questions.",
-          "questions": [
-            {
-              "question": "question text",
-              "options": ["option 0", "option 1", "option 2", "option 3"],
-              "correctAnswer": 0,
-              "explanation": "detailed explanation of correct answer",
-              "difficulty": "${difficulty}",
-              "topic": "${topic || 'Auto-detected topic'}",
-              "sourceReference": "exact reference quote or concept"
-            }
-          ]
-        }
-      `;
-
-      let responseText;
-      if (process.env.GROQ_API_KEY) {
-        try {
-          console.log(`🤖 Attempting to generate ${batchNeeded} questions via Groq API...`);
-          responseText = await generateGroqContent(prompt, 'application/json');
-        } catch (groqError) {
-          console.warn('⚠️ Groq quiz generation failed, falling back to Gemini API:', groqError.message);
-          console.log(`🛰️ Attempting to generate ${batchNeeded} questions via Gemini API...`);
-          responseText = await callGeminiResilient(prompt, 'application/json');
-        }
-      } else if (process.env.OPENAI_API_KEY) {
-        console.log(`🤖 Attempting to generate ${batchNeeded} questions via OpenAI API (gpt-4o-mini)...`);
-        responseText = await generateOpenAIContent(prompt, 'application/json');
-      } else {
-        console.log(`🛰️ Attempting to generate ${batchNeeded} questions via Gemini API...`);
-        responseText = await callGeminiResilient(prompt, 'application/json');
-      }
-
-      // Parse JSON payload
-      let payload;
-      try {
-        const cleanJsonText = responseText.replace(/```json|```/g, '').trim();
-        payload = JSON.parse(cleanJsonText);
-      } catch (e) {
-        console.warn('⚠️ Standard JSON parse failed, attempting regex object extraction:', e.message);
-        const objectMatch = responseText.match(/\{\s*"insufficient"[\s\S]*\}/);
-        if (objectMatch) {
-          payload = JSON.parse(objectMatch[0]);
-        } else {
-          console.error('Failed to extract valid JSON payload from response:\n' + responseText);
-          continue;
-        }
-      }
-
-      if (payload.detectedTopic && !detectedTopic) {
-        detectedTopic = payload.detectedTopic;
-      }
-
-      const generatedRaw = payload.questions || [];
-      console.log(`📥 API response yielded ${generatedRaw.length} raw questions.`);
-
-      // Validate & append questions
-      for (const q of generatedRaw) {
-        if (!q.question || typeof q.question !== 'string' || q.question.trim() === '') continue;
-        if (!Array.isArray(q.options) || q.options.length !== 4) continue;
-        if (typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer > 3) continue;
-        if (!q.explanation || typeof q.explanation !== 'string') continue;
-
-        const uniqueOptions = new Set(q.options.map(o => String(o).trim().toLowerCase()));
-        if (uniqueOptions.size !== 4) continue;
-
-        let isDuplicate = false;
-        const tokensQ = getTokens(q.question);
-        for (const acceptedText of questionTexts) {
-          const tokensAccepted = getTokens(acceptedText);
-          const similarity = computeJaccard(tokensQ, tokensAccepted);
-          if (similarity > 0.6) {
-            isDuplicate = true;
-            break;
-          }
-        }
-        if (isDuplicate) continue;
-
-        q.question = q.question.trim();
-        q.options = q.options.map(o => String(o).trim());
-        q.explanation = q.explanation.trim();
-        q.topic = q.topic || topic;
-        q.difficulty = q.difficulty || difficulty;
-        q.sourceReference = q.sourceReference || 'User study material';
-
-        validQuestions.push(q);
-        questionTexts.push(q.question);
-      }
-    }
-
-    if (validQuestions.length === 0) {
-      console.warn(`⚠️ No questions generated by LLM, activating resilient fallback.`);
-      const fallbackQuestions = generateResilientQuiz(topic || 'Study Quiz', targetCount, difficulty, contextText);
-      return res.json({
-        success: true,
-        fallback: true,
-        questions: fallbackQuestions,
-        metadata: {
-          sourceType: 'resilient_generator',
-          detectedTopic: detectedTopic || topic || 'Study Quiz',
-          topicMatch: true,
-          grounded: true
-        }
-      });
-    }
-
-    // Slice to exactly requested count
-    const finalQuestions = validQuestions.slice(0, targetCount);
-
-    console.log(`🎉 Successfully generated ${finalQuestions.length} grounded questions.`);
-    res.json({
+    const result = await generateQuiz({ topic, contextText, count: Number(count), difficulty });
+    console.log(`🎉 Generated ${result.questions.length}/${count} questions (topicOnly=${result.topicOnly}, partial=${result.partial}).`);
+    return res.json({
       success: true,
       fallback: false,
-      questions: finalQuestions,
+      questions: result.questions,
       metadata: {
         sourceType: materialId ? 'uploaded_material' : 'text_input',
-        detectedTopic: detectedTopic || topic || 'Study Quiz',
-        topicMatch: true,
-        grounded: true
+        detectedTopic: result.detectedTopic,
+        partial: result.partial,
+        requested: Number(count),
+        returned: result.questions.length,
+        grounded: !result.topicOnly
       }
     });
-
   } catch (error) {
     console.error('❌ Quiz generation error:', error?.message || error);
-    
-    // Server-side fail-safe: deliver grounded quiz questions instead of 500 error
-    console.log('🛡️ Activating server-side resilient quiz generation...');
-    try {
-      const fallbackQuestions = generateResilientQuiz(topic || 'Study Quiz', targetCount, difficulty, contextText);
-      if (fallbackQuestions && fallbackQuestions.length > 0) {
-        return res.json({
-          success: true,
-          fallback: true,
-          questions: fallbackQuestions,
-          metadata: {
-            sourceType: 'resilient_generator',
-            detectedTopic: detectedTopic || topic || 'Study Quiz',
-            topicMatch: true,
-            grounded: true
-          }
-        });
-      }
-    } catch (fallbackErr) {
-      console.error('Fallback generation error:', fallbackErr);
-    }
-
     const errMsg = String(error?.message || '');
-
-    // API key errors (invalid key, unregistered callers, 401, 403)
-    if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('unregistered callers') || errMsg.includes('403') || errMsg.includes('invalid_api_key') || errMsg.includes('API key not valid') || errMsg.includes('401')) {
-      return res.status(401).json({
+    if (error instanceof QuizGenerationError) {
+      const userMessages = {
+        401: 'The AI API key is invalid or expired. Please update the provider keys in the server environment.',
+        429: 'The AI provider quota or rate limit was reached. Please try again shortly or add billing/another provider key.',
+        500: 'No AI provider is configured on the server.'
+      };
+      return res.status(error.status).json({
         success: false,
-        message: 'The AI API Key is invalid or expired. Please update GEMINI_API_KEY or GROQ_API_KEY in your environment settings.'
+        message: error.status === 422 ? error.message : prodMessage(userMessages[error.status] || `Quiz generation failed: ${errMsg}`)
       });
     }
-
-    // If the error is a quota/rate limit error, return a clear error
-    if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.toLowerCase().includes('quota exceeded') || errMsg.includes('QuotaFailure')) {
-      return res.status(429).json({
-        success: false,
-        message: 'Your Google Gemini API Key has exceeded its quota or has been restricted (Rate Limit: 0). Please generate a new API Key in a new project on Google AI Studio or add billing to your current project.'
-      });
+    if (errMsg.includes('fetch failed') || errMsg.includes('ECONNRESET')) {
+      return res.status(503).json({ success: false, message: 'Could not reach the AI service. Please try again.' });
     }
-
-    // If it is a TLS/DNS connection network socket reset error, return a clear error
-    if (errMsg.includes('fetch failed') || errMsg.includes('network socket') || errMsg.includes('ECONNRESET')) {
-      return res.status(503).json({
-        success: false,
-        message: 'A local network connection error occurred while connecting to the Google Gemini API. Please check your internet connection or disable any active VPN/proxies.'
-      });
-    }
-    
-    // Return the actual failure error to prevent silently falling back to mock questions
-    res.status(500).json({
-      success: false,
-      message: prodMessage('Failed to generate quiz: ' + errMsg)
-    });
+    return res.status(500).json({ success: false, message: prodMessage('Failed to generate quiz: ' + errMsg) });
   }
 });
 
