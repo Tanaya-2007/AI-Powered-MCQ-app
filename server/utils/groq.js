@@ -17,7 +17,11 @@ const getGroqApiKey = () => process.env.GROQ_API_KEY;
  * @param {string} apiKey 
  * @returns {Promise<string>} Model ID to use.
  */
+let cachedModel = null;
+let cachedAt = 0;
 async function getActiveGroqModel(apiKey) {
+  if (process.env.GROQ_MODEL) return process.env.GROQ_MODEL;
+  if (cachedModel && Date.now() - cachedAt < 6 * 60 * 60 * 1000) return cachedModel;
   try {
     const response = await fetch('https://api.groq.com/openai/v1/models', {
       headers: {
@@ -41,13 +45,14 @@ async function getActiveGroqModel(apiKey) {
       
       for (const pref of preferences) {
         if (activeIds.includes(pref)) {
+          cachedModel = pref; cachedAt = Date.now();
           return pref;
         }
       }
       
       // Look for any model that is not a transcription/prompt-guard model
       const fallback = activeIds.find(id => !id.includes('whisper') && !id.includes('guard'));
-      if (fallback) return fallback;
+      if (fallback) { cachedModel = fallback; cachedAt = Date.now(); return fallback; }
     }
   } catch (err) {
     console.error('⚠️ Failed to retrieve active Groq models:', err.message);
@@ -81,7 +86,7 @@ export async function generateGroqContent(prompt, responseMimeType = 'text/plain
         content: prompt
       }
     ],
-    temperature: 0.1
+    temperature: 0.4
   };
 
   if (responseMimeType === 'application/json') {

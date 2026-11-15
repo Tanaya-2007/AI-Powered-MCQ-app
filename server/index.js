@@ -13,8 +13,8 @@ import { fileURLToPath } from 'url';
 import { initDbPool, closeDbPool, registerSchemaInitializer } from './db/db.js';
 import { extractTextFromFile } from './utils/parser.js';
 import { splitText } from './utils/textSplitter.js';
-import { generateEmbedding } from './utils/gemini.js';
-import { saveMaterial, saveChunk, saveQuizResult, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
+import { generateEmbedding, generateEmbeddings } from './utils/gemini.js';
+import { saveMaterial, saveChunksBulk, deleteMaterial, getLatestMaterialId, userOwnsMaterial, saveQuizResult, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { generateGroqContent } from './utils/groq.js';
 import { generateOpenAIContent } from './utils/openai.js';
@@ -435,22 +435,19 @@ app.post('/api/ingest', writeLimiter, requireAuth, upload.single('file'), async 
     const chunks = splitText(rawText).slice(0, 60);
     console.log(`✂️ Text partitioned into ${chunks.length} chunks.`);
 
-    // Step C: Save parent material metadata and retrieve generated ID
-    const materialId = await saveMaterial(filename, mimeType);
+    // Step C: Embed first (parallel, retried) so a provider failure never leaves a half-saved material
+    const embeddings = await generateEmbeddings(chunks, 4);
+
+    // Step D: Save material + all chunks (chunks are one all-or-nothing transaction)
+    const materialId = await saveMaterial(filename, mimeType, req.user?.id);
     console.log(`💾 Material record saved under ID: ${materialId}`);
-
-    // Step D: Calculate embedding vector for each chunk and save to Vector DB
-    let processedChunksCount = 0;
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkText = chunks[i];
-      
-      // Calculate 768-dimension semantic vector via Gemini API
-      const embedding = await generateEmbedding(chunkText);
-
-      // Save chunk text and float array vector to Oracle
-      await saveChunk(materialId, i, chunkText, embedding, null);
-      processedChunksCount++;
+    try {
+      await saveChunksBulk(materialId, chunks.map((content, i) => ({ content, embedding: embeddings[i] })));
+    } catch (saveErr) {
+      await deleteMaterial(materialId);
+      throw saveErr;
     }
+    const processedChunksCount = chunks.length;
 
     console.log(`✅ Ingestion pipeline complete. Processed ${processedChunksCount} chunks.`);
     res.json({
@@ -521,15 +518,14 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
     try {
       // If materialId is not provided, fallback to the latest uploaded study material ID
       if (!materialId) {
-        console.log('⚠️ materialId was not supplied. Querying the latest uploaded material ID...');
-        const pool = await initDbPool();
-        if (pool) {
-          const latestRes = await pool.query('SELECT id FROM study_materials ORDER BY uploaded_at DESC LIMIT 1');
-          if (latestRes.rows.length > 0) {
-            materialId = latestRes.rows[0].id;
-            console.log(`✅ Using latest material ID: ${materialId}`);
-          }
-        }
+        // Only ever fall back to THIS user's latest upload (never another user's)
+        materialId = await getLatestMaterialId(req.user?.id);
+        if (materialId) console.log(`✅ Using latest material ID: ${materialId}`);
+      } else if (!(await userOwnsMaterial(req.user?.id, materialId))) {
+        return res.status(403).json({ success: false, message: 'That study material does not belong to your account. Please upload it again.' });
+      }
+      if (!materialId) {
+        return res.status(400).json({ success: false, message: 'No study material found. Please upload a file or paste your notes first.' });
       }
 
       let chunks = [];
@@ -562,9 +558,9 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
         contextText = chunks
           .map(c => {
             const fn = c.filename || c.FILENAME || 'study_material';
-            const pg = c.pageNumber || c.PAGE_NUMBER || 'unknown';
+            const pg = c.pageNumber || c.page_number || null;
             const txt = c.content || c.CONTENT || '';
-            return `[From textbook: ${fn}, page ${pg}]:\n${txt}`;
+            return `[Source: ${fn}${pg ? `, page ${pg}` : ''}]\n${txt}`;
           })
           .join('\n\n---\n\n');
       } else {
@@ -586,7 +582,7 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
   // C. Generate with the production generator (provider chain, grounding + quality checks).
   // It throws QuizGenerationError on failure — we NEVER return placeholder questions.
   try {
-    const result = await generateQuiz({ topic, contextText, count: Number(count), difficulty });
+    const result = await generateQuiz({ topic, contextText, count: Number(count), difficulty, topicOnly: rawDirectText ? undefined : false });
     console.log(`🎉 Generated ${result.questions.length}/${count} questions (topicOnly=${result.topicOnly}, partial=${result.partial}).`);
     return res.json({
       success: true,
