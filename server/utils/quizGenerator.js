@@ -21,6 +21,25 @@ export class QuizGenerationError extends Error {
 }
 
 export const TOPIC_ONLY_MAX_CHARS = 400;
+// Keep prompts inside free-tier token limits (Groq/Gemini) — sample evenly instead of sending everything.
+export const MAX_CONTEXT_CHARS = 14000;
+const MAX_BATCH = 12;
+
+export function capContext(text, max = MAX_CONTEXT_CHARS) {
+  if (text.length <= max) return text;
+  const parts = text.split(/\n\n---\n\n/);
+  if (parts.length > 1) {
+    const per = Math.floor((max - parts.length * 7) / parts.length); // 7 = separator length
+    if (per >= 200) return parts.map((p) => p.slice(0, per)).join('\n\n---\n\n');
+    // too many segments: take evenly spaced ones
+    const keep = Math.max(1, Math.floor(max / 907));
+    const step = parts.length / keep;
+    return Array.from({ length: keep }, (_, i) => parts[Math.floor(i * step)].slice(0, 900)).join('\n\n---\n\n');
+  }
+  const third = Math.floor(max / 3);
+  const mid = Math.floor(text.length / 2);
+  return [text.slice(0, third), text.slice(mid - third / 2, mid + third / 2), text.slice(-third)].join('\n\n[...]\n\n');
+}
 
 const GENERIC_PATTERNS = [
   /foundational definition/i,
@@ -187,17 +206,18 @@ function validate(q, { contextTokens, topicOnly }) {
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
-export async function generateQuiz({ topic = '', contextText, count, difficulty = 'medium' }) {
-  const topicOnly = contextText.trim().length < TOPIC_ONLY_MAX_CHARS;
-  const contextTokens = new Set(tokens(contextText));
+export async function generateQuiz({ topic = '', contextText: fullContext, count, difficulty = 'medium', topicOnly: forceTopicOnly }) {
+  const topicOnly = typeof forceTopicOnly === 'boolean' ? forceTopicOnly : fullContext.trim().length < TOPIC_ONLY_MAX_CHARS;
+  const contextText = capContext(fullContext);
+  const contextTokens = new Set(tokens(fullContext));
   const accepted = [];
   const acceptedTokens = [];
   let detectedTopic = topic;
   let lastErr;
 
-  for (let round = 1; round <= 4 && accepted.length < count; round++) {
+  for (let round = 1; round <= 6 && accepted.length < count; round++) {
     const needed = count - accepted.length;
-    const batch = Math.min(needed + (round === 1 ? 2 : 0), 30);
+    const batch = Math.min(needed + (round === 1 ? 2 : 0), MAX_BATCH);
     try {
       const raw = await callLLM(buildPrompt({
         topic, contextText, needed: batch, difficulty, topicOnly,

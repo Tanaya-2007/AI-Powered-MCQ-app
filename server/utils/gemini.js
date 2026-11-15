@@ -15,40 +15,70 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key');
 
 /**
- * Generates a 768-dimensional vector embedding for a given text chunk using Gemini's text-embedding-004 model.
- * Fail-loud: throws on provider failure so callers never store meaningless vectors.
- *
- * @param {string} text - The text content to embed.
- * @returns {Promise<number[]>} The vector embedding as an array of floats.
+ * Embedding provider is chosen ONCE (never switched mid-flight): vectors from different
+ * providers live in different spaces, so mixing them silently breaks similarity search.
+ * Override with EMBEDDING_PROVIDER=gemini|openai. Default: Gemini if its key exists, else OpenAI.
+ * NOTE: changing provider after data is stored requires re-ingesting the old materials.
+ */
+export function embeddingProvider() {
+  const forced = (process.env.EMBEDDING_PROVIDER || '').toLowerCase();
+  if (forced === 'openai' || forced === 'gemini') return forced;
+  if (process.env.GEMINI_API_KEY) return 'gemini';
+  if (process.env.OPENAI_API_KEY) return 'openai';
+  return 'gemini';
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function embedOnce(text) {
+  if (embeddingProvider() === 'openai') return generateOpenAIEmbedding(text);
+  const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+  const result = await model.embedContent({
+    content: { parts: [{ text }] },
+    outputDimensionality: 768
+  });
+  const values = result?.embedding?.values;
+  if (!values) throw new Error('Embedding provider returned an empty result.');
+  return values;
+}
+
+/**
+ * Generates a 768-dimensional embedding. Fail-loud with retry/backoff on transient errors.
  */
 export async function generateEmbedding(text) {
   if (!text || typeof text !== 'string' || text.trim() === '') {
     throw new Error('Input text must be a valid non-empty string.');
   }
-
-  // If OpenAI is configured, use OpenAI embedding!
-  if (process.env.OPENAI_API_KEY) {
+  let lastErr;
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      console.log('🤖 Generating 768-dim embedding via OpenAI (text-embedding-3-small)...');
-      return await generateOpenAIEmbedding(text);
+      const v = await embedOnce(text);
+      if (Array.isArray(v) && v.length === 768) return v;
+      throw new Error(`Embedding has wrong dimension: ${v?.length}`);
     } catch (error) {
-      console.error('❌ OpenAI embedding generation failed, falling back...', error.message);
+      lastErr = error;
+      const transient = /429|503|500|fetch failed|ECONNRESET|timeout|overloaded/i.test(error.message);
+      console.warn(`⚠️ Embedding attempt ${attempt} failed: ${error.message}`);
+      if (!transient || attempt === 3) break;
+      await sleep(1000 * attempt * attempt);
     }
   }
+  throw lastErr;
+}
 
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
-    const result = await model.embedContent({
-      content: { parts: [{ text }] },
-      outputDimensionality: 768
-    });
-    
-    if (result && result.embedding && result.embedding.values) {
-      return result.embedding.values;
+/**
+ * Embeds many chunks with bounded concurrency, preserving order.
+ */
+export async function generateEmbeddings(texts, concurrency = 4) {
+  const out = new Array(texts.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const i = next++;
+      if (i >= texts.length) return;
+      out[i] = await generateEmbedding(texts[i]);
     }
-    throw new Error('Embedding provider returned an empty result.');
-  } catch (error) {
-    console.error('❌ Embedding generation failed:', error.message);
-    throw error;
   }
+  await Promise.all(Array.from({ length: Math.min(concurrency, texts.length) }, worker));
+  return out;
 }

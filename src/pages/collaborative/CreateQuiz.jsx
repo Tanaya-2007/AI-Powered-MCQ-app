@@ -311,7 +311,7 @@ function CreateQuiz() {
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(currentUrl, currentOptions);
-          if (res.ok || res.status === 400 || res.status === 401 || res.status === 429 || res.status === 500 || res.status === 503) return res;
+          return res; // any HTTP response is final — retrying would re-run the whole generation
         } catch (err) {
           // If local connection fails, switch to production URL ONLY if we are not testing on localhost
           const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

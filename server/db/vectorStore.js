@@ -24,6 +24,10 @@ export async function initializeSchema() {
       );
     `);
 
+    // 2b. Per-user ownership so one user can never read another user's uploads
+    await connection.query(`ALTER TABLE study_materials ADD COLUMN IF NOT EXISTS user_id VARCHAR(64);`);
+    await connection.query(`CREATE INDEX IF NOT EXISTS study_materials_user_idx ON study_materials (user_id, uploaded_at DESC);`);
+
     // 3. Create document_chunks table with vector(768) column type
     await connection.query(`
       CREATE TABLE IF NOT EXISTS document_chunks (
@@ -35,6 +39,8 @@ export async function initializeSchema() {
         page_number INT
       );
     `);
+
+    await connection.query(`CREATE INDEX IF NOT EXISTS document_chunks_material_idx ON document_chunks (material_id, chunk_index);`);
 
     // 4. Create native HNSW index for high-speed cosine similarity searches
     await connection.query(`
@@ -81,20 +87,21 @@ export async function initializeSchema() {
  * 
  * @param {string} filename - The name of the file.
  * @param {string} mimeType - The MIME type of the file.
+ * @param {string|null} userId - Owner (Supabase user id).
  * @returns {Promise<number>} The generated material ID.
  */
-export async function saveMaterial(filename, mimeType) {
+export async function saveMaterial(filename, mimeType, userId = null) {
   let connection;
   try {
     connection = await getConnection();
     
     const query = `
-      INSERT INTO study_materials (filename, mime_type)
-      VALUES ($1, $2)
+      INSERT INTO study_materials (filename, mime_type, user_id)
+      VALUES ($1, $2, $3)
       RETURNING id;
     `;
 
-    const result = await connection.query(query, [filename, mimeType]);
+    const result = await connection.query(query, [filename, mimeType, userId ? String(userId) : null]);
     const materialId = result.rows[0].id;
     return materialId;
 
@@ -139,6 +146,78 @@ export async function saveChunk(materialId, chunkIndex, content, embedding, page
   } catch (error) {
     console.error('Error in saveChunk DB operation:', error);
     throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Saves all chunks of a material in ONE transaction (one round trip per chunk batch, all-or-nothing).
+ * @param {number} materialId
+ * @param {{content: string, embedding: number[]}[]} items - in chunk order
+ */
+export async function saveChunksBulk(materialId, items) {
+  let connection;
+  try {
+    connection = await getConnection();
+    await connection.query('BEGIN');
+    for (let i = 0; i < items.length; i++) {
+      const { content, embedding } = items[i];
+      if (!Array.isArray(embedding) || embedding.length !== 768) {
+        throw new Error(`Embedding must be an array of length 768. Received length: ${embedding?.length}`);
+      }
+      await connection.query(
+        'INSERT INTO document_chunks (material_id, chunk_index, content, embedding, page_number) VALUES ($1, $2, $3, $4, NULL)',
+        [materialId, i, content, `[${embedding.join(',')}]`]
+      );
+    }
+    await connection.query('COMMIT');
+  } catch (error) {
+    if (connection) await connection.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/** Deletes a material (chunks cascade). Used to clean up after a failed ingest. */
+export async function deleteMaterial(materialId) {
+  let connection;
+  try {
+    connection = await getConnection();
+    await connection.query('DELETE FROM study_materials WHERE id = $1', [Number(materialId)]);
+  } catch (error) {
+    console.error('Error in deleteMaterial DB operation:', error);
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/** Returns the id of the user's most recent material, or null. */
+export async function getLatestMaterialId(userId) {
+  let connection;
+  try {
+    connection = await getConnection();
+    const r = await connection.query(
+      'SELECT id FROM study_materials WHERE user_id = $1 ORDER BY uploaded_at DESC, id DESC LIMIT 1',
+      [String(userId)]
+    );
+    return r.rows[0]?.id ?? null;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/** Returns true only if the material exists and belongs to this user. */
+export async function userOwnsMaterial(userId, materialId) {
+  let connection;
+  try {
+    connection = await getConnection();
+    const r = await connection.query(
+      'SELECT 1 FROM study_materials WHERE id = $1 AND user_id = $2',
+      [Number(materialId), String(userId)]
+    );
+    return r.rows.length > 0;
   } finally {
     if (connection) connection.release();
   }
