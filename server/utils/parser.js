@@ -1,6 +1,5 @@
 import fs from 'fs';
-import * as pdfImport from 'pdf-parse';
-const pdf = pdfImport.default || pdfImport;
+import { PDFParse } from 'pdf-parse';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 
@@ -50,8 +49,15 @@ export async function extractTextFromFile(filePath, mimeType) {
   if (mimeType === 'application/pdf') {
     try {
       const dataBuffer = fs.readFileSync(filePath);
-      const parsedData = await pdf(dataBuffer);
-      return parsedData.text || '';
+      // pdf-parse v2 API: class-based, must be destroyed to free the worker
+      const parser = new PDFParse({ data: new Uint8Array(dataBuffer) });
+      try {
+        const parsed = await parser.getText();
+        // v2 injects "-- N of M --" page markers; strip them so they don't pollute chunks/questions
+        return (parsed.text || '').replace(/^-- \d+ of \d+ --$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+      } finally {
+        await parser.destroy().catch(() => {});
+      }
     } catch (error) {
       console.error('Error parsing PDF file:', error);
       throw new Error(`Failed to extract text from PDF: ${error.message}`);

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders } from '../../services/authFetch';
 import { validateStudyText, MAX_TEXT_INPUT_CHARS } from '../../utils/textValidation';
-import { generateResilientQuiz } from '../../utils/fallbackQuizGenerator';
 
 function SoloMode() {
   const navigate = useNavigate();
@@ -295,7 +294,7 @@ function SoloMode() {
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(currentUrl, currentOptions);
-          if (res.ok || res.status === 400 || res.status === 401 || res.status === 429 || res.status === 500 || res.status === 503) return res;
+          return res; // any HTTP response is final — retrying would re-run the whole generation
         } catch (err) {
           // If local connection fails, switch to production URL ONLY if we are not testing on localhost
           const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -382,35 +381,13 @@ function SoloMode() {
         setGeneratedQuestions(questionsToParse);
         setQuizReady(true);
       } else {
-        console.warn('Backend returned unsuccessful response, using resilient fallback:', genData.message);
-        const fallbackQuestions = generateResilientQuiz(
-          topic || textInput || 'Study Material',
-          questionsCount,
-          difficulty,
-          textInput
-        );
-        if (fallbackQuestions && fallbackQuestions.length > 0) {
-          setGeneratedQuestions(fallbackQuestions);
-          setQuizReady(true);
-        } else {
-          triggerAlert('Failed to generate quiz: ' + (genData.message || 'Unknown error'), 'error');
-        }
+        console.warn('Quiz generation failed:', genData.message);
+        triggerAlert(genData.message || 'Failed to generate quiz. Please try again.', 'error');
       }
 
     } catch (error) {
-      console.warn('Backend unavailable, generating resilient quiz locally:', error);
-      const fallbackQuestions = generateResilientQuiz(
-        topic || textInput || 'Study Material',
-        questionsCount,
-        difficulty,
-        textInput
-      );
-      if (fallbackQuestions && fallbackQuestions.length > 0) {
-        setGeneratedQuestions(fallbackQuestions);
-        setQuizReady(true);
-      } else {
-        triggerAlert(error?.message && error.message !== 'Failed to fetch' ? error.message : 'Unable to connect to the quiz service. Please check your connection and try again.', 'error');
-      }
+      console.warn('Quiz generation request failed:', error);
+      triggerAlert(error?.message && error.message !== 'Failed to fetch' ? error.message : 'Unable to connect to the quiz service. Please check your connection and try again.', 'error');
     } finally {
       setIsGenerating(false);
     }
