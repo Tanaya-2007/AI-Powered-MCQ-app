@@ -13,6 +13,7 @@ ENV NODE_ENV=production
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/node_modules ./node_modules
 COPY server/ .
+RUN mkdir -p /app/uploads && chown -R appuser:appgroup /app/uploads
 USER appuser
 EXPOSE 5001
 CMD ["node", "index.js"]

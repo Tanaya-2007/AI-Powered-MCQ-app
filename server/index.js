@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { initDbPool, closeDbPool, registerSchemaInitializer } from './db/db.js';
 import { extractTextFromFile } from './utils/parser.js';
@@ -52,6 +53,8 @@ dotenv.config({ path: path.resolve(__serverDir, '.env') });
 dotenv.config();
 
 const app = express();
+// Behind Render/Vercel/any proxy: without this every user shares the proxy's IP in the rate limiter
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5001;
 
 // Wrap Express app inside HTTP server to support WebSockets (Socket.io)
@@ -121,9 +124,13 @@ async function callGeminiResilient(prompt, responseMimeType = 'application/json'
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure uploads folder exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
+// Ensure uploads folder exists (fall back to the OS temp dir if the app dir isn't writable, e.g. non-root container)
+let uploadsDir = path.join(__dirname, 'uploads');
+try {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.accessSync(uploadsDir, fs.constants.W_OK);
+} catch {
+  uploadsDir = path.join(os.tmpdir(), 'quizmaster-uploads');
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
@@ -1083,6 +1090,16 @@ httpServer.listen(PORT, async () => {
 // Global Error Handler Middleware (Production-grade safety)
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
+  if (err instanceof multer.MulterError) {
+    const tooBig = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(tooBig ? 413 : 400).json({
+      success: false,
+      message: tooBig ? 'File is too large. Maximum size is 10MB.' : `Upload error: ${err.message}`
+    });
+  }
+  if (err?.message?.startsWith('Unsupported file type')) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
   logger.error({ err }, '💥 Uncaught System Error');
   res.status(500).json({
     success: false,
