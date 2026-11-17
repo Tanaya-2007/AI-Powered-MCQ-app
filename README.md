@@ -19,6 +19,7 @@
 - [API Endpoints](#-api-endpoints)
 - [Socket.io Events](#-socketio-events)
 - [AI Pipeline](#-ai-pipeline)
+- [Troubleshooting](#-troubleshooting)
 - [Security](#-security)
 - [Contact](#-contact)
 
@@ -31,7 +32,10 @@
 ### What Works
 
 - ✅ AI-powered MCQ generation from text/PDF/image/voice uploads
-- ✅ RAG pipeline: document chunking → Gemini embeddings → pgvector similarity search → grounded question generation
+- ✅ RAG pipeline: document chunking → embeddings → pgvector similarity search → grounded question generation
+- ✅ Fail-loud AI generation: no template/placeholder questions — if the AI can't produce good questions you get a clear error, never fake ones
+- ✅ Multi-provider LLM chain (Groq → OpenAI → Gemini) with multi-key Gemini rotation
+- ✅ Scanned PDFs and photos handled via Gemini OCR; per-user study materials
 - ✅ Solo quiz mode with timer, mark-for-review, keyboard shortcuts (A-D), explanations
 - ✅ Collaborative multiplayer rooms with host controls, live leaderboards, voting distribution
 - ✅ Real-time Socket.io rooms with Upstash Redis persistence (2-hour TTL, in-memory fallback)
@@ -41,7 +45,7 @@
 - ✅ Rate-limited contact form via backend Nodemailer
 - ✅ Persistent quiz results stored in PostgreSQL
 - ✅ Dockerfile + GitHub Actions CI pipeline (lint + build + test)
-- ✅ 27+ automated unit tests
+- ✅ 47 automated unit tests (Node's built-in test runner)
 - ✅ Production-grade error handling (no raw error leaks)
 
 ---
@@ -91,14 +95,14 @@
 | Express | 4.21 | Web framework |
 | Socket.io | 4.8 | Real-time WebSocket rooms |
 | PostgreSQL + pgvector | 8.22 | Document chunks + quiz results |
-| @google/generative-ai | 0.21 | Gemini LLM + embeddings |
+| @google/generative-ai | 0.21 | Gemini LLM + embeddings + OCR |
 | @supabase/supabase-js | 2.110 | JWT verification |
 | @upstash/redis | 1.39 | Room persistence (REST API) |
 | nodemailer | 9.0 | Contact form email |
 | helmet | 8.0 | Security headers |
 | express-rate-limit | 7.4 | API rate limiting |
 | multer | 1.4 | File uploads |
-| pdf-parse | 2.4 | PDF text extraction |
+| pdf-parse | 2.4 | PDF text extraction (v2 `PDFParse` API) |
 
 ### DevOps
 - **GitHub Actions CI**: lint → build → test on every push
@@ -188,28 +192,32 @@ mcq-app/
 │   │   └── requireAuth.js      # Supabase JWT verification (fail-closed)
 │   ├── db/
 │   │   ├── db.js               # pg Pool + SSL + retry logic
-│   │   ├── vectorStore.js      # Schema + pgvector + saveMaterial/Chunk/QuizResult
-│   │   ├── init.sql            # Stale Oracle DDL (not executed)
+│   │   ├── vectorStore.js      # Schema + pgvector + per-user materials, bulk chunk save, search
+│   │   ├── roomStore.js        # Upstash Redis room store + in-memory fallback
+│   │   ├── init.sql            # Stale Oracle DDL (not executed; schema is created by vectorStore.js)
 │   │   └── test-rag.js         # Manual E2E RAG test script
 │   ├── utils/
-│   │   ├── gemini.js           # generateEmbedding (fail-loud, no fallback vectors)
-│     │   ├── parser.js         # extractTextFromFile (txt/pdf-parse/Gemini OCR)
+│   │   ├── quizGenerator.js    # generateQuiz: provider chain, prompts, validation, dedup (throws on failure)
+│   │   ├── geminiKeys.js       # Multi-key Gemini rotation + model lists (env-configurable)
+│   │   ├── gemini.js           # Embeddings (one provider, retried, fail-loud) + parallel batch
+│   │   ├── parser.js           # extractTextFromFile (txt / pdf-parse v2 / Gemini OCR for images + scanned PDFs)
 │   │   ├── textSplitter.js     # splitText (800/150 sliding window)
-│   │   ├── groq.js             # generateGroqContent (dynamic model selection)
+│   │   ├── groq.js             # generateGroqContent (cached model selection)
 │   │   ├── openai.js           # generateOpenAIContent + generateOpenAIEmbedding
 │   │   ├── googleForms.js      # createGoogleForm (service account)
+│   │   ├── logger.js           # Pino structured logging
 │   │   └── validation.js       # Sanitizers + clamps (unit-tested)
-│   ├── middleware/
-│   │   └── requireAuth.js      # JWT verification + fail-closed
-│   ├── utils/
-│   │   └── logger.js           # Pino structured logging
-│   ├── uploads/                # Multer temp dir (10MB limit, deleted after ingest)
+│   ├── uploads/                # Multer temp dir (10MB limit, deleted after ingest; falls back to OS tmp dir)
 │   ├── package.json            # Backend dependencies
 │   ├── .env.example            # Required environment variables (placeholders only)
 │   └── test/
 │       ├── validation.test.js  # Sanitizer unit tests
 │       ├── splitter.test.js    # Text splitter unit tests
-│       └── roomStore.test.js   # Room store unit tests
+│       ├── roomStore.test.js   # Room store unit tests
+│       ├── quizGenerator.test.js # Generator fail-loud + context capping
+│       ├── parser.test.js      # PDF extraction (v2 API), scanned-PDF + OCR edge cases
+│       ├── geminiKeys.test.js  # Key rotation + model config
+│       └── logger.test.js      # Logger tests
 ```
 
 ---
@@ -222,7 +230,7 @@ mcq-app/
 - **npm** or **yarn**
 - A **Supabase** project (for Auth + PostgreSQL)
 - An **Upstash** Redis database (optional, for room persistence across restarts)
-- A **Google AI Studio** API key (for Gemini embeddings + generation)
+- At least one AI key: **Groq**, **Gemini** (Google AI Studio) and/or **OpenAI**. Gemini is also used for OCR and (by default) embeddings
 
 ### Installation
 
@@ -269,9 +277,14 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 |----------|----------|-------------|---------|
 | `PORT` | No | Server port | `5001` |
 | `NODE_ENV` | Yes | `production` or `development` | `production` |
-| `GEMINI_API_KEY` | Yes | Google Gemini API key | `AIza...` |
-| `GROQ_API_KEY` | No | Fallback LLM provider | `gsk_...` |
-| `OPENAI_API_KEY` | No | Fallback LLM + embedding provider | `sk-...` |
+| `GEMINI_API_KEY` | One AI key required | Google Gemini API key (also used for OCR + embeddings) | `AIza...` |
+| `GEMINI_API_KEYS` | No | Comma-separated extra Gemini keys. Rotates automatically on quota/rate-limit errors. Use keys from **separate Google projects** (quota is per project) | `AIza..1,AIza..2` |
+| `GROQ_API_KEY` | No | Groq (**groq.com**, not xAI Grok) — first in the generation chain | `gsk_...` |
+| `GROQ_MODEL` | No | Pin a Groq model instead of auto-detecting | `llama-3.3-70b-versatile` |
+| `OPENAI_API_KEY` | No | OpenAI generation (+ embeddings if selected) | `sk-...` |
+| `GEMINI_MODELS` | No | Comma-separated Gemini model names for generation (override if a default isn't available to your key) | `gemini-2.5-flash,gemini-flash-latest` |
+| `GEMINI_OCR_MODELS` | No | Comma-separated Gemini models for image / scanned-PDF OCR | `gemini-2.5-flash` |
+| `EMBEDDING_PROVIDER` | No | `gemini` or `openai`. Default: Gemini if a key exists, else OpenAI. **Changing it requires re-uploading existing materials** | `gemini` |
 | `DATABASE_URL` | Yes | PostgreSQL connection string | `postgresql://...` |
 | `PGSSLMODE` | No | SSL mode (`require`, `disable`) | `require` |
 | `PGSSL_REJECT_UNAUTHORIZED` | No | SSL cert verification (`true`/`false`) | `true` |
@@ -283,6 +296,8 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 | `SMTP_USER` | No | Gmail address for contact form | `you@gmail.com` |
 | `SMTP_PASS` | No | Gmail App Password | `...` |
 | `SMTP_TO` | No | Destination inbox | `you@gmail.com` |
+
+> At least one of `GROQ_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`/`GEMINI_API_KEYS` must be set, otherwise quiz generation returns `500` ("No AI provider is configured").
 
 > ⚠️ **Backend fails closed**: If `SUPABASE_URL`/`SUPABASE_ANON_KEY` are missing, all write APIs return `500`. If `SMTP_*` are missing, contact form returns `503`.
 
@@ -303,7 +318,7 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 |--------|-------------|
 | `npm start` | Start Express + Socket.io server (port 5001) |
 | `npm run dev` | Start with nodemon (auto-reload) |
-| `npm test` | Run Jest unit tests |
+| `npm test` | Run unit tests (Node built-in test runner) |
 
 ---
 
@@ -313,10 +328,23 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 |--------|----------|------|-------------|
 | `GET` | `/api/status` | No | Health check + config flags |
 | `GET` | `/api/db-check` | Yes | PostgreSQL connectivity test |
-| `POST` | `/api/ingest` | Yes | Extract → chunk → embed → store study material |
-| `POST` | `/api/generate-quiz` | Yes | Semantic search → AI MCQ generation |
+| `POST` | `/api/ingest` | Yes | Extract (PDF / OCR) → chunk → embed → store study material for the current user |
+| `POST` | `/api/generate-quiz` | Yes | Semantic search → AI MCQ generation (returns real errors, never placeholder questions) |
 | `POST` | `/api/export-quiz` | Yes | Export to Google Forms |
 | `POST` | `/api/contact` | Yes | Contact form (rate-limited) |
+
+#### `/api/generate-quiz` responses
+
+| Status | Meaning |
+|--------|---------|
+| `200` | `{ success, questions, metadata: { detectedTopic, partial, requested, returned, grounded } }` — `partial: true` means fewer questions than requested passed the quality checks |
+| `400` | Invalid/insufficient input, or no study material found |
+| `401` | AI provider key invalid/expired (or session expired) |
+| `403` | `materialId` belongs to another user |
+| `422` | The AI couldn't produce good questions from this input — add more detail |
+| `429` | AI provider quota / rate limit reached |
+| `502` / `503` | AI providers failed / unreachable |
+| `500` | No AI provider configured on the server |
 
 ### Socket.io Events
 
@@ -343,7 +371,29 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 
 ---
 
-**Provider priority:** Groq → OpenAI → Gemini (for content generation); Gemini → OpenAI → fallback error (for embeddings — no silent fallback vectors).
+## 🤖 AI Pipeline
+
+**Ingest (files):** upload → extract text (plain text; PDF via `pdf-parse`, with Gemini OCR fallback for scanned PDFs; images via Gemini OCR) → split into 800-char chunks (150 overlap) → embed (768-dim, bounded parallelism, retried) → save material + chunks in a single transaction (rolled back on failure). Materials are owned by the uploading user.
+
+**Generate:** short typed input (< 400 chars, e.g. "Photosynthesis") is treated as a *topic* and the model writes from its own subject knowledge; pasted notes and uploaded files are *grounded* — every question must be answerable from the material. Uploads retrieve chunks from pgvector (topic search, or the document in order) and the prompt context is capped (~14k chars, sampled evenly across the document) to stay inside free-tier limits.
+
+**Quality gates:** each question must have 4 distinct options, a valid answer index and an explanation; template-style/meta questions ("what is the foundational definition of X") are rejected; grounded questions must overlap with the source text; near-duplicates (Jaccard > 0.6) are dropped; options are shuffled server-side. Generation runs in rounds of ≤ 12 questions until the requested count is reached.
+
+**Providers:** generation tries Groq → OpenAI → Gemini (2 attempts each; Gemini rotates across models and across `GEMINI_API_KEYS`). Embeddings use **one** provider chosen up front (never mixed — vectors from different providers aren't comparable). If everything fails the API returns an error; it never fabricates questions.
+
+---
+
+## 🩺 Troubleshooting
+
+| Symptom | Likely cause / fix |
+|---------|--------------------|
+| "No AI provider is configured" | Set `GROQ_API_KEY`, `OPENAI_API_KEY` or `GEMINI_API_KEY` in the server environment |
+| "AI API key is invalid or expired" (401) | Check the key; make sure `GROQ_API_KEY` came from groq.com, not xAI |
+| Quota / rate-limit message (429) | Add more keys via `GEMINI_API_KEYS` (separate projects), or add billing |
+| All Gemini calls fail / model not found | Set `GEMINI_MODELS` / `GEMINI_OCR_MODELS` to models your key can use |
+| "No study material found" after deploying this version | Older uploads had no owner — re-upload them |
+| Image/scanned-PDF text is empty | Needs a Gemini key (OCR); check the image is legible |
+| Server logs show per-provider errors | Search logs for `⚠️ groq` / `⚠️ openai` / `⚠️ Gemini` to see which provider is failing |
 
 ---
 
@@ -352,8 +402,9 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 - **Authentication**: Supabase JWT verified on every write API via `requireAuth` middleware (fail-closed)
 - **CORS**: Allowlist only (no wildcard)
 - **Headers**: Helmet security headers
-- **Rate limiting**: 3 tiers — write APIs (30/15min), contact (10/hour), db-check (20/15min)
-- **Input validation**: File type filtering, count clamping (1–20), difficulty allowlist, topic/sourceReference sanitization
+- **Rate limiting**: (`trust proxy` enabled so limits are per-client behind Render/Vercel) 3 tiers — write APIs (30/15min), contact (10/hour), db-check (20/15min)
+- **Data isolation**: study materials are scoped to the uploading user (another user's `materialId` returns 403)
+- **Input validation**: File type filtering, count clamping (1–50), difficulty allowlist, topic/sourceReference sanitization
 - **Server-authoritative scoring**: Client sends `selectedOption`; server compares against stored `correctAnswer` — clients cannot forge scores
 - **Error handling**: Production errors return generic messages; raw `error.message` never leaked to client
 - **RLS**: PostgreSQL Row Level Security enabled on all tables (deny-all for PostgREST; backend uses privileged pool role)

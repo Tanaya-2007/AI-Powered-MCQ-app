@@ -16,7 +16,7 @@ import { extractTextFromFile } from './utils/parser.js';
 import { splitText } from './utils/textSplitter.js';
 import { generateEmbedding, generateEmbeddings } from './utils/gemini.js';
 import { saveMaterial, saveChunksBulk, deleteMaterial, getLatestMaterialId, userOwnsMaterial, saveQuizResult, searchSimilarChunks, initializeSchema } from './db/vectorStore.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { withGeminiKey, generateWithModels, hasGemini } from './utils/geminiKeys.js';
 import { generateGroqContent } from './utils/groq.js';
 import { generateOpenAIContent } from './utils/openai.js';
 import { hasGoogleCredentials, createGoogleForm } from './utils/googleForms.js';
@@ -93,31 +93,13 @@ const io = new Server(httpServer, {
 
 // Active multiplayer quiz rooms are managed by roomStore (Upstash Redis + Resilient In-Memory Fallback)
 
-// Initialize Gemini Client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
-
 /**
- * Resilient Gemini generation with automatic fallback across official production models.
- * Prevents 404 model-not-found errors and minimizes generation latency.
+ * Gemini generation with automatic fallback across models AND across API keys (GEMINI_API_KEYS).
  */
 async function callGeminiResilient(prompt, responseMimeType = 'application/json') {
-  const modelNames = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
-  let lastError;
-  for (const modelName of modelNames) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: responseMimeType ? { responseMimeType } : undefined
-      });
-      const result = await model.generateContent(prompt);
-      const text = result?.response?.text();
-      if (text) return text;
-    } catch (err) {
-      lastError = err;
-      console.warn(`⚠️ Gemini model ${modelName} failed (${err.message}), trying next fallback...`);
-    }
-  }
-  throw lastError || new Error('All Gemini models failed to generate content.');
+  return withGeminiKey((genAI) =>
+    generateWithModels(genAI, prompt, { generationConfig: responseMimeType ? { responseMimeType } : undefined })
+  );
 }
 
 // Resolve __dirname in ES modules
@@ -217,7 +199,7 @@ app.get('/api/status', (req, res) => {
   if (isProd) return res.json(base);
   res.json({
     ...base,
-    geminiKeyConfigured: !!process.env.GEMINI_API_KEY,
+    geminiKeyConfigured: hasGemini(),
     dbConfigured: !!(process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING),
     authEnforced: isAuthEnforced()
   });
@@ -276,6 +258,8 @@ app.post('/api/ingest', writeLimiter, requireAuth, upload.single('file'), async 
       filePath = req.file.path;
       filename = String(req.file.originalname || 'upload').slice(0, 255);
       mimeType = req.file.mimetype;
+      // Browsers sometimes send PDFs as application/octet-stream — trust the extension
+      if (/\.pdf$/i.test(filename)) mimeType = 'application/pdf';
 
       console.log(`📥 Ingesting file: ${filename} (${mimeType})`);
 

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { withGeminiKey, generateWithModels, hasGemini } from './geminiKeys.js';
 import { generateGroqContent } from './groq.js';
 import { generateOpenAIContent } from './openai.js';
 
@@ -84,36 +84,17 @@ function shuffleOptions(q) {
 }
 
 // ── Provider chain ──────────────────────────────────────────────────────────
-function geminiModels() {
-  const fromEnv = (process.env.GEMINI_MODELS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  return fromEnv.length ? fromEnv : ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
-}
-
 async function callGemini(prompt) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  let last;
-  for (const name of geminiModels()) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: name,
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
-      });
-      const r = await model.generateContent(prompt);
-      const text = r?.response?.text();
-      if (text) return text;
-    } catch (e) {
-      last = e;
-      console.warn(`⚠️ Gemini ${name} failed: ${e.message}`);
-    }
-  }
-  throw last || new Error('All Gemini models failed');
+  return withGeminiKey((genAI) =>
+    generateWithModels(genAI, prompt, { generationConfig: { responseMimeType: 'application/json', temperature: 0.4 } })
+  );
 }
 
 function providers() {
   const list = [];
   if (process.env.GROQ_API_KEY) list.push({ name: 'groq', run: (p) => generateGroqContent(p, 'application/json') });
   if (process.env.OPENAI_API_KEY) list.push({ name: 'openai', run: (p) => generateOpenAIContent(p, 'application/json') });
-  if (process.env.GEMINI_API_KEY) list.push({ name: 'gemini', run: callGemini });
+  if (hasGemini()) list.push({ name: 'gemini', run: callGemini });
   return list;
 }
 

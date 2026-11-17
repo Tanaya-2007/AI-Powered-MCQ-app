@@ -34,3 +34,22 @@ test('extracts text from a PDF (pdf-parse v2 API) without page markers', async (
     assert.doesNotMatch(text, /-- \d+ of \d+ --/);
   } finally { fs.unlinkSync(f); }
 });
+
+test('image-only PDF with no Gemini key returns empty text instead of crashing', async () => {
+  for (const k of ['GEMINI_API_KEY', 'GEMINI_API_KEYS']) delete process.env[k];
+  const f = path.join(os.tmpdir(), `scan-${Date.now()}.pdf`);
+  fs.writeFileSync(f, tinyPdf(''));
+  try {
+    const text = await extractTextFromFile(f, 'application/pdf');
+    assert.equal(text, '');
+  } finally { fs.unlinkSync(f); }
+});
+
+test('image OCR without a Gemini key throws a clear error', async () => {
+  for (const k of ['GEMINI_API_KEY', 'GEMINI_API_KEYS']) delete process.env[k];
+  const f = path.join(os.tmpdir(), `i-${Date.now()}.png`);
+  fs.writeFileSync(f, 'x');
+  try {
+    await assert.rejects(() => extractTextFromFile(f, 'image/png'), /key is missing/i);
+  } finally { fs.unlinkSync(f); }
+});

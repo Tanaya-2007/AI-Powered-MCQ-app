@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import LiveLeaderboardMini from '../../components/collab/LiveLeaderboardMini';
 
 function QuestionResultPage({ 
@@ -40,7 +40,7 @@ function QuestionResultPage({
   const accuracy = playersOnly.length > 0 ? Math.round((correctCount / playersOnly.length) * 100) : 0;
 
   // Confetti
-  const confettiDots = useMemo(() => {
+  const [confettiDots] = useState(() => {
     return Array.from({ length: 50 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
@@ -49,7 +49,7 @@ function QuestionResultPage({
       size: 6 + Math.random() * 6,
       color: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][Math.floor(Math.random() * 6)]
     }));
-  }, []);
+  });
 
   // Players wait for host to progress the quiz room synchronously
 

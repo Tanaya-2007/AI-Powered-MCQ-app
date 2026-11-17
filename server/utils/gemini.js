@@ -1,18 +1,13 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { withGeminiKey, hasGemini } from './geminiKeys.js';
 import { generateOpenAIEmbedding } from './openai.js';
 import dotenv from 'dotenv';
 
 // Load environment variables in case this utility is executed independently
 dotenv.config();
 
-const apiKey = process.env.GEMINI_API_KEY;
-
-if (!apiKey) {
-  console.warn('⚠️ Warning: GEMINI_API_KEY is not defined in server/.env');
+if (!hasGemini()) {
+  console.warn('⚠️ Warning: no Gemini key (GEMINI_API_KEY / GEMINI_API_KEYS) defined in server/.env');
 }
-
-// Initialize the Google Generative AI SDK client
-const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key');
 
 /**
  * Embedding provider is chosen ONCE (never switched mid-flight): vectors from different
@@ -23,7 +18,7 @@ const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key');
 export function embeddingProvider() {
   const forced = (process.env.EMBEDDING_PROVIDER || '').toLowerCase();
   if (forced === 'openai' || forced === 'gemini') return forced;
-  if (process.env.GEMINI_API_KEY) return 'gemini';
+  if (hasGemini()) return 'gemini';
   if (process.env.OPENAI_API_KEY) return 'openai';
   return 'gemini';
 }
@@ -32,11 +27,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function embedOnce(text) {
   if (embeddingProvider() === 'openai') return generateOpenAIEmbedding(text);
-  const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
-  const result = await model.embedContent({
-    content: { parts: [{ text }] },
-    outputDimensionality: 768
-  });
+  const result = await withGeminiKey((genAI) =>
+    genAI.getGenerativeModel({ model: 'gemini-embedding-001' }).embedContent({
+      content: { parts: [{ text }] },
+      outputDimensionality: 768
+    })
+  );
   const values = result?.embedding?.values;
   if (!values) throw new Error('Embedding provider returned an empty result.');
   return values;

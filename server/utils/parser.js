@@ -1,12 +1,10 @@
 import fs from 'fs';
 import { PDFParse } from 'pdf-parse';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { withGeminiKey, hasGemini, geminiOcrModels } from './geminiKeys.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key');
 
 /**
  * Helper to convert local file data into the structure required by Gemini API for multimodal inputs.
@@ -23,6 +21,41 @@ function fileToGenerativePart(filePath, mimeType) {
       mimeType
     }
   };
+}
+
+const MIN_PDF_TEXT_CHARS = 40;
+
+const OCR_PROMPT = `Perform Optical Character Recognition (OCR) on this document.
+Transcribe all visible printed and handwritten text word-for-word, in reading order.
+Do not add headings, intros, summaries, or explanations. Return only the plain transcribed text.`;
+
+/** OCR an image or scanned PDF with Gemini (models + keys are env-configurable and rotate on quota errors). */
+async function ocrWithGemini(filePath, mimeType, label) {
+  if (!hasGemini()) {
+    throw new Error(`Gemini API key is missing. Cannot run OCR for ${label} uploads.`);
+  }
+  const part = fileToGenerativePart(filePath, mimeType);
+  let lastError = null;
+  for (const modelName of geminiOcrModels()) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        console.log(`📸 Running OCR via ${modelName} (attempt ${attempt})...`);
+        const text = await withGeminiKey(async (genAI) => {
+          const result = await genAI.getGenerativeModel({ model: modelName }).generateContent([OCR_PROMPT, part]);
+          return result.response.text() || '';
+        });
+        if (text.trim()) {
+          console.log(`✅ OCR succeeded via ${modelName}: ${text.trim().length} characters.`);
+          return text;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`⚠️ OCR via ${modelName} attempt ${attempt} failed: ${err.message}`);
+        if (/503|high demand|429/.test(err.message || '')) await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+  }
+  throw new Error(`Failed to extract text from ${label}: ${lastError ? lastError.message : 'Unknown OCR error'}`);
 }
 
 /**
@@ -48,16 +81,28 @@ export async function extractTextFromFile(filePath, mimeType) {
   // 2. Handle PDF files
   if (mimeType === 'application/pdf') {
     try {
+      let text = '';
       const dataBuffer = fs.readFileSync(filePath);
       // pdf-parse v2 API: class-based, must be destroyed to free the worker
       const parser = new PDFParse({ data: new Uint8Array(dataBuffer) });
       try {
         const parsed = await parser.getText();
         // v2 injects "-- N of M --" page markers; strip them so they don't pollute chunks/questions
-        return (parsed.text || '').replace(/^-- \d+ of \d+ --$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+        text = (parsed.text || '').replace(/^-- \d+ of \d+ --$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
       } finally {
         await parser.destroy().catch(() => {});
       }
+      // Scanned/image-only PDFs have no text layer → fall back to Gemini OCR on the PDF itself
+      if (text.length < MIN_PDF_TEXT_CHARS && hasGemini()) {
+        console.log(`📄 PDF has almost no text layer (${text.length} chars) — running OCR...`);
+        try {
+          const ocr = await ocrWithGemini(filePath, 'application/pdf', 'PDF');
+          if (ocr.trim().length > text.length) return ocr.trim();
+        } catch (ocrErr) {
+          console.warn('⚠️ PDF OCR fallback failed:', ocrErr.message);
+        }
+      }
+      return text;
     } catch (error) {
       console.error('Error parsing PDF file:', error);
       throw new Error(`Failed to extract text from PDF: ${error.message}`);
@@ -66,46 +111,7 @@ export async function extractTextFromFile(filePath, mimeType) {
 
   // 3. Handle Textbook Image uploads (multimodal OCR via Gemini)
   if (mimeType.startsWith('image/')) {
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is missing. Cannot run visual OCR for image uploads.');
-    }
-
-    // Use gemini-3.8-flash and gemini-3.6-flash with retry and fallback
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.6-flash'];
-    const imagePart = fileToGenerativePart(filePath, mimeType);
-    const prompt = `
-      Perform Optical Character Recognition (OCR) on this textbook image. 
-      Transcribe all visible printed and handwritten text word-for-word. 
-      Do not add any headings, intros, summaries, or explanations. 
-      Return only the plain transcribed text.
-    `;
-
-    let lastError = null;
-    for (const modelName of candidateModels) {
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          console.log(`📸 Running visual OCR via ${modelName} (attempt ${attempt})...`);
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent([prompt, imagePart]);
-          const response = await result.response;
-          const extractedText = response.text() || '';
-          if (extractedText.trim()) {
-            console.log(`✅ Visual OCR succeeded via ${modelName}! Extracted ${extractedText.trim().length} characters.`);
-            return extractedText;
-          }
-        } catch (err) {
-          lastError = err;
-          console.warn(`⚠️ Visual OCR via ${modelName} attempt ${attempt} failed: ${err.message}`);
-          if (err.message && (err.message.includes('503') || err.message.includes('high demand') || err.message.includes('429'))) {
-            // Wait 1.5 seconds before retrying next attempt/model
-            await new Promise(r => setTimeout(r, 1500));
-          }
-        }
-      }
-    }
-
-    console.error('Error performing visual OCR via Gemini:', lastError);
-    throw new Error(`Failed to extract text from image: ${lastError ? lastError.message : 'Unknown OCR error'}`);
+    return ocrWithGemini(filePath, mimeType, 'image');
   }
 
   throw new Error(`Unsupported file type: ${mimeType}. We only support text, PDF, and textbook images.`);
