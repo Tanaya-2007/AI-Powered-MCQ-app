@@ -33,6 +33,7 @@ import {
   normalizeDifficulty,
   sanitizeQuestionsForRoom,
   isValidEmail,
+  canScoreAnswer,
   validateStudyText,
   MAX_TEXT_INPUT_CHARS,
 } from './utils/validation.js';
@@ -46,6 +47,7 @@ import {
   getAllRooms,
 } from './db/roomStore.js';
 import { logger, httpLogger } from './utils/logger.js';
+import { withRoomLock } from './utils/roomLock.js';
 
 // Load environment variables from server/.env and root .env
 const __serverDir = path.dirname(fileURLToPath(import.meta.url));
@@ -697,6 +699,12 @@ app.post('/api/export-quiz', writeLimiter, requireAuth, async (req, res) => {
 });
 
 // 6. Socket.io Real-Time Quiz Rooms Connection Handlers (Lobby Phase)
+// Host-disconnect delete timers live OUTSIDE the room object (timer handles can't be stored in Redis/JSON)
+const roomDeleteTimers = new Map();
+
+// Serialise handlers per room so concurrent events can't overwrite each other's writes
+const locked = (fn) => (payload = {}) => withRoomLock(sanitizeRoomCode(payload?.roomCode), () => fn(payload));
+
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected to WebSocket: ${socket.id}`);
 
@@ -727,10 +735,14 @@ io.on('connection', (socket) => {
     if (await hasRoom(actualRoomCode)) {
       const existingRoom = await getRoom(actualRoomCode);
       if (existingRoom) {
-        if (existingRoom.deleteTimeout) {
-          clearTimeout(existingRoom.deleteTimeout);
-          existingRoom.deleteTimeout = null;
+        // Only the original host account may reclaim a room (room codes are known to all players)
+        if (existingRoom.hostUserId && existingRoom.hostUserId !== socket.data.user?.id) {
+          socket.emit('join-error', { message: 'This room code is already in use. Please choose another.' });
+          console.warn(`🚫 Rejected room takeover attempt on ${actualRoomCode} from socket ${socket.id}`);
+          return;
         }
+        clearTimeout(roomDeleteTimers.get(actualRoomCode));
+        roomDeleteTimers.delete(actualRoomCode);
         existingRoom.hostId = socket.id; // update host socket id
         await setRoom(actualRoomCode, existingRoom);
         socket.join(actualRoomCode);
@@ -742,6 +754,7 @@ io.on('connection', (socket) => {
 
     const newRoom = {
       hostId: socket.id,
+      hostUserId: socket.data.user?.id || null,
       quizTitle: String(quizTitle || 'AI Generated Multiplayer Quiz').slice(0, 120),
       questions: safeQuestions,
       players: [],
@@ -758,7 +771,7 @@ io.on('connection', (socket) => {
   });
 
   // B. Player Joins a Room (Handles new joins, late joins, and reconnects)
-  socket.on('join-room', async ({ roomCode, playerName, avatar }) => {
+  socket.on('join-room', locked(async ({ roomCode, playerName, avatar }) => {
     const safeRoomCode = sanitizeRoomCode(roomCode);
     const room = await getRoom(safeRoomCode);
 
@@ -818,10 +831,10 @@ io.on('connection', (socket) => {
 
     // Broadcast updated player list to everyone in the room (so leaderboard updates)
     io.to(safeRoomCode).emit('player-joined', { players: room.players });
-  });
+  }));
 
   // C. Start Quiz (Triggered by Host)
-  socket.on('start-quiz', async ({ roomCode }) => {
+  socket.on('start-quiz', locked(async ({ roomCode }) => {
     const safe = sanitizeRoomCode(roomCode);
     const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
@@ -835,16 +848,20 @@ io.on('connection', (socket) => {
       });
       console.log(`🎮 Quiz started in room ${safe} by host.`);
     }
-  });
+  }));
 
   // D. Submit Answer (Triggered by Player) — server is authoritative for correctness.
   // Client sends selectedOption; server compares against room questions. Client isCorrect is ignored.
-  socket.on('submit-answer', async ({ roomCode, questionIndex, timeTaken, selectedOption }) => {
+  socket.on('submit-answer', locked(async ({ roomCode, questionIndex, timeTaken, selectedOption }) => {
     const safeRoomCode = sanitizeRoomCode(roomCode);
     const room = await getRoom(safeRoomCode);
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
-      if (player) {
+      const verdict = canScoreAnswer(room, player, questionIndex);
+      if (player && !verdict.ok) {
+        console.warn(`🚫 Ignored answer from "${player.name}" in ${safeRoomCode}: ${verdict.reason}`);
+      } else if (player) {
+        player.answered = [...(player.answered || []), Number(questionIndex)];
         if (player.totalTimeTaken === undefined) player.totalTimeTaken = 0;
         if (player.correctAnswersCount === undefined) player.correctAnswersCount = 0;
 
@@ -873,10 +890,10 @@ io.on('connection', (socket) => {
         console.log(`📝 Player "${player.name}" submitted answer for Q${Number.isInteger(qIdx) ? qIdx : '?'} (Correct: ${!!isCorrect}, Time: ${secsTaken}s). Score: ${player.score}, Total Time: ${player.totalTimeTaken}s`);
       }
     }
-  });
+  }));
 
   // E. Next Question (Triggered by Host)
-  socket.on('next-question', async ({ roomCode, nextIndex }) => {
+  socket.on('next-question', locked(async ({ roomCode, nextIndex }) => {
     const safe = sanitizeRoomCode(roomCode);
     const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
@@ -896,30 +913,30 @@ io.on('connection', (socket) => {
       io.to(safe).emit('show-question', { questionIndex: safeNext });
       console.log(`➡️ Host progressed room ${safe} to question index ${safeNext}`);
     }
-  });
+  }));
 
   // E2. Reveal Results Early (Triggered by Host)
-  socket.on('reveal-results', async ({ roomCode }) => {
+  socket.on('reveal-results', locked(async ({ roomCode }) => {
     const safe = sanitizeRoomCode(roomCode);
     const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
       io.to(safe).emit('results-revealed');
       console.log(`👁️ Host revealed results early in room ${safe}`);
     }
-  });
+  }));
 
   // E3. Reveal Mid-Quiz Leaderboard (Triggered by Host)
-  socket.on('reveal-mid-leaderboard', async ({ roomCode }) => {
+  socket.on('reveal-mid-leaderboard', locked(async ({ roomCode }) => {
     const safe = sanitizeRoomCode(roomCode);
     const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
       io.to(safe).emit('mid-leaderboard-revealed');
       console.log(`📊 Host revealed mid-quiz leaderboard in room ${safe}`);
     }
-  });
+  }));
 
   // F. End Quiz (Triggered by Host)
-  socket.on('end-quiz', async ({ roomCode }) => {
+  socket.on('end-quiz', locked(async ({ roomCode }) => {
     const safe = sanitizeRoomCode(roomCode);
     const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
@@ -954,7 +971,7 @@ io.on('connection', (socket) => {
 
       console.log(`🏁 Quiz ended in room ${safe} by host.`);
     }
-  });
+  }));
 
   // G. Disconnect Handler
   socket.on('disconnect', async () => {
@@ -968,12 +985,13 @@ io.on('connection', (socket) => {
         console.log(`⚠️ Host disconnected from room ${roomCode}. Starting 20-second room delete grace period...`);
         io.to(roomCode).emit('host-disconnected', { message: 'Host disconnected. Waiting for reconnection...' });
         
-        room.deleteTimeout = setTimeout(async () => {
+        clearTimeout(roomDeleteTimers.get(roomCode));
+        roomDeleteTimers.set(roomCode, setTimeout(async () => {
+          roomDeleteTimers.delete(roomCode);
           io.to(roomCode).emit('room-closed', { message: 'Host connection lost. Room closed.' });
           await deleteRoom(roomCode);
           console.log(`🗑️ Room ${roomCode} deleted after 20-second host reconnect grace period expired.`);
-        }, 20000); 
-        await setRoom(roomCode, room);
+        }, 20000));
         break;
       }
 

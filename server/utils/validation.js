@@ -452,3 +452,18 @@ export function validateStudyText(text) {
       : `Valid academic topic ready: "${trimmed}".`
   };
 }
+
+/**
+ * Decides whether a submitted answer may be scored. Prevents point farming by re-submitting the
+ * same question, answering before the quiz started / after it ended, or answering future questions.
+ * @returns {{ok: boolean, reason?: string}}
+ */
+export function canScoreAnswer(room, player, questionIndex) {
+  if (!room || !player) return { ok: false, reason: 'no-room-or-player' };
+  if (room.status !== 'PLAYING') return { ok: false, reason: 'not-playing' };
+  const idx = Number(questionIndex);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= (room.questions?.length || 0)) return { ok: false, reason: 'bad-index' };
+  if (idx > (room.currentQuestionIndex || 0)) return { ok: false, reason: 'future-question' };
+  if (Array.isArray(player.answered) && player.answered.includes(idx)) return { ok: false, reason: 'already-answered' };
+  return { ok: true };
+}
