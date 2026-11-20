@@ -45,7 +45,7 @@
 - ✅ Rate-limited contact form via backend Nodemailer
 - ✅ Persistent quiz results stored in PostgreSQL
 - ✅ Dockerfile + GitHub Actions CI pipeline (lint + build + test)
-- ✅ 50 automated unit tests (Node's built-in test runner)
+- ✅ 55 automated tests (Node's built-in test runner)
 - ✅ Production-grade error handling (no raw error leaks)
 
 ---
@@ -198,6 +198,7 @@ mcq-app/
 │   │   └── test-rag.js         # Manual E2E RAG test script
 │   ├── utils/
 │   │   ├── quizGenerator.js    # generateQuiz: provider chain, prompts, validation, dedup (throws on failure)
+│   │   ├── corsOrigin.js       # Adapts allow-check to the cors package's callback API
 │   │   ├── roomLock.js         # Per-room async mutex for socket handlers
 │   │   ├── geminiKeys.js       # Multi-key Gemini rotation + model lists (env-configurable)
 │   │   ├── gemini.js           # Embeddings (one provider, retried, fail-loud) + parallel batch
@@ -218,7 +219,8 @@ mcq-app/
 │       ├── quizGenerator.test.js # Generator fail-loud + context capping
 │       ├── parser.test.js      # PDF extraction (v2 API), scanned-PDF + OCR edge cases
 │       ├── geminiKeys.test.js  # Key rotation + model config
-│       ├── multiplayer.test.js # Answer dedupe + per-room lock
+│       ├── multiplayer.test.js # Answer dedupe, hidden answers, per-room lock
+│       ├── cors.test.js        # CORS origin callback regression test
 │       └── logger.test.js      # Logger tests
 ```
 
@@ -409,7 +411,7 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 - **Input validation**: File type filtering, count clamping (1–50), difficulty allowlist, topic/sourceReference sanitization
 - **Server-authoritative scoring**: Client sends `selectedOption`; server compares against stored `correctAnswer` — clients cannot forge scores, and each question can only be scored once per player (no point farming by re-submitting)
 - **Room safety**: only the original host account can reclaim a room code; room events are serialised per room so simultaneous answers never overwrite each other
-- **Known limitation**: the question list (including correct answers) is sent to every client when a quiz starts, because the results screens need it — a determined player could read answers from dev tools. Revealing answers per question is on the roadmap
+- **Answers stay on the server**: players receive questions and options only; the correct answer and explanation are sent per question when the host reveals it (Show Results, timer expiry, or mid-quiz leaderboard), and a revealed question stops accepting answers
 - **Error handling**: Production errors return generic messages; raw `error.message` never leaked to client
 - **RLS**: PostgreSQL Row Level Security enabled on all tables (deny-all for PostgREST; backend uses privileged pool role)
 - **SSL**: `rejectUnauthorized: true` by default for PostgreSQL connections

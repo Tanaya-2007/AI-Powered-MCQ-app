@@ -49,6 +49,7 @@ import {
 } from './db/roomStore.js';
 import { logger, httpLogger } from './utils/logger.js';
 import { withRoomLock } from './utils/roomLock.js';
+import { corsOrigin } from './utils/corsOrigin.js';
 
 // Load environment variables from server/.env and root .env
 const __serverDir = path.dirname(fileURLToPath(import.meta.url));
@@ -85,7 +86,7 @@ function isOriginAllowed(origin) {
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: isOriginAllowed,
+    origin: corsOrigin(isOriginAllowed),
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -121,7 +122,7 @@ try {
 
 // Configure CORS to allow only known frontend origins (local dev + FRONTEND_URL + *.vercel.app)
 const corsOptions = {
-  origin: isOriginAllowed,
+  origin: corsOrigin(isOriginAllowed),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
