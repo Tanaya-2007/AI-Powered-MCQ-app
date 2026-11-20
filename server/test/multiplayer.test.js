@@ -31,3 +31,19 @@ test('withRoomLock keeps going after a handler throws', async () => {
   await assert.rejects(() => withRoomLock('ROOM2', async () => { throw new Error('boom'); }));
   assert.equal(await withRoomLock('ROOM2', async () => 'ok'), 'ok');
 });
+
+import { questionsForPlayers } from '../utils/validation.js';
+
+test('questionsForPlayers never includes answers, explanations or source references', () => {
+  const full = [{ id: 1, question: 'Q?', options: ['a', 'b', 'c', 'd'], correctAnswer: 2, explanation: 'because', sourceReference: 'p1' }];
+  const safe = questionsForPlayers(full);
+  assert.deepEqual(safe, [{ id: 1, question: 'Q?', options: ['a', 'b', 'c', 'd'] }]);
+  assert.ok(!JSON.stringify(safe).includes('because'));
+  assert.ok(!('correctAnswer' in safe[0]));
+});
+
+test('answers submitted after the host revealed a question are rejected', () => {
+  const r = { status: 'PLAYING', currentQuestionIndex: 1, questions: [{}, {}, {}], revealedIndex: 1 };
+  assert.equal(canScoreAnswer(r, { answered: [] }, 1).reason, 'already-revealed');
+  assert.equal(canScoreAnswer({ ...r, currentQuestionIndex: 2 }, { answered: [] }, 2).ok, true);
+});

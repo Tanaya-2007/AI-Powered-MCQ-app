@@ -53,6 +53,15 @@ export function sanitizeQuestionsForRoom(questions) {
   }));
 }
 
+/**
+ * Version of a room's questions that is safe to send to PLAYERS: no correct answers, no explanations.
+ * (Answers are sent only after the host reveals a question — see revealCurrentQuestion in index.js.)
+ */
+export function questionsForPlayers(questions) {
+  if (!Array.isArray(questions)) return [];
+  return questions.map((q) => ({ id: q.id, question: q.question, options: q.options }));
+}
+
 export function isValidEmail(email) {
   return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
@@ -464,6 +473,8 @@ export function canScoreAnswer(room, player, questionIndex) {
   const idx = Number(questionIndex);
   if (!Number.isInteger(idx) || idx < 0 || idx >= (room.questions?.length || 0)) return { ok: false, reason: 'bad-index' };
   if (idx > (room.currentQuestionIndex || 0)) return { ok: false, reason: 'future-question' };
+  // Once the host revealed this question's answer, nobody may submit for it (they could have copied it)
+  if (typeof room.revealedIndex === 'number' && idx <= room.revealedIndex) return { ok: false, reason: 'already-revealed' };
   if (Array.isArray(player.answered) && player.answered.includes(idx)) return { ok: false, reason: 'already-answered' };
   return { ok: true };
 }

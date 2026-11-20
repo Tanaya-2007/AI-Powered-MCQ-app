@@ -34,6 +34,7 @@ import {
   sanitizeQuestionsForRoom,
   isValidEmail,
   canScoreAnswer,
+  questionsForPlayers,
   validateStudyText,
   MAX_TEXT_INPUT_CHARS,
 } from './utils/validation.js';
@@ -702,6 +703,23 @@ app.post('/api/export-quiz', writeLimiter, requireAuth, async (req, res) => {
 // Host-disconnect delete timers live OUTSIDE the room object (timer handles can't be stored in Redis/JSON)
 const roomDeleteTimers = new Map();
 
+// Marks the room's current question as revealed (closing it to further answers) and tells everyone
+// the correct answer. This is the ONLY place correct answers leave the server.
+async function revealCurrentQuestion(safe, room) {
+  const idx = room.currentQuestionIndex || 0;
+  const q = room.questions[idx];
+  if (!q) return;
+  if (!(typeof room.revealedIndex === 'number' && room.revealedIndex >= idx)) {
+    room.revealedIndex = idx;
+    await setRoom(safe, room);
+  }
+  io.to(safe).emit('results-revealed', {
+    questionIndex: idx,
+    correctAnswer: q.correctAnswer,
+    explanation: q.explanation || ''
+  });
+}
+
 // Serialise handlers per room so concurrent events can't overwrite each other's writes
 const locked = (fn) => (payload = {}) => withRoomLock(sanitizeRoomCode(payload?.roomCode), () => fn(payload));
 
@@ -761,7 +779,8 @@ io.on('connection', (socket) => {
       status: 'LOBBY',
       currentQuestionIndex: 0,
       difficulty: safeDifficulty,
-      timePerQuestion: clampTimePerQuestion(timePerQuestion)
+      timePerQuestion: clampTimePerQuestion(timePerQuestion),
+      revealedIndex: -1
     };
     await setRoom(actualRoomCode, newRoom);
 
@@ -841,7 +860,8 @@ io.on('connection', (socket) => {
       room.status = 'PLAYING';
       await setRoom(safe, room);
       io.to(safe).emit('quiz-started', {
-        questions: room.questions,
+        // Players must NOT receive correct answers/explanations until the host reveals each question
+        questions: questionsForPlayers(room.questions),
         questionsCount: room.questions.length,
         difficulty: room.difficulty,
         timePerQuestion: room.timePerQuestion
@@ -901,6 +921,8 @@ io.on('connection', (socket) => {
         Math.max(0, Math.floor(Number(nextIndex) || 0)),
         Math.max(0, room.questions.length - 1)
       );
+      // Moving on closes every earlier question to further answers
+      room.revealedIndex = Math.max(typeof room.revealedIndex === 'number' ? room.revealedIndex : -1, safeNext - 1);
       room.currentQuestionIndex = safeNext; // Track current index in room state for late joiners
 
       // Reset selectedOption for all players for the new question
@@ -920,7 +942,7 @@ io.on('connection', (socket) => {
     const safe = sanitizeRoomCode(roomCode);
     const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
-      io.to(safe).emit('results-revealed');
+      await revealCurrentQuestion(safe, room);
       console.log(`👁️ Host revealed results early in room ${safe}`);
     }
   }));
@@ -930,6 +952,7 @@ io.on('connection', (socket) => {
     const safe = sanitizeRoomCode(roomCode);
     const room = await getRoom(safe);
     if (room && room.hostId === socket.id) {
+      await revealCurrentQuestion(safe, room); // players get the answer even if the host skipped "Show Results"
       io.to(safe).emit('mid-leaderboard-revealed');
       console.log(`📊 Host revealed mid-quiz leaderboard in room ${safe}`);
     }

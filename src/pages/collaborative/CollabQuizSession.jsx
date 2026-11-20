@@ -40,6 +40,9 @@ function CollabQuizSession() {
     }
     return participants || [];
   });
+  // Correct answers are NOT sent to players up front — the server reveals them per question.
+  // { [questionIndex]: { correctAnswer, explanation } }
+  const [revealedAnswers, setRevealedAnswers] = useState({});
   const [showQuestionResult, setShowQuestionResult] = useState(false);
   const [showMidLeaderboard, setShowMidLeaderboard] = useState(false);
   const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(() => {
@@ -62,9 +65,11 @@ function CollabQuizSession() {
       }, 1000);
       return () => clearTimeout(timer);
     }  else if (timeLeft === 0 && !showQuestionResult) {
+      // Time's up: host tells the server to close the question and send the answer to players
+      if (isHost) socket.emit('reveal-results', { roomCode: quizCode });
       setTimeout(() => setShowQuestionResult(true), 0);
     }
-  }, [timeLeft, showQuestionResult]);
+  }, [timeLeft, showQuestionResult, isHost, quizCode]);
 
   // Bind WebSocket listeners for real-time multiplayer gameplay
   useEffect(() => {
@@ -172,7 +177,10 @@ function CollabQuizSession() {
 
     // F. Player Listens: Host revealed results early
     if (!isHost) {
-      socket.on('results-revealed', () => {
+      socket.on('results-revealed', ({ questionIndex, correctAnswer, explanation } = {}) => {
+        if (Number.isInteger(questionIndex)) {
+          setRevealedAnswers(prev => ({ ...prev, [questionIndex]: { correctAnswer, explanation } }));
+        }
         setShowQuestionResult(true);
         setShowMidLeaderboard(false);
       });
@@ -200,13 +208,11 @@ function CollabQuizSession() {
     setIsAnswered(true);
     
     if (!isHost) {
-      const isCorrect = index === question.correctAnswer;
       const timeTaken = (timePerQuestion || 60) - timeLeft;
       // Emit selection to websocket server to update score
       socket.emit('submit-answer', {
         roomCode: quizCode,
         questionIndex: currentQuestion,
-        isCorrect,
         timeTaken,
         selectedOption: index
       });
@@ -278,9 +284,12 @@ function CollabQuizSession() {
   if (showQuestionResult) {
     const currentUser = currentParticipants.find(p => !p.isHost) || currentParticipants[0];
     
+    // Host already holds the full questions; players get the answer from the server's reveal
+    const questionWithAnswer = isHost ? question : { ...question, ...(revealedAnswers[currentQuestion] || {}) };
+
     return (
       <QuestionResultPage
-        question={question}
+        question={questionWithAnswer}
         selectedAnswer={selectedAnswer}
         participants={currentParticipants}
         currentUserId={currentUser?.id || 'unknown'}

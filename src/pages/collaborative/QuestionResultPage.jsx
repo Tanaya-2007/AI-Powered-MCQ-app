@@ -9,7 +9,9 @@ function QuestionResultPage({
   onNextQuestion,
   isHost, 
 }) {
-  const isCorrect = selectedAnswer === question.correctAnswer;
+  // Players only learn the answer when the host reveals it; until then show a waiting state
+  const answerKnown = Number.isInteger(question.correctAnswer);
+  const isCorrect = answerKnown && selectedAnswer === question.correctAnswer;
 
   const playersOnly = participants.filter(p => !p.isHost);
   const sortedPlayers = [...playersOnly].sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -30,13 +32,13 @@ function QuestionResultPage({
         voters: voters,
         count: voters.length,
         percentage: percentage,
-        isCorrect: index === question.correctAnswer
+        isCorrect: answerKnown && index === question.correctAnswer
       };
     });
-  }, [question, playersOnly]);
+  }, [question, playersOnly, answerKnown]);
 
   // Calculate accuracy
-  const correctCount = playersOnly.filter(p => p.selectedOption === question.correctAnswer).length;
+  const correctCount = answerKnown ? playersOnly.filter(p => p.selectedOption === question.correctAnswer).length : 0;
   const accuracy = playersOnly.length > 0 ? Math.round((correctCount / playersOnly.length) * 100) : 0;
 
   // Confetti
@@ -111,7 +113,7 @@ function QuestionResultPage({
               <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">Answer Revealed!</h1>
+          <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">{answerKnown ? 'Answer Revealed!' : 'Waiting for the host to reveal the answer…'}</h1>
           
           {/* Stats Grid */}
           <div className="grid grid-cols-3 gap-3 max-w-2xl mx-auto mb-6">
