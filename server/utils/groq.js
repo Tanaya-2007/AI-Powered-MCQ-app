@@ -10,6 +10,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
 const getGroqApiKey = () => process.env.GROQ_API_KEY;
+const groqBase = () => (process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
 
 /**
  * Dynamically queries the Groq API to retrieve available models
@@ -23,7 +24,7 @@ async function getActiveGroqModel(apiKey) {
   if (process.env.GROQ_MODEL) return process.env.GROQ_MODEL;
   if (cachedModel && Date.now() - cachedAt < 6 * 60 * 60 * 1000) return cachedModel;
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/models', {
+    const response = await fetch(`${groqBase()}/models`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
@@ -93,7 +94,7 @@ export async function generateGroqContent(prompt, responseMimeType = 'text/plain
     payload.response_format = { type: 'json_object' };
   }
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch(`${groqBase()}/chat/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,

@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
+// Overridable so tests / OpenAI-compatible gateways can point elsewhere
+const openaiBase = () => (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
 
 /**
  * Sends a chat completion request to the OpenAI API using native fetch.
@@ -31,7 +33,7 @@ export async function generateOpenAIContent(prompt, responseMimeType = 'text/pla
     payload.response_format = { type: 'json_object' };
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(`${openaiBase()}/chat/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${openaiApiKey}`,
@@ -64,7 +66,7 @@ export async function generateOpenAIEmbedding(text) {
     throw new Error('OPENAI_API_KEY is not defined in server/.env');
   }
 
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
+  const response = await fetch(`${openaiBase()}/embeddings`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${openaiApiKey}`,

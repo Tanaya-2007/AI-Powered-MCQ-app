@@ -20,3 +20,13 @@ test('capContext leaves short text alone and bounds long text across the whole d
   assert.ok(out.includes('segment-0') && out.includes('segment-4')); // spread, not just the opening
   assert.ok(/segment-(2|3)\d/.test(out));
 });
+
+import { isTopicOnly } from '../utils/quizGenerator.js';
+
+test('isTopicOnly: bare topics are topics, pasted notes are grounded', () => {
+  assert.equal(isTopicOnly('Photosynthesis'), true);
+  assert.equal(isTopicOnly("Newton's laws of motion"), true);
+  const notes = 'Mitochondria are organelles found in eukaryotic cells. They produce ATP through oxidative phosphorylation. The inner membrane contains the electron transport chain.';
+  assert.equal(isTopicOnly(notes), false);
+  assert.equal(isTopicOnly('word '.repeat(500)), false);
+});

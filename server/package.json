@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "e2e": "node test/e2e/http.e2e.mjs && node test/e2e/multiplayer.e2e.mjs",
     "test": "node --test test/validation.test.js test/splitter.test.js test/roomStore.test.js test/quizGenerator.test.js test/parser.test.js test/geminiKeys.test.js test/multiplayer.test.js test/cors.test.js"
   },
   "dependencies": {

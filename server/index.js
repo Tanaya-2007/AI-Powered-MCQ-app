@@ -496,7 +496,8 @@ app.post('/api/generate-quiz', writeLimiter, requireAuth, async (req, res) => {
   // ── FAST PATH: directText bypasses the entire embed→store→retrieve DB pipeline ──
   // Used when user pastes short text or a topic keyword directly.
   // Eliminates 4–8 sequential API calls and DB round-trips → ~70% faster.
-  if (rawDirectText && rawDirectText.length >= 3) {
+  // If the client sent directText it MUST be valid — never silently fall through to someone's stored material
+  if (rawDirectText !== null) {
     const textCheck = validateStudyText(rawDirectText);
     if (!textCheck.isValid) {
       console.warn(`❌ Fast-path directText rejected: [${textCheck.reason}] ${textCheck.message}`);
@@ -1139,8 +1140,10 @@ process.on('unhandledRejection', (reason) => {
   logger.error({ reason }, '💥 Unhandled Promise Rejection');
 });
 
+// After an uncaught exception the process state is undefined: log, then exit so the host (Render/Docker) restarts it cleanly
 process.on('uncaughtException', (error) => {
-  logger.error({ error }, '💥 Uncaught Exception');
+  logger.error({ error }, '💥 Uncaught Exception — exiting for a clean restart');
+  setTimeout(() => process.exit(1), 500).unref();
 });
 
 // Graceful shutdown

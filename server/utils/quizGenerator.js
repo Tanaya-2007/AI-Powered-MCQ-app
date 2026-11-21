@@ -21,6 +21,18 @@ export class QuizGenerationError extends Error {
 }
 
 export const TOPIC_ONLY_MAX_CHARS = 400;
+export const TOPIC_ONLY_MAX_WORDS = 12;
+
+/**
+ * "Photosynthesis" / "Newton's laws of motion" → topic (model uses its own knowledge).
+ * A pasted sentence or paragraph of notes → grounded (questions must come from the text).
+ * Short in BOTH characters and words, otherwise a few lines of real notes would be treated as a topic.
+ */
+export function isTopicOnly(text) {
+  const t = String(text || '').trim();
+  const words = t.split(/\s+/).filter(Boolean).length;
+  return t.length < TOPIC_ONLY_MAX_CHARS && words <= TOPIC_ONLY_MAX_WORDS;
+}
 // Keep prompts inside free-tier token limits (Groq/Gemini) — sample evenly instead of sending everything.
 export const MAX_CONTEXT_CHARS = 14000;
 const MAX_BATCH = 12;
@@ -188,7 +200,7 @@ function validate(q, { contextTokens, topicOnly }) {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 export async function generateQuiz({ topic = '', contextText: fullContext, count, difficulty = 'medium', topicOnly: forceTopicOnly }) {
-  const topicOnly = typeof forceTopicOnly === 'boolean' ? forceTopicOnly : fullContext.trim().length < TOPIC_ONLY_MAX_CHARS;
+  const topicOnly = typeof forceTopicOnly === 'boolean' ? forceTopicOnly : isTopicOnly(fullContext);
   const contextText = capContext(fullContext);
   const contextTokens = new Set(tokens(fullContext));
   const accepted = [];

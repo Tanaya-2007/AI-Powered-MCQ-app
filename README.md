@@ -45,7 +45,7 @@
 - ✅ Rate-limited contact form via backend Nodemailer
 - ✅ Persistent quiz results stored in PostgreSQL
 - ✅ Dockerfile + GitHub Actions CI pipeline (lint + build + test)
-- ✅ 55 automated tests (Node's built-in test runner)
+- ✅ 56 unit tests + real-server smoke tests (Node's built-in test runner)
 - ✅ Production-grade error handling (no raw error leaks)
 
 ---
@@ -323,6 +323,7 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 | `npm start` | Start Express + Socket.io server (port 5001) |
 | `npm run dev` | Start with nodemon (auto-reload) |
 | `npm test` | Run unit tests (Node built-in test runner) |
+| `npm run e2e` | Real-server smoke tests (no keys/DB needed): boots the server with a fake auth + fake AI provider, checks generation, error codes, uploads, and a live host+player socket game (answers hidden until reveal, no point farming, no room takeover). Needs `npm install` at the repo root for `socket.io-client` |
 
 ---
 
@@ -379,7 +380,7 @@ The frontend runs on `http://localhost:5173` and the backend on `http://localhos
 
 **Ingest (files):** upload → extract text (plain text; PDF via `pdf-parse`, with Gemini OCR fallback for scanned PDFs; images via Gemini OCR) → split into 800-char chunks (150 overlap) → embed (768-dim, bounded parallelism, retried) → save material + chunks in a single transaction (rolled back on failure). Materials are owned by the uploading user.
 
-**Generate:** short typed input (< 400 chars, e.g. "Photosynthesis") is treated as a *topic* and the model writes from its own subject knowledge; pasted notes and uploaded files are *grounded* — every question must be answerable from the material. Uploads retrieve chunks from pgvector (topic search, or the document in order) and the prompt context is capped (~14k chars, sampled evenly across the document) to stay inside free-tier limits.
+**Generate:** short typed input (under ~12 words, e.g. "Photosynthesis") is treated as a *topic* and the model writes from its own subject knowledge; pasted notes and uploaded files are *grounded* — every question must be answerable from the material. Uploads retrieve chunks from pgvector (topic search, or the document in order) and the prompt context is capped (~14k chars, sampled evenly across the document) to stay inside free-tier limits.
 
 **Quality gates:** each question must have 4 distinct options, a valid answer index and an explanation; template-style/meta questions ("what is the foundational definition of X") are rejected; grounded questions must overlap with the source text; near-duplicates (Jaccard > 0.6) are dropped; options are shuffled server-side. Generation runs in rounds of ≤ 12 questions until the requested count is reached.
 
